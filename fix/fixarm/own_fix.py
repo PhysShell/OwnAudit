@@ -246,7 +246,7 @@ def _fold_target(lines, cls_idx, ev):
     end = end if end is not None else len(lines)
     depth, started = 0, False
     for i in range(cls_idx, end):
-        if started and depth == 1 and re.search(r"\boverride\s+void\s+OnClosed\b", lines[i]):
+        if started and depth == 1 and re.search(r"\boverride\s+void\s+OnClosed\b", _code_skeleton(lines[i])):
             return _fold_after_open_brace(lines, i, end)
         for ch in _code_skeleton(lines[i]):
             if ch == "{":

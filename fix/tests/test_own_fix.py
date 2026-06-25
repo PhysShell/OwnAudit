@@ -162,6 +162,28 @@ def test_fold_skips_ctor_local_source():
         shutil.rmtree(d, ignore_errors=True)
 
 
+def test_fold_ignores_commented_onclosed():
+    # a commented-out OnClosed must not be matched as a fold anchor (skeleton-based)
+    src = ("public partial class W : Window\n"
+           "{\n"
+           "    private readonly Timer _t;\n"
+           "    public W()\n"
+           "    {\n"
+           "        InitializeComponent();\n"
+           "    }\n"
+           "    // protected override void OnClosed(EventArgs e) { }\n"
+           "}\n")
+    d, path = _tmp_cs(src)
+    try:
+        f = Finding("OWN001", "W.cs", 3, tool="own-check",
+                    message="IDisposable field '_t' (type 'Timer') is never disposed — its owner 'W' leaks it")
+        new, applied, skipped = plan_file(path, [f])
+        assert [dt for _, dt in applied] == ["Closed"], (applied, skipped)      # lambda, not a bogus fold
+        assert "this.Closed += (s, e) => _t?.Dispose();" in new
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+
 def test_fold_ignores_nested_type_onclosed():
     # the field's class has no OnClosed; a NESTED type does. Must not fold into it.
     src = ("public partial class Outer : Window\n"
@@ -233,7 +255,7 @@ def test_own001_inline_lambda_extracted_and_detached():
         assert "+= (s2, e2) =>" not in text                                        # the lambda is gone
 
 
-# ---- refused shapes stay suggest-only: NOT patched -------------------------
+# ---- wider lambda-extraction delegates (PropertyChanging / ErrorsChanged) --
 
 def test_lambda_extraction_more_delegates():
     # both newly-added INotify-family events are unambiguous -> extractable with the
@@ -263,6 +285,8 @@ def test_lambda_extraction_more_delegates():
         finally:
             shutil.rmtree(d, ignore_errors=True)
 
+
+# ---- refused shapes stay suggest-only: NOT patched -------------------------
 
 def test_block_lambda_is_not_patched():
     # a block-body lambda can't be a clean expression method -> suggest-only, untouched
