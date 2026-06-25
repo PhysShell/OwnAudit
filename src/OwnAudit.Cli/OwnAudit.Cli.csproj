@@ -1,0 +1,21 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\OwnAudit.Core\OwnAudit.Core.csproj" />
+    <ProjectReference Include="..\OwnAudit.Static\OwnAudit.Static.csproj" />
+    <ProjectReference Include="..\OwnAudit.Runtime\OwnAudit.Runtime.csproj" />
+    <ProjectReference Include="..\OwnAudit.Reporting\OwnAudit.Reporting.csproj" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <!-- -windows TFM: Cli references OwnAudit.Runtime, which uses FlaUI/ClrMD
+         (Windows-only). A plain net8.0 project cannot reference a net8.0-windows one. -->
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <RootNamespace>OwnAudit.Cli</RootNamespace>
+    <AssemblyName>own-audit</AssemblyName>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>

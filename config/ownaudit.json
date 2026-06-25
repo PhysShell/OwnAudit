@@ -1,0 +1,24 @@
+{
+  // Hard wall: OwnAudit only NAMES the Own.NET checkout + its CLI script.
+  // It never references core source. Own.NET stays byte-for-byte unchanged.
+  "ownNetRoot": "C:/Repos/Own.NET",
+  "ownCheckScript": "scripts/own-check.ps1",
+
+  // Audit target: the legacy WPF desktop app (net472, packages.config, x86).
+  "targetSolution": "C:/Repos/STS_new/Broker.sln",
+  "targetRoot": "C:/Repos/STS_new",
+
+  // Roslyn analyzers injected via variant C (Directory.Build.targets <Analyzer Include>)
+  // ONCE the build spike is green. Leak-relevant first; breadth after.
+  "analyzers": [
+    "IDisposableAnalyzers",
+    "Microsoft.CodeAnalysis.NetAnalyzers",
+    "WpfAnalyzers",
+    "PropertyChangedAnalyzers",
+    "Meziantou.Analyzer",
+    "Roslynator.Analyzers",
+    "AsyncFixer"
+  ],
+
+  "artifactsDir": "artifacts"
+}

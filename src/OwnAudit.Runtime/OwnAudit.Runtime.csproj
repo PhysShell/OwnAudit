@@ -1,0 +1,15 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\OwnAudit.Core\OwnAudit.Core.csproj" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <!-- -windows TFM: Arm 2 uses FlaUI (UI Automation) + ClrMD, both Windows-only.
+         Package refs are added in the Arm-2 build-out phase, not at scaffold time. -->
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>

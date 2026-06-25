@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/OwnAudit.Cli/OwnAudit.Cli.csproj" />
+    <Project Path="src/OwnAudit.Core/OwnAudit.Core.csproj" />
+    <Project Path="src/OwnAudit.Reporting/OwnAudit.Reporting.csproj" />
+    <Project Path="src/OwnAudit.Runtime/OwnAudit.Runtime.csproj" />
+    <Project Path="src/OwnAudit.Static/OwnAudit.Static.csproj" />
+  </Folder>
+</Solution>

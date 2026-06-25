@@ -1,0 +1,17 @@
+# .NET build output
+bin/
+obj/
+[Bb]in/
+[Oo]bj/
+
+# audit artifacts (generated SARIF, dossiers, binlogs)
+artifacts/*
+!artifacts/.gitkeep
+
+# IDE
+.vs/
+.idea/
+*.user
+
+# NOTE: STS worktrees + the analyzer cache live OUTSIDE this repo by design
+# (C:\Repos\_ownaudit\...), so the audit never dirties OwnAudit or STS git status.

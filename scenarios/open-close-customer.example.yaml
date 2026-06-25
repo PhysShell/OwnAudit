@@ -1,0 +1,16 @@
+# Arm 2 scenario (EXAMPLE — not yet executed; RuntimeArm is build-out phase 4).
+# AI drafts these; the asserts are EXACT and deterministic, never AI-judged.
+scenario: OpenCloseCustomerWindow
+repeat: 10
+steps:
+  - launch: Broker.exe                       # the STS WinExe — identify the startup project in Broker.sln
+  - click:  AutomationId=OpenCustomerWindow
+  - wait:   AutomationId=CustomerGrid
+  - close:  AutomationId=CustomerWindow
+  - force_gc: true
+assert:
+  retained:                                  # exact retained-instance count after scenario + GC
+    CustomerWindow: 0
+    CustomerViewModel: 0
+  max_growth:                                # tolerated growth for high-churn row VMs
+    CustomerRowViewModel: 100
