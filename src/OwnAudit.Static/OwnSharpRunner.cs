@@ -26,8 +26,10 @@ public sealed class OwnSharpRunner
         // redirects it to a file the same way); -Format has no ValidateSet, so it
         // passes straight through to `python -m ownlang ownir --format sarif`.
         var psi = new ProcessStartInfo("pwsh") { RedirectStandardOutput = true, UseShellExecute = false };
+        // Pass the target via -Paths, NOT a `--` separator: PowerShell's parameter binder
+        // mis-binds a `--`-led path onto -Severity (own-check exits 2). -Paths is exact.
         foreach (var a in new[] { "-NoProfile", "-File", script, "-Root", _cfg.OwnNetRoot,
-                                  "-Format", "sarif", "-Severity", "warning", "--", targetPath })
+                                  "-Format", "sarif", "-Severity", "warning", "-Paths", targetPath })
             psi.ArgumentList.Add(a);
 
         using var p = Process.Start(psi)!;

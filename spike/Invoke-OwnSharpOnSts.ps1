@@ -31,7 +31,9 @@ $sarif = Join-Path $OutDir "ownsharp-sts.sarif"
 
 Write-Host "OwnSharp -> $Target  (builds OwnSharp's own compilation; no STS build needed)"
 # own-check.ps1 writes the SARIF to stdout when -Format sarif; capture it to a file.
-& $check -Root $OwnNetRoot -Format sarif -Severity $Severity -- $Target | Set-Content -LiteralPath $sarif -Encoding utf8
+# NB: pass the target via -Paths, NOT a `--` separator — under PowerShell's parameter
+# binder a `--` mis-binds the path onto -Severity (own-check rc=2). -Paths is exact.
+& $check -Root $OwnNetRoot -Format sarif -Severity $Severity -Paths $Target | Set-Content -LiteralPath $sarif -Encoding utf8
 $rc = $LASTEXITCODE
 
 $bytes = (Get-Item $sarif).Length
