@@ -19,3 +19,8 @@ artifacts/*
 # python bytecode
 __pycache__/
 *.pyc
+
+# viz generated/vendored artifacts (reproducible via viz/build_dashboard.py)
+viz/plotly.min.js
+viz/sts-dashboard.html
+viz/preview.png
