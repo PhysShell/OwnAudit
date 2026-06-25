@@ -53,6 +53,13 @@ def main(argv: list[str] | None = None) -> int:
         print(f"error: fixture {args.fixture!r} has no after/ tree; replay would read it as "
               f"file deletions. Use --applier own.", file=sys.stderr)
         return 2
+    # The CLI re-audits via the recorded after.findings.json (both appliers), so it must
+    # exist. Suggest-only fixtures (e.g. own001-lambda) have none — they're unit-tested,
+    # not run through the CLI; fail fast rather than crash later in ReplayReaudit.
+    if not os.path.isfile(os.path.join(args.fixture, "after.findings.json")):
+        print(f"error: fixture {args.fixture!r} has no after.findings.json (needed to re-audit).",
+              file=sys.stderr)
+        return 2
 
     before = load_findings(os.path.join(args.fixture, "before.findings.json"))
     wd = _seed_workdir(os.path.join(args.fixture, "before"))

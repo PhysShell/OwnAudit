@@ -146,7 +146,8 @@ def plan_file(path: str, findings):
         indent = re.match(r"\s*", lines[idx]).group(0)
         ins = (idx, f"{indent}this.{ev} += (s, e) => {src_event} -= {handler};\n")
         if ins in seen:
-            continue                         # same detach already planned for this site
+            skipped.append((f, "duplicate-site"))   # detach already planned; keep the ledger complete
+            continue
         seen.add(ins)
         inserts.append(ins)
         applied.append((f, ev))

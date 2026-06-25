@@ -185,9 +185,10 @@ def test_duplicate_findings_one_insert():
         msg = "event 'g.PropertyChanged' is subscribed (handler 'new PropertyChangedEventHandler(H)')"
         dupes = [Finding("OWN001", "W.cs", 5, tool="own-check", message=msg),
                  Finding("OWN001", "W.cs", 5, tool="own-check", message=msg)]
-        new, applied, _ = plan_file(p, dupes)
+        new, applied, skipped = plan_file(p, dupes)
         assert new.count("this.Closed +=") == 1       # one detach, not two
         assert len(applied) == 1
+        assert [r for _, r in skipped] == ["duplicate-site"]   # the dupe is in the ledger, not dropped
     finally:
         shutil.rmtree(d, ignore_errors=True)
 
@@ -200,7 +201,7 @@ def test_path_traversal_is_rejected():
                                              message="event 'a.E' is subscribed (handler 'H')")])
             try:
                 applier.apply(wd, "OWN001")
-                assert False, f"expected ValueError for {bad!r}"
+                raise AssertionError(f"expected ValueError for {bad!r}")  # not `assert` (stripped under -O)
             except ValueError:
                 pass
     finally:
