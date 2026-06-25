@@ -6,18 +6,20 @@ it inherits dry-run, the no-new-findings regression gate, and rollback for free.
 OWN rules are tier T4 → the wrapper always routes the result to REVIEW; nothing
 here auto-commits, because lifetime-correct teardown placement is a judgement call.
 
-Scope of THIS slice — honest about the boundary. For a WPF owner we hang the cleanup
-on a teardown event (Closed for a Window, Unloaded for a FrameworkElement); anything
-else is left for review (we can't pick a safe teardown blind).
-  * FIXES the named-handler subscription shape — `src.Event += Handler;` (method group
-    or `new D(M)`) → `this.<teardown> += (s, e) => src.Event -= Handler;`
-  * FIXES the disposable-field shape — an IDisposable field never disposed (a Timer,
-    CancellationTokenSource, …) → `this.<teardown> += (s, e) => field?.Dispose();`,
-    anchored after the ctor's InitializeComponent().
-  * REFUSES the inline-lambda subscription — own-check says it "has no '-=' handle, so
-    it could never be detached"; a lambda needs extraction to a named handler first.
-  * REFUSES the disposable-local shape — wrapping a local needs a scoped `using`, not a
-    teardown hook. Both refusals are classified suggest-only, never a fake patch.
+Scope — conservative on purpose (T4: refuse rather than emit a wrong patch). For a WPF
+owner we hang cleanup on a teardown event (Closed for a Window, Unloaded for a
+FrameworkElement). Four shapes are fixed; anything ambiguous is left suggest-only.
+  * named-handler subscription — `src.Event += Handler;` →
+        `this.<teardown> += (s, e) => src.Event -= Handler;`
+  * disposable field — never-disposed IDisposable field (Timer, CTS, …) →
+        `this.<teardown> += (s, e) => field?.Dispose();`  (after InitializeComponent())
+  * disposable local — a clean `T x = new T(...);` that does NOT escape its block →
+        wrap it in a block `using (...) { … }`. Escapes (return/out/ref/store) → refuse.
+  * inline-lambda subscription — extract the lambda to a named method, rewrite `+=` to
+        the method group, then add the detach. ONLY for well-known events
+        (PropertyChanged/ListChanged/CollectionChanged) with a 2-param expression lambda;
+        block bodies, unknown delegates, multi-line subscriptions → refuse.
+Every refusal is surfaced in `applier.skipped`, never patched with a fake fix.
 """
 from __future__ import annotations
 
@@ -148,49 +150,222 @@ def _find_ctor_anchor(lines: list[str], field_line_1based: int):
     return None
 
 
+# ---- brace/scope helpers (char-level, ignoring strings + // comments) -------
+
+def _code_skeleton(line: str) -> str:
+    """`line` with string/char-literal contents and // comments blanked, so that
+    only structural braces survive. Best-effort (no verbatim/interpolated strings),
+    but the fixers refuse (suggest-only) whenever a block close can't be matched."""
+    out, i, n = [], 0, len(line)
+    while i < n:
+        c = line[i]
+        if c == "/" and i + 1 < n and line[i + 1] == "/":
+            break
+        if c in "\"'":
+            q, i = c, i + 1
+            while i < n:
+                if line[i] == "\\":
+                    i += 2
+                    continue
+                if line[i] == q:
+                    i += 1
+                    break
+                i += 1
+            out.append(" ")
+            continue
+        out.append(c)
+        i += 1
+    return "".join(out)
+
+
+def _enclosing_block_close(lines: list[str], decl_idx: int):
+    """Line index of the `}` that closes the block directly containing decl_idx."""
+    depth = 0
+    for i in range(decl_idx + 1, len(lines)):
+        for ch in _code_skeleton(lines[i]):
+            if ch == "{":
+                depth += 1
+            elif ch == "}":
+                if depth == 0:
+                    return i
+                depth -= 1
+    return None
+
+
+def _class_close(lines: list[str], cls_idx: int):
+    """Line index of the `}` closing the class whose declaration is at cls_idx."""
+    depth, started = 0, False
+    for i in range(cls_idx, len(lines)):
+        for ch in _code_skeleton(lines[i]):
+            if ch == "{":
+                depth, started = depth + 1, True
+            elif ch == "}":
+                depth -= 1
+                if started and depth == 0:
+                    return i
+    return None
+
+
+# ---- per-shape planners: each returns (edits, detail) or (None, skip_reason) -
+# An edit is (start, end, repl_lines): `lines[start:end] = repl_lines` (insert when
+# start == end). plan_file applies them bottom-up so indices stay valid.
+
+def _plan_teardown(lines, f, idx, stmt, anchor_missing="site-not-found"):
+    """Subscription / disposable-field: hang `stmt` on the owner's teardown event."""
+    if idx is None:
+        return None, anchor_missing
+    if _in_unbraced_control_flow(lines, idx):
+        return None, "unbraced-control-flow"
+    _, decl = _enclosing_class(lines, idx)
+    ev = _teardown_event(decl)
+    if ev is None:
+        return None, "no-safe-teardown"
+    indent = re.match(r"\s*", lines[idx]).group(0)
+    hook = f"{indent}this.{ev} += (s, e) => {stmt};\n"
+    return [(idx + 1, idx + 1, [hook])], ev
+
+
+_LOCAL_NEW = r"^(\s*)((?:var|[A-Za-z_][\w.<>\[\]]*)\s+{name}\s*=\s*new\b[^;{{}}]*);\s*$"
+
+
+def _plan_local(lines, f, name):
+    """Disposable local: wrap a clean `T x = new T(...);` in a block `using`, but only
+    when the local clearly doesn't escape its block (no return/out/ref/store of it)."""
+    rx = re.compile(_LOCAL_NEW.format(name=re.escape(name)))
+    target = f.line - 1
+    hit = None
+    for cand in [target] + [target + d for d in (1, -1, 2, -2, 3, -3)]:
+        if 0 <= cand < len(lines):
+            m = rx.match(lines[cand])
+            if m:
+                hit = (cand, m.group(1), m.group(2))
+                break
+    if hit is None:
+        return None, "decl-not-simple-new"          # object initializers, multi-line, etc.
+    idx, indent, core = hit
+    close = _enclosing_block_close(lines, idx)
+    if close is None:
+        return None, "no-block-close"
+    region = "".join(_code_skeleton(line) for line in lines[idx + 1:close])
+    nm = re.escape(name)
+    if (re.search(rf"\breturn\b[^;]*\b{nm}\b", region)         # returned
+            or re.search(rf"\b(out|ref)\s+{nm}\b", region)      # passed out/ref
+            or re.search(rf"=\s*{nm}\s*[;,)]", region)          # stored elsewhere
+            or "yield" in region):
+        return None, "local-escapes"                # disposing here would be use-after-dispose
+    edits = [
+        (idx, idx + 1, [f"{indent}using ({core})\n", f"{indent}{{\n"]),
+        (close, close, [f"{indent}}}\n"]),
+    ]
+    return edits, "using"
+
+
+# well-known events whose delegate's EventArgs type we can name without a compiler
+_EVENT_ARGS = {
+    "PropertyChanged": "PropertyChangedEventArgs",
+    "ListChanged": "ListChangedEventArgs",
+    "CollectionChanged": "NotifyCollectionChangedEventArgs",
+}
+_LAMBDA2 = re.compile(r"^\(\s*(\w+)\s*,\s*(\w+)\s*\)\s*=>\s*(.+?)\s*$")
+
+
+def _ident_exists(lines, name):
+    rx = re.compile(rf"\b{re.escape(name)}\b")
+    return any(rx.search(_code_skeleton(line)) for line in lines)
+
+
+def _plan_lambda(lines, f, src_event, handler):
+    """Inline-lambda subscription: extract the lambda to a named method, rewrite the
+    `+=` to the method group, and add the teardown detach. Only for well-known events
+    (known delegate args) with a two-param expression lambda — else suggest-only."""
+    args_type = _EVENT_ARGS.get(src_event.rsplit(".", 1)[-1])
+    if args_type is None:
+        return None, "unknown-event-delegate"
+    m = _LAMBDA2.match(handler.strip())
+    if not m:
+        return None, "lambda-shape-unsupported"      # arity != 2
+    p1, p2, expr = m.group(1), m.group(2), m.group(3)
+    if "{" in expr or ";" in expr:
+        return None, "lambda-shape-unsupported"      # block body
+    idx = _find_sub_line(lines, f.line, src_event)
+    if idx is None:
+        return None, "site-not-found"
+    if not lines[idx].rstrip().endswith(";"):
+        return None, "multiline-subscription"
+    if _in_unbraced_control_flow(lines, idx):
+        return None, "unbraced-control-flow"
+    cls_idx = next((i for i in range(idx, -1, -1) if re.search(r"\bclass\s+\w+", lines[i])), None)
+    if cls_idx is None:
+        return None, "no-class"
+    _, decl = _enclosing_class(lines, idx)
+    ev = _teardown_event(decl)
+    if ev is None:
+        return None, "no-safe-teardown"
+    close = _class_close(lines, cls_idx)
+    if close is None:
+        return None, "no-class-close"
+    name = "On" + "".join(w[:1].upper() + w[1:] for w in re.split(r"\W+", src_event) if w)
+    base, n = name, 2
+    while _ident_exists(lines, name):
+        name, n = f"{base}{n}", n + 1
+    indent = re.match(r"\s*", lines[idx]).group(0)
+    mindent = re.match(r"\s*", lines[cls_idx]).group(0) + "    "
+    method = ["\n", f"{mindent}private void {name}(object {p1}, {args_type} {p2}) => {expr};\n"]
+    edits = [
+        (idx, idx + 1, [f"{indent}{src_event} += {name};\n"]),
+        (idx + 1, idx + 1, [f"{indent}this.{ev} += (s, e) => {src_event} -= {name};\n"]),
+        (close, close, method),
+    ]
+    return edits, "extract+detach"
+
+
+def _plan_one(lines, f):
+    """Dispatch a finding to its shape's planner."""
+    shape, a, b = classify(f.message)
+    if shape == NAMED_HANDLER_SUB:
+        return _plan_teardown(lines, f, _find_sub_line(lines, f.line, a), f"{a} -= {b}")
+    if shape == DISPOSABLE_FIELD:
+        return _plan_teardown(lines, f, _find_ctor_anchor(lines, f.line),
+                              f"{a}?.Dispose()", anchor_missing="no-ctor-anchor")
+    if shape == DISPOSABLE_LOCAL:
+        return _plan_local(lines, f, a)
+    if shape == INLINE_LAMBDA_SUB:
+        return _plan_lambda(lines, f, a, b)
+    return None, shape                               # OTHER
+
+
 def plan_file(path: str, findings):
     """Compute (new_content, applied, skipped) for one file. `applied`/`skipped`
-    are (finding, detail) lists so the ledger can report exactly what was and
-    wasn't fixed — no silent drops (docs/fix-arm.md §8)."""
+    are (finding, detail) lists so the ledger reports exactly what was and wasn't
+    fixed — no silent drops (docs/fix-arm.md §8)."""
     with open(path, encoding="utf-8") as fh:
         lines = fh.readlines()
-    inserts: list[tuple[int, str]] = []
-    seen: set[tuple[int, str]] = set()
-    applied, skipped = [], []
+    planned, applied, skipped = [], [], []
+    seen: set = set()       # identical edit-sets -> duplicate-site
+    occupied: set = set()   # original line indices already targeted -> avoid overlaps
     for f in findings:
-        shape, a, b = classify(f.message)
-        # Per shape: find the in-scope anchor line and the statement to run on teardown.
-        if shape == NAMED_HANDLER_SUB:                  # a=src.event, b=handler
-            idx = _find_sub_line(lines, f.line, a)
-            stmt = None if idx is None else f"{a} -= {b}"
-        elif shape == DISPOSABLE_FIELD:                 # a=field name
-            idx = _find_ctor_anchor(lines, f.line)
-            stmt = None if idx is None else f"{a}?.Dispose()"
-        else:                                           # lambda / local / other -> suggest-only
-            skipped.append((f, shape))
+        edits, detail = _plan_one(lines, f)
+        if edits is None:
+            skipped.append((f, detail))
             continue
-        if idx is None:
-            skipped.append((f, "site-not-found" if shape == NAMED_HANDLER_SUB else "no-ctor-anchor"))
+        key = tuple((s, e, tuple(r)) for s, e, r in edits)
+        if key in seen:
+            skipped.append((f, "duplicate-site"))
             continue
-        if _in_unbraced_control_flow(lines, idx):
-            skipped.append((f, "unbraced-control-flow"))
+        touched = set()
+        for s, e, _ in edits:
+            touched.update(range(s, max(e, s + 1)))
+        if touched & occupied:
+            skipped.append((f, "overlapping-edit"))
             continue
-        _, decl = _enclosing_class(lines, idx)
-        ev = _teardown_event(decl)
-        if ev is None:
-            skipped.append((f, "no-safe-teardown"))
-            continue
-        indent = re.match(r"\s*", lines[idx]).group(0)
-        ins = (idx, f"{indent}this.{ev} += (s, e) => {stmt};\n")
-        if ins in seen:
-            skipped.append((f, "duplicate-site"))   # detach already planned; keep the ledger complete
-            continue
-        seen.add(ins)
-        inserts.append(ins)
-        applied.append((f, ev))
-    # insert bottom-up so earlier indices stay valid
-    for idx, text in sorted(inserts, key=lambda t: t[0], reverse=True):
-        lines.insert(idx + 1, text)
+        seen.add(key)
+        occupied |= touched
+        planned.append(edits)
+        applied.append((f, detail))
+    # apply every edit bottom-up so earlier line indices stay valid
+    for s, e, repl in sorted((ed for edits in planned for ed in edits),
+                             key=lambda t: t[0], reverse=True):
+        lines[s:e] = repl
     return "".join(lines), applied, skipped
 
 

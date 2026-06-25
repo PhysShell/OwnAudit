@@ -115,16 +115,18 @@ No step is AI-judged. The asserts are exact, mirroring Arm 2's scenario discipli
   Build-free, develops and unit-tests on Linux against synthetic fixtures (Roslyn and
   both CLIs are cross-platform).
 - **Build — the OWN fixer** (T4): `OWN001`/`OWN014`. Structural, build-free, reviewable
-  patches — built in [`../fix/fixarm/own_fix.py`](../fix/fixarm/own_fix.py). On a WPF
-  owner it hangs cleanup on a teardown event (`Window` → `Closed`, `FrameworkElement` →
-  `Unloaded`) and fixes two shapes: the **named-handler subscription** (insert
-  `src.Event -= Handler`) and the **disposable field** (insert `field?.Dispose()`,
-  anchored after the ctor's `InitializeComponent()`). Fixtures are real STS sites
-  (`AmountWindow` OWN001, `KTSGoods2` OWN014, `ShareWindow._timer`). The **inline-lambda**
-  subscription and the **disposable-local** are classified **suggest-only** and never
-  patched (lambda needs extraction; a local needs a scoped `using`). Still to build:
-  disposable-local → `using`, lambda extraction, folding into an existing
-  `OnClosed`/`Dispose`. Every OWN result is queued-for-review (T4), never auto.
+  patches — built in [`../fix/fixarm/own_fix.py`](../fix/fixarm/own_fix.py). Fixes **four**
+  shapes, conservatively (refuse rather than emit a wrong patch): **named-handler
+  subscription** and **disposable field** → cleanup on the owner's teardown event
+  (`Window` → `Closed`, `FrameworkElement` → `Unloaded`); **disposable local** → block
+  `using` (only when it doesn't escape the block); **inline-lambda subscription** →
+  extract to a named handler then detach (only well-known event delegates, 2-param
+  expression lambdas). Refusals (`local-escapes`, `lambda-shape-unsupported`,
+  `unbraced-control-flow`, `no-safe-teardown`, …) are surfaced in `applier.skipped`,
+  never faked. Fixtures are real STS sites (`AmountWindow`, `KTSGoods2`, `ShareWindow`,
+  `Helper`, `DatabaseOptimizationWindow`). Brace/scope analysis is char-level (ignores
+  strings + `//` comments). Still to build: fold into an existing `OnClosed`/`Dispose`;
+  more event delegates. Every OWN result is queued-for-review (T4), never auto.
 
 ---
 

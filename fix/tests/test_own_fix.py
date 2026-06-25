@@ -128,11 +128,42 @@ def test_own001_disposable_field_disposes_on_closed():
         assert lines[init + 1].strip() == "this.Closed += (s, e) => _timer?.Dispose();"
 
 
-# ---- inline lambda is suggest-only: NOT patched ----------------------------
+# ---- OWN001 disposable local -> block `using` wrap -------------------------
 
-def test_inline_lambda_is_not_patched():
-    fdir = os.path.join(FIX, "own001-lambda")
+def test_own001_disposable_local_wraps_in_using():
+    rel = "Broker/Helper.cs"
+    with _wrapped("own001-disposable-local", "OWN001") as (res, wd, _applier):
+        assert res.status == OK, res.ledger()
+        text = "".join(_read(wd, rel))
+        assert "using (var myProcess = new Process())" in text     # wrapped
+        assert "var myProcess = new Process();" not in text        # bare decl gone
+        # the using opener is immediately followed by its block brace
+        lines = _read(wd, rel)
+        u = next(i for i, line in enumerate(lines) if "using (var myProcess" in line)
+        assert lines[u + 1].strip() == "{"
+
+
+# ---- OWN001 inline lambda -> extract to a named handler + detach ------------
+
+def test_own001_inline_lambda_extracted_and_detached():
     rel = "Broker/DatabaseOptimizationWindow.xaml.cs"
+    with _wrapped("own001-lambda-extract", "OWN001") as (res, wd, _applier):
+        assert res.status == OK, res.ledger()
+        assert res.tier == tiers.T4
+        text = "".join(_read(wd, rel))
+        assert "stage.PropertyChanged += OnStagePropertyChanged;" in text          # method group
+        assert "this.Closed += (s, e) => stage.PropertyChanged -= OnStagePropertyChanged;" in text
+        assert ('private void OnStagePropertyChanged(object s2, PropertyChangedEventArgs e2) '
+                '=> OnPropertyChanged("Stages");') in text                          # extracted method
+        assert "+= (s2, e2) =>" not in text                                        # the lambda is gone
+
+
+# ---- refused shapes stay suggest-only: NOT patched -------------------------
+
+def test_block_lambda_is_not_patched():
+    # a block-body lambda can't be a clean expression method -> suggest-only, untouched
+    rel = "Broker/DatabaseOptimizationWindow.xaml.cs"
+    fdir = os.path.join(FIX, "own001-lambda")
     before = load_findings(os.path.join(fdir, "before.findings.json"))
     wd = _seed("own001-lambda")
     try:
@@ -140,10 +171,30 @@ def test_inline_lambda_is_not_patched():
         original = _read(wd, rel)
         applier.apply(wd, "OWN001")
         assert _read(wd, rel) == original                # tree untouched
-        assert len(applier.skipped) == 1                 # surfaced, not dropped
-        assert applier.skipped[0][1] == INLINE_LAMBDA_SUB
+        assert [r for _, r in applier.skipped] == ["lambda-shape-unsupported"]
     finally:
         shutil.rmtree(wd, ignore_errors=True)
+
+
+def test_escaping_local_is_not_wrapped():
+    # a local that is returned must NOT be wrapped (would dispose before use)
+    src = ("public static class H\n"
+           "{\n"
+           "    public static Process Make()\n"
+           "    {\n"
+           "        var p = new Process();\n"
+           "        return p;\n"
+           "    }\n"
+           "}\n")
+    d, path = _tmp_cs(src)
+    try:
+        f = Finding("OWN001", "H.cs", 5, tool="own-check",
+                    message="IDisposable local 'p' is never disposed (leak)")
+        new, applied, skipped = plan_file(path, [f])
+        assert new == src and applied == []
+        assert [r for _, r in skipped] == ["local-escapes"]
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
 
 
 # ---- the fixer's own revert: a rejected OWN fix rolls back -----------------
