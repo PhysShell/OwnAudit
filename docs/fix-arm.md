@@ -166,9 +166,16 @@ scope this session (only `physshell/ownaudit` is reachable); built here for now.
 
 ---
 
-## 9. First slice (CI/Linux-native, no STS)
+## 9. First slice (CI/Linux-native, no STS) — DONE
 
-The wrapper end-to-end on **one** rule: select → `roslynator fix`/`dotnet format`
-dry-run → diff → re-audit assert-no-new-findings → tier gate, with a golden fixture test.
-Proves the safety contract on synthetic input. The OWN T4 fixer follows on the same
-fixture rig. The Windows-bound fix-spike (`§6`) runs whenever the stand is available.
+Built in [`../fix/`](../fix/). The wrapper end-to-end on **one** rule (IDISP001): select
+→ dry-run → diff → apply → re-audit assert-no-new-findings → tier gate, with golden
+fixtures and bare-`python3` tests (`fix/tests/test_orchestrate.py`, 6/6). Proves the
+safety contract on synthetic input — including the crux test: a fix that removes the
+target but introduces a new finding is **rejected**, never committed.
+
+The applier is pluggable (`fix/fixarm/appliers.py`): `Replay*` adapters drive recorded
+fixtures here; `RoslynatorApplier` / `DotnetFormatApplier` / `ScriptReaudit` drive the
+real tools on the Windows stand via the same `run_fix()` call. Still to do: the OWN T4
+fixer on the same rig, promoting proven-mechanical rules to T1, and the Windows-bound
+fix-spike (`§6`).

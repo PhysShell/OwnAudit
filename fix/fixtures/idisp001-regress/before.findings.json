@@ -1,0 +1,12 @@
+{
+  "findings": [
+    {
+      "tool": "roslyn",
+      "path": "Core/Mail.cs",
+      "line": 9,
+      "rule": "IDISP001",
+      "category_name": "idisposable-leak",
+      "message": "IDisposable created but not disposed: 'client'"
+    }
+  ]
+}
