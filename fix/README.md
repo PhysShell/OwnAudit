@@ -84,9 +84,13 @@ that escapes its block (return/out/ref/store) → `local-escapes`; a block-body 
 unknown-delegate lambda → `lambda-shape-unsupported` / `unknown-event-delegate`; an
 unbraced guard → `unbraced-control-flow`; no safe teardown → `no-safe-teardown`.
 
+When the owner already has a `protected override void OnClosed(...)`, the cleanup is
+**folded into it** (a statement at the top of the body) instead of stacking another
+`this.Closed += …` lambda — a cleaner, more idiomatic patch.
+
 ## Next
 
 - Promote proven-mechanical rules into `tiers._T1_RULES` (auto-commit) from real diffs.
-- OWN fixer: fold into an existing `OnClosed`/`Dispose` override when one is present;
-  widen lambda extraction to more event delegates.
+- OWN fixer: fold into an existing `Dispose()`/`Unloaded` handler too; widen lambda
+  extraction to more event delegates (`EventHandler<T>`, custom `*Changed`).
 - Windows-bound fix-spike: does `roslynator fix` load `Broker.sln` (docs/fix-arm.md §6).

@@ -113,6 +113,102 @@ def test_own014_usercontrol_inserts_unloaded_detach():
             "this.Unloaded += (s, e) => fThis.PropertyChanged -= data_PropertyChanged;")
 
 
+# ---- OWN001 subscription folds into an existing OnClosed override -----------
+
+def test_own001_subscription_folds_into_onclosed():
+    rel = "Broker/FoldWindow.xaml.cs"
+    fdir = os.path.join(FIX, "own001-sub-fold")
+    before = load_findings(os.path.join(fdir, "before.findings.json"))
+    wd = _seed("own001-sub-fold")
+    try:
+        new, applied, skipped = plan_file(os.path.join(wd, rel), before)
+        assert [d for _, d in applied] == ["Closed/fold"], (applied, skipped)   # fold, not plain Closed
+        lines = new.splitlines(keepends=True)
+        oc = next(i for i, line in enumerate(lines) if "override void OnClosed" in line)
+        assert lines[oc + 1].strip() == "{"
+        assert lines[oc + 2].strip() == (
+            "fGoods.PropertyChanged -= new PropertyChangedEventHandler(GoodsPropertyChanged);")
+        assert "this.Closed += (s, e) =>" not in new                            # no stacked lambda
+    finally:
+        shutil.rmtree(wd, ignore_errors=True)
+
+
+def test_fold_skips_ctor_local_source():
+    # source `goods` is a ctor parameter (not a member) -> folding the raw detach into
+    # OnClosed would be out of scope; must keep the capturing lambda at the call site.
+    src = ("public partial class W : Window\n"
+           "{\n"
+           "    public W(Goods goods)\n"
+           "    {\n"
+           "        InitializeComponent();\n"
+           "        goods.PropertyChanged += new PropertyChangedEventHandler(H);\n"
+           "    }\n"
+           "    protected override void OnClosed(EventArgs e)\n"
+           "    {\n"
+           "        base.OnClosed(e);\n"
+           "    }\n"
+           "    private void H(object s, PropertyChangedEventArgs e) { }\n"
+           "}\n")
+    d, path = _tmp_cs(src)
+    try:
+        f = Finding("OWN001", "W.cs", 6, tool="own-check",
+                    message="event 'goods.PropertyChanged' is subscribed (handler 'new PropertyChangedEventHandler(H)') ...")
+        new, applied, skipped = plan_file(path, [f])
+        assert [d for _, d in applied] == ["Closed"], (applied, skipped)        # lambda, not fold
+        assert "this.Closed += (s, e) => goods.PropertyChanged -= new PropertyChangedEventHandler(H);" in new
+        # OnClosed body must be untouched (no out-of-scope detach folded in)
+        assert "goods.PropertyChanged -=" in new and new.count("goods.PropertyChanged -=") == 1
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+
+def test_fold_ignores_commented_onclosed():
+    # a commented-out OnClosed must not be matched as a fold anchor (skeleton-based)
+    src = ("public partial class W : Window\n"
+           "{\n"
+           "    private readonly Timer _t;\n"
+           "    public W()\n"
+           "    {\n"
+           "        InitializeComponent();\n"
+           "    }\n"
+           "    // protected override void OnClosed(EventArgs e) { }\n"
+           "}\n")
+    d, path = _tmp_cs(src)
+    try:
+        f = Finding("OWN001", "W.cs", 3, tool="own-check",
+                    message="IDisposable field '_t' (type 'Timer') is never disposed — its owner 'W' leaks it")
+        new, applied, skipped = plan_file(path, [f])
+        assert [dt for _, dt in applied] == ["Closed"], (applied, skipped)      # lambda, not a bogus fold
+        assert "this.Closed += (s, e) => _t?.Dispose();" in new
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+
+def test_fold_ignores_nested_type_onclosed():
+    # the field's class has no OnClosed; a NESTED type does. Must not fold into it.
+    src = ("public partial class Outer : Window\n"
+           "{\n"
+           "    private readonly Timer _t;\n"
+           "    public Outer()\n"
+           "    {\n"
+           "        InitializeComponent();\n"
+           "    }\n"
+           "    private class Inner\n"
+           "    {\n"
+           "        protected override void OnClosed(EventArgs e) { }\n"
+           "    }\n"
+           "}\n")
+    d, path = _tmp_cs(src)
+    try:
+        f = Finding("OWN001", "Outer.cs", 3, tool="own-check",
+                    message="IDisposable field '_t' (type 'Timer') is never disposed — its owner 'Outer' leaks it")
+        new, applied, skipped = plan_file(path, [f])
+        assert [d for _, d in applied] == ["Closed"], (applied, skipped)        # lambda, not folded into Inner
+        assert "this.Closed += (s, e) => _t?.Dispose();" in new
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+
 # ---- OWN001 disposable field on a Window -> dispose on Closed ---------------
 
 def test_own001_disposable_field_disposes_on_closed():
@@ -153,9 +249,41 @@ def test_own001_inline_lambda_extracted_and_detached():
         text = "".join(_read(wd, rel))
         assert "stage.PropertyChanged += OnStagePropertyChanged;" in text          # method group
         assert "this.Closed += (s, e) => stage.PropertyChanged -= OnStagePropertyChanged;" in text
-        assert ('private void OnStagePropertyChanged(object s2, PropertyChangedEventArgs e2) '
-                '=> OnPropertyChanged("Stages");') in text                          # extracted method
+        assert ('private void OnStagePropertyChanged(object s2, '
+                'System.ComponentModel.PropertyChangedEventArgs e2) '
+                '=> OnPropertyChanged("Stages");') in text                          # extracted, qualified args
         assert "+= (s2, e2) =>" not in text                                        # the lambda is gone
+
+
+# ---- wider lambda-extraction delegates (PropertyChanging / ErrorsChanged) --
+
+def test_lambda_extraction_more_delegates():
+    # both newly-added INotify-family events are unambiguous -> extractable with the
+    # right (fully-qualified) args type.
+    cases = [
+        ("PropertyChanging", "System.ComponentModel.PropertyChangingEventArgs", "OnMPropertyChanging"),
+        ("ErrorsChanged", "System.ComponentModel.DataErrorsChangedEventArgs", "OnMErrorsChanged"),
+    ]
+    for ev, args_type, method in cases:
+        src = ("public partial class W : Window\n"
+               "{\n"
+               "    public W(Model m)\n"
+               "    {\n"
+               "        InitializeComponent();\n"
+               f"        m.{ev} += (s, e) => Refresh();\n"
+               "    }\n"
+               "    private void Refresh() { }\n"
+               "}\n")
+        d, path = _tmp_cs(src)
+        try:
+            f = Finding("OWN001", "W.cs", 6, tool="own-check",
+                        message=f"event 'm.{ev}' is subscribed (handler '(s, e) => Refresh()') ...")
+            new, applied, skipped = plan_file(path, [f])
+            assert [dt for _, dt in applied] == ["extract+detach"], (ev, skipped)
+            assert f"m.{ev} += {method};" in new
+            assert f"private void {method}(object s, {args_type} e) => Refresh();" in new
+        finally:
+            shutil.rmtree(d, ignore_errors=True)
 
 
 # ---- refused shapes stay suggest-only: NOT patched -------------------------

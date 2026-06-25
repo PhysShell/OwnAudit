@@ -1,0 +1,12 @@
+{
+  "findings": [
+    {
+      "tool": "own-check",
+      "path": "Broker/FoldWindow.xaml.cs",
+      "line": 14,
+      "rule": "OWN001",
+      "category_name": "subscription-leak",
+      "message": "event 'fGoods.PropertyChanged' is subscribed (handler 'new PropertyChangedEventHandler(GoodsPropertyChanged)') but never unsubscribed; its source is an injected dependency whose lifetime is unknown, so it may outlive and keep 'FoldWindow' alive (possible leak) [resource: subscription token]"
+    }
+  ]
+}
