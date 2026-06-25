@@ -60,6 +60,13 @@ def _read(wd: str, rel: str) -> list[str]:
         return fh.readlines()
 
 
+def _expect(actual, expected, what="value"):
+    """`-O`-safe equality check — `assert` is stripped under python -O, so exit-code
+    checks must raise explicitly."""
+    if actual != expected:
+        raise AssertionError(f"{what}: expected {expected!r}, got {actual!r}")
+
+
 # ---- classifier: the honesty boundary --------------------------------------
 
 def test_classify_named_vs_lambda():
@@ -212,13 +219,13 @@ def test_cli_replay_on_own_fixture_fails_fast():
     from fixarm.cli import main
     rc = main(["--fixture", os.path.join(FIX, "own001-sub-window"),
                "--rule", "OWN001", "--applier", "replay"])
-    assert rc == 2                                     # no after/ tree -> refuse, don't delete
+    _expect(rc, 2, "replay on after-less fixture")     # refuse, don't delete
 
 
 def test_cli_defaults_own_rule_to_own_applier():
     from fixarm.cli import main
     rc = main(["--fixture", os.path.join(FIX, "own001-sub-window"), "--rule", "OWN001"])
-    assert rc == 0                                     # OWN* auto-routes to the own fixer
+    _expect(rc, 0, "OWN* auto-routes to own fixer")
 
 
 def test_cli_no_op_does_not_need_after_findings():
@@ -227,7 +234,7 @@ def test_cli_no_op_does_not_need_after_findings():
     from fixarm.cli import main
     rc = main(["--fixture", os.path.join(FIX, "own001-lambda"), "--rule", "RCS9999",
                "--applier", "own"])
-    assert rc == 0                                     # no-op, re-audit never reached
+    _expect(rc, 0, "no-op, re-audit never reached")
 
 
 def test_cli_missing_after_findings_fails_cleanly_when_reaudit_needed():
@@ -235,7 +242,7 @@ def test_cli_missing_after_findings_fails_cleanly_when_reaudit_needed():
     from fixarm.cli import main
     rc = main(["--fixture", os.path.join(FIX, "own001-lambda"), "--rule", "OWN001",
                "--applier", "own"])
-    assert rc == 2
+    _expect(rc, 2, "reaudit needed but after.findings.json missing")
 
 
 # ---- bare-python runner ----------------------------------------------------
