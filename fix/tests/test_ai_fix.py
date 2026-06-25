@@ -121,6 +121,56 @@ def test_ai_regression_is_rejected_and_reverted():
         shutil.rmtree(d, ignore_errors=True)
 
 
+# ---- verify -> revise loop: a weak first try, corrected on round 2 ---------
+
+def test_ai_revise_loop_converges():
+    d, _ = _tmp(SRC)
+    bad = ("```csharp\n"
+           "        public static int Run()\n"
+           "        {\n"
+           "            int x = Compute();\n"
+           "            x = 0; // still here\n"
+           "            return Compute();\n"
+           "        }\n```")
+    client = MockLlmClient([bad, GOOD_REPLY])
+
+    def reaudit(wd):                       # content-aware: finding present iff 'x = 0;' remains
+        body = open(os.path.join(wd, "Core", "Sample.cs"), encoding="utf-8").read()
+        return [FINDING] if "x = 0;" in body else []
+
+    try:
+        applier = AiFixApplier([FINDING], client, reaudit=reaudit, before=[FINDING],
+                               max_rounds=3, ctx=4)
+        res = run_fix(before=[FINDING], workdir=d, rule=FINDING.rule, applier=applier,
+                      reaudit=reaudit, tier_of=_review_tier)
+        assert res.status == OK, res.ledger()
+        assert len(client.calls) == 2      # round 1 rejected, round 2 accepted
+        body = open(os.path.join(d, "Core", "Sample.cs"), encoding="utf-8").read()
+        assert "x = 0;" not in body
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+
+def test_ai_loop_gives_up_after_max_rounds():
+    d, _ = _tmp(SRC)
+    bad = ("```csharp\n            int x = Compute();\n            x = 0; // nope\n```")
+    client = MockLlmClient(bad)            # always leaves the finding
+
+    def reaudit(wd):
+        body = open(os.path.join(wd, "Core", "Sample.cs"), encoding="utf-8").read()
+        return [FINDING] if "x = 0;" in body else []
+
+    try:
+        applier = AiFixApplier([FINDING], client, reaudit=reaudit, before=[FINDING],
+                               max_rounds=2, ctx=4)
+        applier.apply(d, FINDING.rule)
+        assert len(client.calls) == 2 and [r for _, r in applier.skipped] == ["ai-gave-up"]
+        # planning is side-effect-free; nothing accepted -> file unchanged
+        assert open(os.path.join(d, "Core", "Sample.cs"), encoding="utf-8").read() == SRC
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+
 # ---- bare-python runner ----------------------------------------------------
 
 def _main() -> int:

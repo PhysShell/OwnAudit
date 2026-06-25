@@ -47,6 +47,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--llm-url", default="http://localhost:11434/v1",
                     help="local OpenAI-compatible endpoint for --applier ai (default: Ollama)")
     ap.add_argument("--model", default="qwen2.5-coder", help="local model name for --applier ai")
+    ap.add_argument("--max-rounds", type=int, default=3, help="--applier ai verify->revise rounds")
     ap.add_argument("--line-tol", type=int, default=0)
     ap.add_argument("--show-diff", action="store_true", help="print the reviewable patch")
     args = ap.parse_args(argv)
@@ -68,7 +69,9 @@ def main(argv: list[str] | None = None) -> int:
         if kind == "own":
             applier = OwnFixApplier(sel)
         elif kind == "ai":
-            applier = AiFixApplier(sel, LocalLlmClient(args.llm_url, args.model))
+            reaudit = ReplayReaudit(os.path.join(args.fixture, "after.findings.json"))
+            applier = AiFixApplier(sel, LocalLlmClient(args.llm_url, args.model),
+                                   reaudit=reaudit, before=before, max_rounds=args.max_rounds)
         else:
             applier = ReplayApplier(args.fixture)
         try:

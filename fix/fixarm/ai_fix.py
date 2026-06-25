@@ -1,22 +1,29 @@
 """AI fixer — a pluggable `Applier` that proposes patches with a LOCAL LLM for the
 findings mechanical fixers can't touch (T3 detect-only, T4-refused suggest-only).
 
-The whole point: the model is *not* trusted. It plugs into the same wrapper as every
-other applier (orchestrate.run_fix), so its patch is verified by re-running the audit
-(removed the finding AND introduced nothing new?), shown as a reviewable diff, gated to
-REVIEW (never auto-commit), and rolled back on regression. The LLM only proposes; the
-audit and the human judge — which is why a local, modest model is safe here.
+The model is *not* trusted. It plugs into the same wrapper as every other applier
+(orchestrate.run_fix), so its patch is verified by re-running the audit (removed the
+finding AND introduced nothing new?), shown as a reviewable diff, gated to REVIEW
+(never auto-commit), and rolled back on regression. The LLM only proposes; the audit
+and the human judge — which is why a modest local model is safe.
 
-Local-only by design: code never leaves the machine. The client speaks the OpenAI
-chat-completions API, so it works against Ollama (default), llama.cpp's server, LM
-Studio, vLLM, etc. A MockLlmClient drives the same path in CI with no server.
+Optional verify→revise loop (no framework): when a `reaudit` is supplied, each proposal
+is checked per round; if it doesn't clear the finding (or introduces new ones) the
+failure is fed back and the model revises, up to `max_rounds`. Every round still goes
+through the audit — the loop just helps a weaker local model converge.
+
+Local-only by design: code never leaves the machine. The client speaks the OpenAI chat
+API, so it works against Ollama (default), llama.cpp's server, LM Studio, vLLM. A
+MockLlmClient drives the same path in CI with no server.
 """
 from __future__ import annotations
 
+import difflib
 import json
 import re
 import urllib.request
 
+from .orchestrate import diff_findings
 from .own_fix import _safe_join   # reuse the path-traversal guard
 
 SYSTEM = (
@@ -30,12 +37,14 @@ SYSTEM = (
 _FENCE = re.compile(r"```[A-Za-z0-9#+]*\n(.*?)```", re.S)
 
 
-def build_user(rel: str, lines: list[str], a: int, b: int, finding) -> str:
-    """Prompt body: the file, the finding, and the numbered window [a, b) to replace."""
+def build_user(rel: str, lines: list[str], a: int, b: int, finding, feedback: str = "") -> str:
+    """Prompt body: the file, the finding, the numbered window [a, b) to replace, and
+    (on a revise round) why the previous attempt was rejected."""
     numbered = "".join(f"{i + 1:>5}  {lines[i]}" for i in range(a, b))
+    fb = f"\nYour previous attempt was rejected: {feedback}\nTry again.\n" if feedback else ""
     return (f"File: {rel}\n"
-            f"Finding at line {finding.line} [{finding.rule}]: {finding.message}\n\n"
-            f"Replace lines {a + 1}..{b} (return only their corrected form):\n\n{numbered}")
+            f"Finding at line {finding.line} [{finding.rule}]: {finding.message}\n"
+            f"{fb}\nReplace lines {a + 1}..{b} (return only their corrected form):\n\n{numbered}")
 
 
 def parse_replacement(text: str):
@@ -74,28 +83,41 @@ class LocalLlmClient:
 
 
 class MockLlmClient:
-    """Canned reply for CI — drives the exact same applier path with no server."""
-    def __init__(self, reply: str):
-        self.reply, self.calls = reply, []
+    """Canned reply(ies) for CI — drives the same applier path with no server. A list
+    is consumed one per call (last repeats), so a [bad, good] sequence tests the loop."""
+    def __init__(self, reply):
+        self._replies = reply if isinstance(reply, list) else [reply]
+        self.calls = []
 
     def complete(self, system: str, user: str) -> str:
         self.calls.append((system, user))
-        return self.reply
+        i = min(len(self.calls) - 1, len(self._replies) - 1)
+        return self._replies[i]
 
 
 # ---- the applier -----------------------------------------------------------
 
+def _still_present(after, f) -> bool:
+    return any(g.rule == f.rule and g.basename == f.basename and abs(g.line - f.line) <= 2
+               for g in after)
+
+
 class AiFixApplier:
     """For each finding, ask the LLM to rewrite a window around it; splice the reply
-    back. Inherits dry-run/diff/re-audit/gate/rollback from the wrapper — so a wrong
-    or no-op proposal is caught (rejected/skipped), never trusted. Always REVIEW."""
+    back. Inherits dry-run/diff/re-audit/gate/rollback from the wrapper. With `reaudit`
+    set, runs a verify→revise loop (each round re-audited) so the local model converges;
+    without it, single-shot (the wrapper still verifies). Always REVIEW."""
     name = "ai-fix"
 
-    def __init__(self, findings, client, ctx: int = 12):
+    def __init__(self, findings, client, reaudit=None, before=None, max_rounds=3, ctx=12):
         self.findings = list(findings)
         self.client = client
+        self.reaudit = reaudit            # None -> single-shot; set -> revise loop
+        self.before = list(before or [])
+        self.max_rounds = max_rounds
         self.ctx = ctx
         self._orig: dict[str, str] = {}
+        self._planned = None
         self.skipped: list = []
 
     def _by_file(self):
@@ -104,34 +126,64 @@ class AiFixApplier:
             byf.setdefault(f.path, []).append(f)
         return byf
 
+    def _propose(self, rel, cur, a, b, f, feedback=""):
+        reply = self.client.complete(SYSTEM, build_user(rel, cur, a, b, f, feedback))
+        repl = parse_replacement(reply)
+        if repl is None or repl == cur[a:b]:
+            return None                    # model declined / unparseable
+        return cur[:a] + repl + cur[b:]
+
+    def _revise(self, workdir, path, rel, cur, a, b, f, skipped):
+        """Return the accepted candidate lines, or None (and record why in skipped)."""
+        if self.reaudit is None:           # single-shot — wrapper verifies
+            cand = self._propose(rel, cur, a, b, f)
+            if cand is None:
+                skipped.append((f, "ai-no-change"))
+            return cand
+        for _ in range(self.max_rounds):
+            cand = self._propose(rel, cur, a, b, f, self._feedback)
+            if cand is None:
+                skipped.append((f, "ai-no-change"))
+                return None
+            with open(path, "w", encoding="utf-8") as fh:   # let re-audit see the candidate
+                fh.write("".join(cand))
+            after = self.reaudit(workdir)
+            introduced = diff_findings(self.before, after)[1]
+            if not _still_present(after, f) and not introduced:
+                return cand                # verified this round
+            with open(path, "w", encoding="utf-8") as fh:   # restore base for next round
+                fh.write("".join(cur))
+            self._feedback = ("it introduced new findings"
+                              if introduced else "the finding is still reported")
+        skipped.append((f, "ai-gave-up"))
+        return None
+
     def _plan(self, workdir: str):
+        if self._planned is not None:
+            return self._planned
         out, skipped = {}, []
         for rel, fs in self._by_file().items():
-            with open(_safe_join(workdir, rel), encoding="utf-8") as fh:
-                lines = fh.readlines()
-            edits, occupied = [], set()
+            path = _safe_join(workdir, rel)
+            with open(path, encoding="utf-8") as fh:
+                original = fh.read()
+            cur, occupied = original.splitlines(keepends=True), set()
+            self._feedback = ""
             for f in fs:
                 a = max(0, f.line - 1 - self.ctx)
-                b = min(len(lines), f.line - 1 + self.ctx + 1)
+                b = min(len(cur), f.line - 1 + self.ctx + 1)
                 if set(range(a, b)) & occupied:
-                    skipped.append((f, "ai-overlap"))      # windows collide; one at a time
+                    skipped.append((f, "ai-overlap"))
                     continue
-                reply = self.client.complete(SYSTEM, build_user(rel, lines, a, b, f))
-                repl = parse_replacement(reply)
-                if repl is None or repl == lines[a:b]:
-                    skipped.append((f, "ai-no-change"))     # model declined / unparseable
-                    continue
-                edits.append((a, b, repl))
-                occupied |= set(range(a, b))
-            new = list(lines)
-            for s, e, repl in sorted(edits, key=lambda t: t[0], reverse=True):
-                new[s:e] = repl
-            out[rel] = "".join(new)
-        self.skipped = skipped
+                accepted = self._revise(workdir, path, rel, cur, a, b, f, skipped)
+                if accepted is not None:
+                    cur, occupied = accepted, occupied | set(range(a, b))
+            with open(path, "w", encoding="utf-8") as fh:   # planning is side-effect-free
+                fh.write(original)
+            out[rel] = "".join(cur)
+        self._planned, self.skipped = out, skipped
         return out
 
     def dry_run(self, workdir: str, rule: str) -> str:
-        import difflib
         chunks = []
         for rel, new in self._plan(workdir).items():
             with open(_safe_join(workdir, rel), encoding="utf-8") as fh:

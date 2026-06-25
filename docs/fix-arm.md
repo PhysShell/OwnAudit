@@ -147,6 +147,13 @@ violate the "never AI-judged" discipline (we don't let it decide real/fixed).
   speaks the OpenAI chat API, so it works against Ollama (default,
   `http://localhost:11434/v1`, e.g. `qwen2.5-coder`), llama.cpp's server, LM Studio, vLLM.
   A `MockLlmClient` drives the identical path in CI with no server.
+- **Verify→revise loop (no framework).** With a `reaudit` supplied, each proposal is
+  checked per round; if it doesn't clear the finding (or introduces new ones) the
+  failure is fed back and the model revises, up to `--max-rounds`. Every round still
+  passes through the audit — the loop just helps a weaker local model converge. A
+  framework (LangChain/LangGraph) buys nothing here: the safety is the audit re-run, not
+  the orchestration, and our thin OpenAI-compatible client is zero-lock-in if we ever
+  want one.
 - **Non-deterministic → always REVIEW, only the residual.** Never T1/T2.
 - CLI: `--applier ai --llm-url … --model …`. Real run needs a running local model +
   the audit re-run (Windows stand); the harness + mock tests are CI/Linux-native
