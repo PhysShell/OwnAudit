@@ -183,7 +183,11 @@ class AiFixApplier:
                 original = fh.read()
             cur, occupied = original.splitlines(keepends=True), set()
             try:
-                for f in fs:
+                # bottom-to-top: an accepted rewrite that changes line count must not
+                # shift the windows of findings still pending above it (their `f.line`
+                # is from the original audit). Edits lower in the file leave upper line
+                # numbers intact, so descending order keeps every window aligned.
+                for f in sorted(fs, key=lambda f: f.line, reverse=True):
                     a = max(0, f.line - 1 - self.ctx)
                     b = min(len(cur), f.line - 1 + self.ctx + 1)
                     if set(range(a, b)) & occupied:

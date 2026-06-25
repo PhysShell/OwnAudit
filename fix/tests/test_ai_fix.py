@@ -171,6 +171,29 @@ def test_ai_loop_gives_up_after_max_rounds():
         shutil.rmtree(d, ignore_errors=True)
 
 
+def test_ai_plans_findings_bottom_to_top():
+    # two findings in one file: the lower-in-file one must be proposed FIRST so its
+    # accepted edit can't shift the still-pending window of the one above it.
+    src = "".join(f"line {i}\n" for i in range(1, 26))           # 25 lines
+    d = tempfile.mkdtemp(prefix="aifix-")
+    p = os.path.join(d, "Core", "Sample.cs")
+    os.makedirs(os.path.dirname(p), exist_ok=True)
+    with open(p, "w", encoding="utf-8") as fh:
+        fh.write(src)
+    f_top = Finding("cs/x", "Core/Sample.cs", 5, tool="codeql", message="upper")
+    f_bot = Finding("cs/x", "Core/Sample.cs", 20, tool="codeql", message="lower")
+    try:
+        # single-shot (reaudit=None): each finding gets exactly one _propose call,
+        # so client.calls is the proposal order. ctx=1 keeps the windows apart.
+        client = MockLlmClient("```csharp\nrewritten\n```")
+        applier = AiFixApplier([f_top, f_bot], client, ctx=1)
+        applier._plan(d)
+        assert "line 20" in client.calls[0][1]      # bottom finding proposed first
+        assert "line 5" in client.calls[1][1]       # top finding proposed second
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+
 def test_ai_plan_restores_tree_when_reaudit_raises():
     # if re-audit blows up mid-loop, the candidate written for it must not leak
     d, _ = _tmp(SRC)
