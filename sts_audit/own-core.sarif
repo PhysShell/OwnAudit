@@ -1,0 +1,99 @@
+{
+  "$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "Own.NET",
+          "informationUri": "https://github.com/PhysShell/Own.NET",
+          "rules": [
+            {
+              "id": "OWN001",
+              "shortDescription": {
+                "text": "owned resource not released on all paths (possible leak)"
+              }
+            }
+          ],
+          "properties": {
+            "ownirSchemaVersion": 0
+          }
+        }
+      },
+      "results": [
+        {
+          "ruleId": "OWN001",
+          "level": "warning",
+          "message": {
+            "text": "IDisposable local 'bs' is never disposed (leak) [resource: disposable]"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "Core/CRC32.cs"
+                },
+                "region": {
+                  "startLine": 117
+                }
+              }
+            }
+          ],
+          "properties": {
+            "resourceKind": "disposable",
+            "component": "CRC32.CRC",
+            "event": "bs"
+          }
+        },
+        {
+          "ruleId": "OWN001",
+          "level": "warning",
+          "message": {
+            "text": "IDisposable local 'xmlTextWriter' is never disposed (leak) [resource: disposable]"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "Core/MSSQLUtils.cs"
+                },
+                "region": {
+                  "startLine": 1044
+                }
+              }
+            }
+          ],
+          "properties": {
+            "resourceKind": "disposable",
+            "component": "MSSQLUtils.AddParameter",
+            "event": "xmlTextWriter"
+          }
+        },
+        {
+          "ruleId": "OWN001",
+          "level": "warning",
+          "message": {
+            "text": "IDisposable local 'client' is never disposed (leak) [resource: disposable]"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "Core/Mail.cs"
+                },
+                "region": {
+                  "startLine": 32
+                }
+              }
+            }
+          ],
+          "properties": {
+            "resourceKind": "disposable",
+            "component": "Mail.SendMessageWithAttachment",
+            "event": "client"
+          }
+        }
+      ]
+    }
+  ]
+}

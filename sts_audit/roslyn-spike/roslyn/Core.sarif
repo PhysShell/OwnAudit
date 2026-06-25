@@ -1,0 +1,909 @@
+{
+  "$schema": "http://json.schemastore.org/sarif-2.1.0",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "results": [
+        {
+          "ruleId": "CS0168",
+          "ruleIndex": 0,
+          "level": "warning",
+          "message": {
+            "text": "Переменная \"ex\" объявлена, но ни разу не использована."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "file:///C:/Repos/STS_new/SectorTS/Core/FileLogger.cs"
+                },
+                "region": {
+                  "startLine": 52,
+                  "startColumn": 30,
+                  "endLine": 52,
+                  "endColumn": 32
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 3
+          }
+        },
+        {
+          "ruleId": "IDISP025",
+          "ruleIndex": 1,
+          "level": "warning",
+          "message": {
+            "text": "Class with no virtual dispose method should be sealed."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "file:///C:/Repos/STS_new/SectorTS/Core/KeyboardListener.cs"
+                },
+                "region": {
+                  "startLine": 16,
+                  "startColumn": 18,
+                  "endLine": 16,
+                  "endColumn": 34
+                }
+              }
+            }
+          ],
+          "relatedLocations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "file:///C:/Repos/STS_new/SectorTS/Core/KeyboardListener.cs"
+                },
+                "region": {
+                  "startLine": 155,
+                  "startColumn": 21,
+                  "endLine": 155,
+                  "endColumn": 28
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "IDISP001",
+          "ruleIndex": 2,
+          "level": "warning",
+          "message": {
+            "text": "Dispose created."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "file:///C:/Repos/STS_new/SectorTS/Core/CRC32.cs"
+                },
+                "region": {
+                  "startLine": 117,
+                  "startColumn": 17,
+                  "endLine": 117,
+                  "endColumn": 59
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "IDISP003",
+          "ruleIndex": 3,
+          "level": "warning",
+          "message": {
+            "text": "Dispose previous before re-assigning."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "file:///C:/Repos/STS_new/SectorTS/Core/Excel.cs"
+                },
+                "region": {
+                  "startLine": 73,
+                  "startColumn": 17,
+                  "endLine": 73,
+                  "endColumn": 85
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "IDISP018",
+          "ruleIndex": 4,
+          "level": "warning",
+          "message": {
+            "text": "Call SuppressFinalize(this)."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "file:///C:/Repos/STS_new/SectorTS/Core/KeyboardListener.cs"
+                },
+                "region": {
+                  "startLine": 155,
+                  "startColumn": 21,
+                  "endLine": 155,
+                  "endColumn": 28
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "IDISP001",
+          "ruleIndex": 2,
+          "level": "warning",
+          "message": {
+            "text": "Dispose created."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "file:///C:/Repos/STS_new/SectorTS/Core/SaveObjectList.cs"
+                },
+                "region": {
+                  "startLine": 20,
+                  "startColumn": 13,
+                  "endLine": 20,
+                  "endColumn": 67
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "IDISP006",
+          "ruleIndex": 5,
+          "level": "warning",
+          "message": {
+            "text": "Implement IDisposable."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "file:///C:/Repos/STS_new/SectorTS/Core/Excel.cs"
+                },
+                "region": {
+                  "startLine": 18,
+                  "startColumn": 9,
+                  "endLine": 18,
+                  "endColumn": 34
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "IDISP023",
+          "ruleIndex": 6,
+          "level": "warning",
+          "message": {
+            "text": "Don't use reference types in finalizer context."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "file:///C:/Repos/STS_new/SectorTS/Core/KeyboardListener.cs"
+                },
+                "region": {
+                  "startLine": 43,
+                  "startColumn": 13,
+                  "endLine": 43,
+                  "endColumn": 22
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "IDISP001",
+          "ruleIndex": 2,
+          "level": "warning",
+          "message": {
+            "text": "Dispose created."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "file:///C:/Repos/STS_new/SectorTS/Core/MSSQLUtils.cs"
+                },
+                "region": {
+                  "startLine": 610,
+                  "startColumn": 17,
+                  "endLine": 628,
+                  "endColumn": 32
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "IDISP001",
+          "ruleIndex": 2,
+          "level": "warning",
+          "message": {
+            "text": "Dispose created."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "file:///C:/Repos/STS_new/SectorTS/Core/MSSQLUtils.cs"
+                },
+                "region": {
+                  "startLine": 1284,
+                  "startColumn": 13,
+                  "endLine": 1284,
+                  "endColumn": 60
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "IDISP004",
+          "ruleIndex": 7,
+          "level": "warning",
+          "message": {
+            "text": "Don't ignore created IDisposable."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "file:///C:/Repos/STS_new/SectorTS/Core/Mail.cs"
+                },
+                "region": {
+                  "startLine": 53,
+                  "startColumn": 13,
+                  "endLine": 53,
+                  "endColumn": 53
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "IDISP001",
+          "ruleIndex": 2,
+          "level": "warning",
+          "message": {
+            "text": "Dispose created."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "file:///C:/Repos/STS_new/SectorTS/Core/MSSQLUtils.cs"
+                },
+                "region": {
+                  "startLine": 1227,
+                  "startColumn": 13,
+                  "endLine": 1227,
+                  "endColumn": 46
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "IDISP001",
+          "ruleIndex": 2,
+          "level": "warning",
+          "message": {
+            "text": "Dispose created."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "file:///C:/Repos/STS_new/SectorTS/Core/MSSQLUtils.cs"
+                },
+                "region": {
+                  "startLine": 1268,
+                  "startColumn": 13,
+                  "endLine": 1275,
+                  "endColumn": 14
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "IDISP001",
+          "ruleIndex": 2,
+          "level": "warning",
+          "message": {
+            "text": "Dispose created."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "file:///C:/Repos/STS_new/SectorTS/Core/MSSQLUtils.cs"
+                },
+                "region": {
+                  "startLine": 912,
+                  "startColumn": 13,
+                  "endLine": 912,
+                  "endColumn": 41
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "IDISP001",
+          "ruleIndex": 2,
+          "level": "warning",
+          "message": {
+            "text": "Dispose created."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "file:///C:/Repos/STS_new/SectorTS/Core/MSSQLUtils.cs"
+                },
+                "region": {
+                  "startLine": 1242,
+                  "startColumn": 13,
+                  "endLine": 1242,
+                  "endColumn": 46
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "IDISP001",
+          "ruleIndex": 2,
+          "level": "warning",
+          "message": {
+            "text": "Dispose created."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "file:///C:/Repos/STS_new/SectorTS/Core/MSSQLUtils.cs"
+                },
+                "region": {
+                  "startLine": 231,
+                  "startColumn": 17,
+                  "endLine": 231,
+                  "endColumn": 56
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "IDISP001",
+          "ruleIndex": 2,
+          "level": "warning",
+          "message": {
+            "text": "Dispose created."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "file:///C:/Repos/STS_new/SectorTS/Core/MSSQLUtils.cs"
+                },
+                "region": {
+                  "startLine": 682,
+                  "startColumn": 17,
+                  "endLine": 682,
+                  "endColumn": 46
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "IDISP017",
+          "ruleIndex": 8,
+          "level": "warning",
+          "message": {
+            "text": "Prefer using."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "file:///C:/Repos/STS_new/SectorTS/Core/Mail.cs"
+                },
+                "region": {
+                  "startLine": 39,
+                  "startColumn": 13,
+                  "endLine": 39,
+                  "endColumn": 30
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "IDISP001",
+          "ruleIndex": 2,
+          "level": "warning",
+          "message": {
+            "text": "Dispose created."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "file:///C:/Repos/STS_new/SectorTS/Core/Mail.cs"
+                },
+                "region": {
+                  "startLine": 32,
+                  "startColumn": 13,
+                  "endLine": 32,
+                  "endColumn": 60
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "IDISP017",
+          "ruleIndex": 8,
+          "level": "warning",
+          "message": {
+            "text": "Prefer using."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "file:///C:/Repos/STS_new/SectorTS/Core/MSSQLUtils.cs"
+                },
+                "region": {
+                  "startLine": 434,
+                  "startColumn": 13,
+                  "endLine": 434,
+                  "endColumn": 24
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "IDISP001",
+          "ruleIndex": 2,
+          "level": "warning",
+          "message": {
+            "text": "Dispose created."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "file:///C:/Repos/STS_new/SectorTS/Core/MSSQLUtils.cs"
+                },
+                "region": {
+                  "startLine": 1043,
+                  "startColumn": 21,
+                  "endLine": 1043,
+                  "endColumn": 63
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "IDISP001",
+          "ruleIndex": 2,
+          "level": "warning",
+          "message": {
+            "text": "Dispose created."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "file:///C:/Repos/STS_new/SectorTS/Core/MSSQLUtils.cs"
+                },
+                "region": {
+                  "startLine": 1044,
+                  "startColumn": 21,
+                  "endLine": 1044,
+                  "endColumn": 80
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "IDISP001",
+          "ruleIndex": 2,
+          "level": "warning",
+          "message": {
+            "text": "Dispose created."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "file:///C:/Repos/STS_new/SectorTS/Core/MSSQLUtils.cs"
+                },
+                "region": {
+                  "startLine": 411,
+                  "startColumn": 33,
+                  "endLine": 411,
+                  "endColumn": 70
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "IDISP001",
+          "ruleIndex": 2,
+          "level": "warning",
+          "message": {
+            "text": "Dispose created."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "file:///C:/Repos/STS_new/SectorTS/Core/MSSQLUtils.cs"
+                },
+                "region": {
+                  "startLine": 412,
+                  "startColumn": 33,
+                  "endLine": 412,
+                  "endColumn": 69
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "IDISP001",
+          "ruleIndex": 2,
+          "level": "warning",
+          "message": {
+            "text": "Dispose created."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "file:///C:/Repos/STS_new/SectorTS/Core/MSSQLUtils.cs"
+                },
+                "region": {
+                  "startLine": 722,
+                  "startColumn": 25,
+                  "endLine": 722,
+                  "endColumn": 79
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "IDISP001",
+          "ruleIndex": 2,
+          "level": "warning",
+          "message": {
+            "text": "Dispose created."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "file:///C:/Repos/STS_new/SectorTS/Core/MSSQLUtils.cs"
+                },
+                "region": {
+                  "startLine": 729,
+                  "startColumn": 29,
+                  "endLine": 729,
+                  "endColumn": 83
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "IDISP001",
+          "ruleIndex": 2,
+          "level": "warning",
+          "message": {
+            "text": "Dispose created."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "file:///C:/Repos/STS_new/SectorTS/Core/MSSQLUtils.cs"
+                },
+                "region": {
+                  "startLine": 735,
+                  "startColumn": 29,
+                  "endLine": 735,
+                  "endColumn": 83
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "IDISP001",
+          "ruleIndex": 2,
+          "level": "warning",
+          "message": {
+            "text": "Dispose created."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "file:///C:/Repos/STS_new/SectorTS/Core/MSSQLUtils.cs"
+                },
+                "region": {
+                  "startLine": 553,
+                  "startColumn": 13,
+                  "endLine": 553,
+                  "endColumn": 55
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "IDISP001",
+          "ruleIndex": 2,
+          "level": "warning",
+          "message": {
+            "text": "Dispose created."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "file:///C:/Repos/STS_new/SectorTS/Core/MSSQLUtils.cs"
+                },
+                "region": {
+                  "startLine": 554,
+                  "startColumn": 13,
+                  "endLine": 554,
+                  "endColumn": 72
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        }
+      ],
+      "tool": {
+        "driver": {
+          "name": "Компилятор Microsoft (R) Visual C#",
+          "version": "3.11.0-4.22108.8 (d9bef045)",
+          "dottedQuadFileVersion": "3.11.0.0",
+          "semanticVersion": "3.11.0",
+          "language": "ru-RU",
+          "rules": [
+            {
+              "id": "CS0168",
+              "shortDescription": {
+                "text": "Переменная объявлена, но не используется"
+              },
+              "helpUri": "https://msdn.microsoft.com/query/roslyn.query?appId=roslyn&k=k(CS0168)",
+              "properties": {
+                "category": "Compiler",
+                "tags": [
+                  "Compiler",
+                  "Telemetry"
+                ]
+              }
+            },
+            {
+              "id": "IDISP025",
+              "shortDescription": {
+                "text": "Class with no virtual dispose method should be sealed."
+              },
+              "fullDescription": {
+                "text": "Class with no virtual dispose method should be sealed."
+              },
+              "helpUri": "https://github.com/DotNetAnalyzers/IDisposableAnalyzers/blob/master/documentation/IDISP025.md",
+              "properties": {
+                "category": "IDisposableAnalyzers.Correctness"
+              }
+            },
+            {
+              "id": "IDISP001",
+              "shortDescription": {
+                "text": "Dispose created."
+              },
+              "fullDescription": {
+                "text": "When you create an instance of a type that implements IDisposable you are responsible for disposing it."
+              },
+              "helpUri": "https://github.com/DotNetAnalyzers/IDisposableAnalyzers/blob/master/documentation/IDISP001.md",
+              "properties": {
+                "category": "IDisposableAnalyzers.Correctness"
+              }
+            },
+            {
+              "id": "IDISP003",
+              "shortDescription": {
+                "text": "Dispose previous before re-assigning."
+              },
+              "fullDescription": {
+                "text": "Dispose previous before re-assigning."
+              },
+              "helpUri": "https://github.com/DotNetAnalyzers/IDisposableAnalyzers/blob/master/documentation/IDISP003.md",
+              "properties": {
+                "category": "IDisposableAnalyzers.Correctness"
+              }
+            },
+            {
+              "id": "IDISP018",
+              "shortDescription": {
+                "text": "Call SuppressFinalize."
+              },
+              "fullDescription": {
+                "text": "Call SuppressFinalize(this) as the type has a finalizer."
+              },
+              "helpUri": "https://github.com/DotNetAnalyzers/IDisposableAnalyzers/blob/master/documentation/IDISP018.md",
+              "properties": {
+                "category": "IDisposableAnalyzers.Correctness"
+              }
+            },
+            {
+              "id": "IDISP006",
+              "shortDescription": {
+                "text": "Implement IDisposable."
+              },
+              "fullDescription": {
+                "text": "The member is assigned with a created IDisposables within the type. Implement IDisposable and dispose it."
+              },
+              "helpUri": "https://github.com/DotNetAnalyzers/IDisposableAnalyzers/blob/master/documentation/IDISP006.md",
+              "properties": {
+                "category": "IDisposableAnalyzers.Correctness"
+              }
+            },
+            {
+              "id": "IDISP023",
+              "shortDescription": {
+                "text": "Don't use reference types in finalizer context."
+              },
+              "fullDescription": {
+                "text": "Don't use reference types in finalizer context."
+              },
+              "helpUri": "https://github.com/DotNetAnalyzers/IDisposableAnalyzers/blob/master/documentation/IDISP023.md",
+              "properties": {
+                "category": "IDisposableAnalyzers.Correctness"
+              }
+            },
+            {
+              "id": "IDISP004",
+              "shortDescription": {
+                "text": "Don't ignore created IDisposable."
+              },
+              "fullDescription": {
+                "text": "Don't ignore created IDisposable."
+              },
+              "helpUri": "https://github.com/DotNetAnalyzers/IDisposableAnalyzers/blob/master/documentation/IDISP004.md",
+              "properties": {
+                "category": "IDisposableAnalyzers.Correctness"
+              }
+            },
+            {
+              "id": "IDISP017",
+              "shortDescription": {
+                "text": "Prefer using."
+              },
+              "fullDescription": {
+                "text": "Prefer using."
+              },
+              "helpUri": "https://github.com/DotNetAnalyzers/IDisposableAnalyzers/blob/master/documentation/IDISP017.md",
+              "properties": {
+                "category": "IDisposableAnalyzers.Correctness"
+              }
+            }
+          ]
+        }
+      },
+      "columnKind": "utf16CodeUnits"
+    }
+  ]
+}

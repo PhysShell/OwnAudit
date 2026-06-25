@@ -1,0 +1,634 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<title>Own.NET Audit — STS_new/SectorTS</title>
+<style>
+ body{font:14px/1.5 system-ui,sans-serif;margin:2rem;color:#1b1b1b;max-width:60rem}
+ h1{font-size:1.4rem} h2{margin-top:1.8rem;border-bottom:1px solid #ddd;padding-bottom:.2rem}
+ table{border-collapse:collapse;width:100%}
+ th,td{padding:.35rem .6rem;border-bottom:1px solid #eee;text-align:left}
+ td.num{text-align:right;font-variant-numeric:tabular-nums}
+ td.mod{font-family:ui-monospace,monospace}
+ code{background:#f4f4f4;padding:.05rem .3rem;border-radius:3px}
+ ul{list-style:none;padding-left:0} li{padding:.15rem 0}
+ .sev{display:inline-block;width:1.6rem;text-align:center;border-radius:3px;color:#fff;font-size:.8rem}
+ .p0{background:#7a0000}.p1{background:#c0392b}.p2{background:#e0820a}.p3{background:#888}
+ .tools{color:#666;font-size:.85rem} .meta{color:#444}
+</style></head><body>
+<h1>Own.NET Audit — health report — <code>STS_new/SectorTS</code></h1>
+<p class="meta">commit <code></code> ·
+ generated ? ·
+ profile <code>?</code> ·
+ tools codeql, infersharp, own-check, roslyn</p>
+<p><strong>15803 findings</strong>
+ (3602 high-confidence,
+ 12201 candidate)</p>
+<h2>Where it hurts most</h2>
+<table><thead><tr><th>module</th><th>pain</th><th>findings</th><th>high-conf</th>
+<th>top category</th></tr></thead><tbody>
+<tr><td class='mod'>BrokerDataClasses</td><td class='num'>6189.0</td><td class='num'>2295</td><td class='num'>665</td><td>general-quality</td></tr>
+<tr><td class='mod'>Broker</td><td class='num'>3313.0</td><td class='num'>1216</td><td class='num'>357</td><td>general-quality</td></tr>
+<tr><td class='mod'>BrokerDataClasses/Reports</td><td class='num'>2176.0</td><td class='num'>551</td><td class='num'>282</td><td>general-quality</td></tr>
+<tr><td class='mod'>BrokerDataClasses/Spr</td><td class='num'>1389.0</td><td class='num'>551</td><td class='num'>135</td><td>general-quality</td></tr>
+<tr><td class='mod'>Broker/GTD</td><td class='num'>1175.0</td><td class='num'>523</td><td class='num'>108</td><td>general-quality</td></tr>
+<tr><td class='mod'>BrokerDataClasses/Property</td><td class='num'>1033.0</td><td class='num'>377</td><td class='num'>151</td><td>inpc-correctness</td></tr>
+<tr><td class='mod'>BrokerDataClasses/Transit</td><td class='num'>811.0</td><td class='num'>283</td><td class='num'>75</td><td>inpc-correctness</td></tr>
+<tr><td class='mod'>BrokerDataClasses/StatementDT</td><td class='num'>770.0</td><td class='num'>221</td><td class='num'>89</td><td>inpc-correctness</td></tr>
+<tr><td class='mod'>BrokerPrint/RepoLibrary</td><td class='num'>739.0</td><td class='num'>282</td><td class='num'>81</td><td>general-quality</td></tr>
+<tr><td class='mod'>Tests/UnitTests</td><td class='num'>732.0</td><td class='num'>356</td><td class='num'>39</td><td>general-quality</td></tr>
+<tr><td class='mod'>Tests/UnitTests/Regressions</td><td class='num'>690.0</td><td class='num'>295</td><td class='num'>65</td><td>general-quality</td></tr>
+<tr><td class='mod'>Core</td><td class='num'>683.0</td><td class='num'>233</td><td class='num'>81</td><td>general-quality</td></tr>
+<tr><td class='mod'>Broker/SprDlg</td><td class='num'>654.0</td><td class='num'>293</td><td class='num'>63</td><td>general-quality</td></tr>
+<tr><td class='mod'>BrokerDataClasses/DTS2</td><td class='num'>622.0</td><td class='num'>284</td><td class='num'>21</td><td>inpc-correctness</td></tr>
+<tr><td class='mod'>BrokerDataClasses/KDTKTS</td><td class='num'>613.0</td><td class='num'>233</td><td class='num'>69</td><td>general-quality</td></tr>
+<tr><td class='mod'>Broker/Transit</td><td class='num'>612.0</td><td class='num'>241</td><td class='num'>49</td><td>general-quality</td></tr>
+<tr><td class='mod'>BrokerDataClasses/KTS</td><td class='num'>601.0</td><td class='num'>228</td><td class='num'>56</td><td>inpc-correctness</td></tr>
+<tr><td class='mod'>Tests/DocumentsTest/G47</td><td class='num'>556.0</td><td class='num'>282</td><td class='num'>28</td><td>general-quality</td></tr>
+<tr><td class='mod'>BrokerDataClasses/Service</td><td class='num'>498.0</td><td class='num'>198</td><td class='num'>36</td><td>general-quality</td></tr>
+<tr><td class='mod'>BrokerDataClasses/CashBlock</td><td class='num'>486.0</td><td class='num'>212</td><td class='num'>33</td><td>inpc-correctness</td></tr>
+<tr><td class='mod'>Broker/StatementDT</td><td class='num'>472.0</td><td class='num'>178</td><td class='num'>40</td><td>general-quality</td></tr>
+<tr><td class='mod'>CommonLib</td><td class='num'>454.0</td><td class='num'>181</td><td class='num'>32</td><td>general-quality</td></tr>
+<tr><td class='mod'>BrokerDataClasses/DTS</td><td class='num'>419.0</td><td class='num'>154</td><td class='num'>45</td><td>general-quality</td></tr>
+<tr><td class='mod'>ELFunctions</td><td class='num'>392.0</td><td class='num'>180</td><td class='num'>28</td><td>general-quality</td></tr>
+<tr><td class='mod'>Broker/DTS2</td><td class='num'>379.0</td><td class='num'>170</td><td class='num'>31</td><td>general-quality</td></tr>
+<tr><td class='mod'>BrokerDataClasses/KDT</td><td class='num'>370.0</td><td class='num'>167</td><td class='num'>14</td><td>general-quality</td></tr>
+<tr><td class='mod'>BrokerDataClasses/PaymentGuaranteeCalculation</td><td class='num'>359.0</td><td class='num'>132</td><td class='num'>39</td><td>inpc-correctness</td></tr>
+<tr><td class='mod'>FLK</td><td class='num'>340.0</td><td class='num'>119</td><td class='num'>53</td><td>general-quality</td></tr>
+<tr><td class='mod'>Broker/CommonControls</td><td class='num'>313.0</td><td class='num'>132</td><td class='num'>27</td><td>general-quality</td></tr>
+<tr><td class='mod'>Transit</td><td class='num'>312.0</td><td class='num'>114</td><td class='num'>31</td><td>general-quality</td></tr>
+<tr><td class='mod'>BrokerDataClasses/DocCloud/Clients</td><td class='num'>306.0</td><td class='num'>48</td><td class='num'>43</td><td>idisposable-leak</td></tr>
+<tr><td class='mod'>Broker/Statement</td><td class='num'>296.0</td><td class='num'>98</td><td class='num'>31</td><td>general-quality</td></tr>
+<tr><td class='mod'>Tests/UnitTests/CloudMapping</td><td class='num'>289.0</td><td class='num'>143</td><td class='num'>15</td><td>general-quality</td></tr>
+<tr><td class='mod'>Broker/obj/Debug</td><td class='num'>288.0</td><td class='num'>144</td><td class='num'>0</td><td>general-quality</td></tr>
+<tr><td class='mod'>Broker/KTS</td><td class='num'>269.0</td><td class='num'>100</td><td class='num'>24</td><td>general-quality</td></tr>
+<tr><td class='mod'>Tests/DocumentsTest/ElCopy</td><td class='num'>259.0</td><td class='num'>127</td><td class='num'>13</td><td>general-quality</td></tr>
+<tr><td class='mod'>Broker/DTS</td><td class='num'>258.0</td><td class='num'>109</td><td class='num'>19</td><td>general-quality</td></tr>
+<tr><td class='mod'>Broker/obj/Debug/GTD</td><td class='num'>256.0</td><td class='num'>128</td><td class='num'>0</td><td>general-quality</td></tr>
+<tr><td class='mod'>BrokerDataClasses/ExpresDT</td><td class='num'>216.0</td><td class='num'>73</td><td class='num'>31</td><td>inpc-correctness</td></tr>
+<tr><td class='mod'>BrokerDataClasses/MDP</td><td class='num'>213.0</td><td class='num'>76</td><td class='num'>28</td><td>inpc-correctness</td></tr>
+<tr><td class='mod'>Manager</td><td class='num'>189.0</td><td class='num'>47</td><td class='num'>22</td><td>general-quality</td></tr>
+<tr><td class='mod'>Tests/DocumentsTest</td><td class='num'>189.0</td><td class='num'>86</td><td class='num'>20</td><td>general-quality</td></tr>
+<tr><td class='mod'>Broker/Services</td><td class='num'>184.0</td><td class='num'>76</td><td class='num'>12</td><td>general-quality</td></tr>
+<tr><td class='mod'>BrokerDataClasses/R2</td><td class='num'>182.0</td><td class='num'>88</td><td class='num'>6</td><td>inpc-correctness</td></tr>
+<tr><td class='mod'>Broker/obj/Debug/SprDlg</td><td class='num'>178.0</td><td class='num'>89</td><td class='num'>0</td><td>general-quality</td></tr>
+<tr><td class='mod'>Broker/GTD/R2/G31Components</td><td class='num'>177.0</td><td class='num'>72</td><td class='num'>20</td><td>general-quality</td></tr>
+<tr><td class='mod'>Broker/PaymentGuaranteeCalculation</td><td class='num'>177.0</td><td class='num'>55</td><td class='num'>24</td><td>general-quality</td></tr>
+<tr><td class='mod'>Broker/ExpresDT</td><td class='num'>174.0</td><td class='num'>61</td><td class='num'>15</td><td>general-quality</td></tr>
+<tr><td class='mod'>BaseDict</td><td class='num'>172.0</td><td class='num'>75</td><td class='num'>13</td><td>general-quality</td></tr>
+<tr><td class='mod'>BrokerDataClasses/DocCloud/Services</td><td class='num'>165.0</td><td class='num'>68</td><td class='num'>15</td><td>general-quality</td></tr>
+<tr><td class='mod'>BrokerDataClasses/Service/CatCompatibility</td><td class='num'>163.0</td><td class='num'>46</td><td class='num'>14</td><td>general-quality</td></tr>
+<tr><td class='mod'>BrokerDataClasses/TDTransport</td><td class='num'>163.0</td><td class='num'>57</td><td class='num'>24</td><td>inpc-correctness</td></tr>
+<tr><td class='mod'>Broker/obj/Debug/Transit</td><td class='num'>144.0</td><td class='num'>72</td><td class='num'>0</td><td>general-quality</td></tr>
+<tr><td class='mod'>Broker/MDP</td><td class='num'>143.0</td><td class='num'>67</td><td class='num'>7</td><td>wpf-freezable</td></tr>
+<tr><td class='mod'>BrokerDataClasses/Statement</td><td class='num'>142.0</td><td class='num'>50</td><td class='num'>15</td><td>inpc-correctness</td></tr>
+<tr><td class='mod'>Broker/CommonControls/R2</td><td class='num'>140.0</td><td class='num'>59</td><td class='num'>12</td><td>general-quality</td></tr>
+<tr><td class='mod'>BrokerDataClasses/obj/Debug/Property/EditPanels</td><td class='num'>140.0</td><td class='num'>70</td><td class='num'>0</td><td>general-quality</td></tr>
+<tr><td class='mod'>Broker/GTD/R2/G44Components</td><td class='num'>139.0</td><td class='num'>64</td><td class='num'>10</td><td>general-quality</td></tr>
+<tr><td class='mod'>EnvironmentProvider/Base</td><td class='num'>139.0</td><td class='num'>41</td><td class='num'>16</td><td>general-quality</td></tr>
+<tr><td class='mod'>Tests/UnitTests/DbScope</td><td class='num'>129.0</td><td class='num'>66</td><td class='num'>11</td><td>general-quality</td></tr>
+<tr><td class='mod'>Broker/KDTKTS</td><td class='num'>127.0</td><td class='num'>49</td><td class='num'>11</td><td>general-quality</td></tr>
+<tr><td class='mod'>CommonLib/NewLogin/Components</td><td class='num'>126.0</td><td class='num'>61</td><td class='num'>4</td><td>inpc-correctness</td></tr>
+<tr><td class='mod'>Broker/TransportDecl</td><td class='num'>125.0</td><td class='num'>51</td><td class='num'>10</td><td>general-quality</td></tr>
+<tr><td class='mod'>Broker/GTD/R2/G31Components/ViewModels</td><td class='num'>116.0</td><td class='num'>54</td><td class='num'>6</td><td>inpc-correctness</td></tr>
+<tr><td class='mod'>ClientDB</td><td class='num'>115.0</td><td class='num'>37</td><td class='num'>13</td><td>general-quality</td></tr>
+<tr><td class='mod'>Broker/KDT</td><td class='num'>113.0</td><td class='num'>36</td><td class='num'>17</td><td>general-quality</td></tr>
+<tr><td class='mod'>Broker/Converters</td><td class='num'>109.0</td><td class='num'>43</td><td class='num'>13</td><td>wpf-freezable</td></tr>
+<tr><td class='mod'>Broker/DocCloud</td><td class='num'>108.0</td><td class='num'>49</td><td class='num'>8</td><td>general-quality</td></tr>
+<tr><td class='mod'>BrokerDataClasses/Property/EditPanels</td><td class='num'>105.0</td><td class='num'>30</td><td class='num'>13</td><td>general-quality</td></tr>
+<tr><td class='mod'>MDP</td><td class='num'>101.0</td><td class='num'>29</td><td class='num'>8</td><td>general-quality</td></tr>
+<tr><td class='mod'>Broker/GTD/R2/G40Components</td><td class='num'>100.0</td><td class='num'>52</td><td class='num'>3</td><td>general-quality</td></tr>
+<tr><td class='mod'>Broker/R2</td><td class='num'>100.0</td><td class='num'>37</td><td class='num'>12</td><td>general-quality</td></tr>
+<tr><td class='mod'>CashBlock</td><td class='num'>92.0</td><td class='num'>32</td><td class='num'>9</td><td>general-quality</td></tr>
+<tr><td class='mod'>dsector_sdoc</td><td class='num'>91.0</td><td class='num'>30</td><td class='num'>9</td><td>general-quality</td></tr>
+<tr><td class='mod'>CommonLib/obj/Debug</td><td class='num'>84.0</td><td class='num'>42</td><td class='num'>0</td><td>general-quality</td></tr>
+<tr><td class='mod'>ExpImpMaster/Controls</td><td class='num'>84.0</td><td class='num'>34</td><td class='num'>10</td><td>wpf-freezable</td></tr>
+<tr><td class='mod'>STS.Info</td><td class='num'>82.0</td><td class='num'>31</td><td class='num'>8</td><td>general-quality</td></tr>
+<tr><td class='mod'>BrokerPrint/RepoEditor</td><td class='num'>80.0</td><td class='num'>40</td><td class='num'>0</td><td>general-quality</td></tr>
+<tr><td class='mod'>BrokerDataClasses/KDT2</td><td class='num'>78.0</td><td class='num'>31</td><td class='num'>1</td><td>general-quality</td></tr>
+<tr><td class='mod'>BrokerDataClasses/Personalization</td><td class='num'>78.0</td><td class='num'>31</td><td class='num'>3</td><td>general-quality</td></tr>
+<tr><td class='mod'>BrokerDataClasses/DocCloud/Mappers/v1/Declaration/Goods</td><td class='num'>77.0</td><td class='num'>56</td><td class='num'>0</td><td>architecture</td></tr>
+<tr><td class='mod'>BrokerDataClasses/DocCloud/Mappers/v2/Declaration/Goods</td><td class='num'>77.0</td><td class='num'>58</td><td class='num'>0</td><td>architecture</td></tr>
+<tr><td class='mod'>Broker/GTD/R2/G33Components</td><td class='num'>73.0</td><td class='num'>32</td><td class='num'>5</td><td>inpc-correctness</td></tr>
+<tr><td class='mod'>CommonControls</td><td class='num'>70.0</td><td class='num'>30</td><td class='num'>6</td><td>general-quality</td></tr>
+<tr><td class='mod'>BrokerDataClasses/DTS2/Astana1</td><td class='num'>68.0</td><td class='num'>31</td><td class='num'>2</td><td>general-quality</td></tr>
+<tr><td class='mod'>BrokerDataClasses/DocCloud/Mappers/v2/Declaration/Main</td><td class='num'>68.0</td><td class='num'>48</td><td class='num'>0</td><td>architecture</td></tr>
+<tr><td class='mod'>CommonLib/Controls/Behaviors/EnterKeyNavigation</td><td class='num'>66.0</td><td class='num'>30</td><td class='num'>4</td><td>general-quality</td></tr>
+<tr><td class='mod'>RtfWriter</td><td class='num'>66.0</td><td class='num'>33</td><td class='num'>0</td><td>general-quality</td></tr>
+<tr><td class='mod'>Broker/Excel/Services</td><td class='num'>65.0</td><td class='num'>31</td><td class='num'>2</td><td>general-quality</td></tr>
+<tr><td class='mod'>Tests/UnitTests/Controls/Behaviors</td><td class='num'>65.0</td><td class='num'>23</td><td class='num'>10</td><td>general-quality</td></tr>
+<tr><td class='mod'>UsersMGR/ViewModels</td><td class='num'>61.0</td><td class='num'>31</td><td class='num'>1</td><td>inpc-correctness</td></tr>
+<tr><td class='mod'>TransportDecl</td><td class='num'>60.0</td><td class='num'>14</td><td class='num'>7</td><td>idisposable-leak</td></tr>
+<tr><td class='mod'>Broker/KDT2</td><td class='num'>58.0</td><td class='num'>18</td><td class='num'>8</td><td>general-quality</td></tr>
+<tr><td class='mod'>dsector_sdoc/Models/CASH</td><td class='num'>57.0</td><td class='num'>16</td><td class='num'>5</td><td>general-quality</td></tr>
+<tr><td class='mod'>dsector_sdoc/Models/GTD</td><td class='num'>56.0</td><td class='num'>23</td><td class='num'>4</td><td>general-quality</td></tr>
+<tr><td class='mod'>Broker/GTD/R2/G31Components/Views</td><td class='num'>54.0</td><td class='num'>20</td><td class='num'>7</td><td>general-quality</td></tr>
+<tr><td class='mod'>BrokerDataClasses/Excel</td><td class='num'>53.0</td><td class='num'>20</td><td class='num'>4</td><td>general-quality</td></tr>
+<tr><td class='mod'>ExpImpMaster/Properties</td><td class='num'>53.0</td><td class='num'>29</td><td class='num'>0</td><td>general-quality</td></tr>
+<tr><td class='mod'>BrokerDataClasses/DocCloud/Mappers/v1/Declaration/Main</td><td class='num'>52.0</td><td class='num'>36</td><td class='num'>0</td><td>architecture</td></tr>
+<tr><td class='mod'>Broker/obj/Debug/CommonControls</td><td class='num'>50.0</td><td class='num'>25</td><td class='num'>0</td><td>general-quality</td></tr>
+<tr><td class='mod'>Tests/DocumentsTest/G31</td><td class='num'>49.0</td><td class='num'>22</td><td class='num'>4</td><td>general-quality</td></tr>
+<tr><td class='mod'>Broker/obj/Debug/DTS2</td><td class='num'>48.0</td><td class='num'>24</td><td class='num'>0</td><td>general-quality</td></tr>
+<tr><td class='mod'>TnvedEditor</td><td class='num'>46.0</td><td class='num'>16</td><td class='num'>1</td><td>general-quality</td></tr>
+<tr><td class='mod'>Broker/obj/Debug/StatementDT</td><td class='num'>44.0</td><td class='num'>22</td><td class='num'>0</td><td>general-quality</td></tr>
+<tr><td class='mod'>BrokerDataClasses/DeclarationSyncAudit</td><td class='num'>42.0</td><td class='num'>20</td><td class='num'>1</td><td>general-quality</td></tr>
+<tr><td class='mod'>Broker/GTD/R2/G18Components</td><td class='num'>40.0</td><td class='num'>18</td><td class='num'>3</td><td>general-quality</td></tr>
+<tr><td class='mod'>Broker/obj/Debug/GTD/R2/G31Components/Views</td><td class='num'>40.0</td><td class='num'>20</td><td class='num'>0</td><td>general-quality</td></tr>
+<tr><td class='mod'>Broker/obj/Debug/KTS</td><td class='num'>40.0</td><td class='num'>20</td><td class='num'>0</td><td>general-quality</td></tr>
+<tr><td class='mod'>Manager/obj/Debug</td><td class='num'>40.0</td><td class='num'>20</td><td class='num'>0</td><td>general-quality</td></tr>
+<tr><td class='mod'>BrokerDataClasses/DocCloud/Mappers/v1/Common</td><td class='num'>39.0</td><td class='num'>28</td><td class='num'>0</td><td>architecture</td></tr>
+<tr><td class='mod'>BrokerDataClasses/ElCopy</td><td class='num'>39.0</td><td class='num'>19</td><td class='num'>3</td><td>general-quality</td></tr>
+<tr><td class='mod'>CommonLib/NewLogin/Converters</td><td class='num'>38.0</td><td class='num'>13</td><td class='num'>6</td><td>wpf-freezable</td></tr>
+<tr><td class='mod'>CommonLib/Notifications</td><td class='num'>38.0</td><td class='num'>16</td><td class='num'>3</td><td>general-quality</td></tr>
+<tr><td class='mod'>UsersMGR/Repository</td><td class='num'>38.0</td><td class='num'>12</td><td class='num'>4</td><td>general-quality</td></tr>
+<tr><td class='mod'>Broker/Excel/Models</td><td class='num'>37.0</td><td class='num'>19</td><td class='num'>0</td><td>general-quality</td></tr>
+<tr><td class='mod'>BrokerDataClasses/DocCloud/Models</td><td class='num'>37.0</td><td class='num'>19</td><td class='num'>0</td><td>inpc-correctness</td></tr>
+<tr><td class='mod'>Broker/Excel</td><td class='num'>36.0</td><td class='num'>14</td><td class='num'>4</td><td>inpc-correctness</td></tr>
+<tr><td class='mod'>CurrencyLoad/CurrencyLoad</td><td class='num'>36.0</td><td class='num'>10</td><td class='num'>2</td><td>general-quality</td></tr>
+<tr><td class='mod'>_/Src/FluentAssertions/Equivalency/Steps</td><td class='num'>36.0</td><td class='num'>9</td><td class='num'>0</td><td>idisposable-leak</td></tr>
+<tr><td class='mod'>BrokerDataClasses/TnvedInfo</td><td class='num'>35.0</td><td class='num'>15</td><td class='num'>3</td><td>general-quality</td></tr>
+<tr><td class='mod'>Tests/DocumentsTest/LoadSave</td><td class='num'>35.0</td><td class='num'>14</td><td class='num'>5</td><td>general-quality</td></tr>
+<tr><td class='mod'>Broker/DocSync</td><td class='num'>34.0</td><td class='num'>17</td><td class='num'>0</td><td>inpc-correctness</td></tr>
+<tr><td class='mod'>BrokerDataClasses/R2/Utility</td><td class='num'>34.0</td><td class='num'>20</td><td class='num'>0</td><td>general-quality</td></tr>
+<tr><td class='mod'>Sender/Client</td><td class='num'>34.0</td><td class='num'>12</td><td class='num'>2</td><td>general-quality</td></tr>
+<tr><td class='mod'>Tests/UnitTests/ChangeTracker</td><td class='num'>34.0</td><td class='num'>17</td><td class='num'>0</td><td>general-quality</td></tr>
+<tr><td class='mod'>Broker/GTD/R2/G21Components</td><td class='num'>33.0</td><td class='num'>15</td><td class='num'>2</td><td>general-quality</td></tr>
+<tr><td class='mod'>BrokerDataClasses/DocCloud/Mappers/v1/Enum</td><td class='num'>33.0</td><td class='num'>21</td><td class='num'>0</td><td>general-quality</td></tr>
+<tr><td class='mod'>Broker/obj/Debug/DTS</td><td class='num'>32.0</td><td class='num'>16</td><td class='num'>0</td><td>general-quality</td></tr>
+<tr><td class='mod'>BrokerDataClasses/SerialNumbers</td><td class='num'>31.0</td><td class='num'>15</td><td class='num'>1</td><td>general-quality</td></tr>
+<tr><td class='mod'>Broker/RegistrationDT</td><td class='num'>30.0</td><td class='num'>16</td><td class='num'>0</td><td>general-quality</td></tr>
+<tr><td class='mod'>BrokerDataClasses/DocCloud/Mappers/v2/Common</td><td class='num'>30.0</td><td class='num'>21</td><td class='num'>0</td><td>architecture</td></tr>
+<tr><td class='mod'>BrokerDataClasses/TnvedInfo/VtoExemptions</td><td class='num'>29.0</td><td class='num'>14</td><td class='num'>1</td><td>inpc-correctness</td></tr>
+<tr><td class='mod'>dsector_sdoc_extended</td><td class='num'>29.0</td><td class='num'>16</td><td class='num'>1</td><td>general-quality</td></tr>
+<tr><td class='mod'>Broker/obj/Debug/KDT</td><td class='num'>28.0</td><td class='num'>14</td><td class='num'>0</td><td>general-quality</td></tr>
+<tr><td class='mod'>Tests/DocumentsTest/Print</td><td class='num'>28.0</td><td class='num'>7</td><td class='num'>4</td><td>general-quality</td></tr>
+<tr><td class='mod'>Tests/UnitTests/Converters</td><td class='num'>28.0</td><td class='num'>14</td><td class='num'>0</td><td>general-quality</td></tr>
+<tr><td class='mod'>Transit/obj/Debug</td><td class='num'>28.0</td><td class='num'>14</td><td class='num'>0</td><td>general-quality</td></tr>
+<tr><td class='mod'>BrokerDataClasses/Network</td><td class='num'>27.0</td><td class='num'>10</td><td class='num'>3</td><td>general-quality</td></tr>
+<tr><td class='mod'>CommonLib/Services</td><td class='num'>27.0</td><td class='num'>12</td><td class='num'>2</td><td>general-quality</td></tr>
+<tr><td class='mod'>Broker/VirtulaWarehouse</td><td class='num'>26.0</td><td class='num'>8</td><td class='num'>3</td><td>general-quality</td></tr>
+<tr><td class='mod'>CommonLib/Controls/Behaviors</td><td class='num'>26.0</td><td class='num'>14</td><td class='num'>0</td><td>wpf-freezable</td></tr>
+<tr><td class='mod'>Broker/Stat</td><td class='num'>25.0</td><td class='num'>9</td><td class='num'>4</td><td>general-quality</td></tr>
+<tr><td class='mod'>BrokerDataClasses/ChangeProperty</td><td class='num'>25.0</td><td class='num'>12</td><td class='num'>1</td><td>inpc-correctness</td></tr>
+<tr><td class='mod'>BrokerDataClasses/Property/Presets</td><td class='num'>25.0</td><td class='num'>11</td><td class='num'>2</td><td>general-quality</td></tr>
+<tr><td class='mod'>Broker/obj/Debug/RegistrationDT/Pages</td><td class='num'>24.0</td><td class='num'>12</td><td class='num'>0</td><td>general-quality</td></tr>
+<tr><td class='mod'>Broker/obj/Debug/TransportDecl</td><td class='num'>24.0</td><td class='num'>12</td><td class='num'>0</td><td>general-quality</td></tr>
+<tr><td class='mod'>BrokerDataClasses/ExcelReports</td><td class='num'>24.0</td><td class='num'>8</td><td class='num'>2</td><td>general-quality</td></tr>
+<tr><td class='mod'>C:/Repos/HtmlAgilityPack/HtmlAgilityPack.Shared</td><td class='num'>24.0</td><td class='num'>6</td><td class='num'>0</td><td>idisposable-leak</td></tr>
+<tr><td class='mod'>CommonLib/Controls</td><td class='num'>24.0</td><td class='num'>11</td><td class='num'>2</td><td>wpf-freezable</td></tr>
+<tr><td class='mod'>CommonLib/obj/Debug/NewLogin/Components</td><td class='num'>24.0</td><td class='num'>12</td><td class='num'>0</td><td>general-quality</td></tr>
+<tr><td class='mod'>ExpImpMaster/obj/Debug/Controls</td><td class='num'>24.0</td><td class='num'>12</td><td class='num'>0</td><td>general-quality</td></tr>
+<tr><td class='mod'>UsersMGR/Views</td><td class='num'>24.0</td><td class='num'>12</td><td class='num'>1</td><td>general-quality</td></tr>
+<tr><td class='mod'>_/Src/FluentAssertions/Types</td><td class='num'>24.0</td><td class='num'>6</td><td class='num'>0</td><td>idisposable-leak</td></tr>
+<tr><td class='mod'>Manager/UpdBackup</td><td class='num'>23.0</td><td class='num'>9</td><td class='num'>1</td><td>general-quality</td></tr>
+<tr><td class='mod'>Analyzers/SectorTS.Analyzers</td><td class='num'>22.0</td><td class='num'>11</td><td class='num'>0</td><td>general-quality</td></tr>
+<tr><td class='mod'>BrokerDataClasses/DocSync</td><td class='num'>22.0</td><td class='num'>10</td><td class='num'>1</td><td>general-quality</td></tr>
+<tr><td class='mod'>Broker/obj/Debug/DocSync</td><td class='num'>20.0</td><td class='num'>10</td><td class='num'>0</td><td>general-quality</td></tr>
+<tr><td class='mod'>Broker/obj/Debug/PaymentGuaranteeCalculation</td><td class='num'>20.0</td><td class='num'>10</td><td class='num'>0</td><td>general-quality</td></tr>
+<tr><td class='mod'>CashBlock/obj/Debug</td><td class='num'>20.0</td><td class='num'>10</td><td class='num'>0</td><td>general-quality</td></tr>
+<tr><td class='mod'>CommonLib/NewLogin/Behaviors</td><td class='num'>20.0</td><td class='num'>6</td><td class='num'>2</td><td>wpf-freezable</td></tr>
+<tr><td class='mod'>UsersMGR/obj/Debug/Views</td><td class='num'>20.0</td><td class='num'>10</td><td class='num'>0</td><td>general-quality</td></tr>
+<tr><td class='mod'>_/Src/FluentAssertions/Collections</td><td class='num'>20.0</td><td class='num'>5</td><td class='num'>0</td><td>idisposable-leak</td></tr>
+<tr><td class='mod'>CommonLib/ActivationProgram/Pages</td><td class='num'>19.0</td><td class='num'>6</td><td class='num'>2</td><td>wpf-freezable</td></tr>
+<tr><td class='mod'>Broker/DeclarationSyncAudit</td><td class='num'>18.0</td><td class='num'>7</td><td class='num'>2</td><td>inpc-correctness</td></tr>
+<tr><td class='mod'>Broker/Helpers</td><td class='num'>18.0</td><td class='num'>9</td><td class='num'>0</td><td>general-quality</td></tr>
+<tr><td class='mod'>Broker/obj/Debug/DocCloud</td><td class='num'>18.0</td><td class='num'>9</td><td class='num'>0</td><td>general-quality</td></tr>
+<tr><td class='mod'>BrokerDataClasses/ChangeTracker/DT</td><td class='num'>18.0</td><td class='num'>9</td><td class='num'>1</td><td>general-quality</td></tr>
+<tr><td class='mod'>Configurator</td><td class='num'>18.0</td><td class='num'>7</td><td class='num'>0</td><td>general-quality</td></tr>
+<tr><td class='mod'>CommonLib/S3Sys</td><td class='num'>17.0</td><td class='num'>5</td><td class='num'>2</td><td>general-quality</td></tr>
+<tr><td class='mod'>Broker/Excel/Utilities</td><td class='num'>16.0</td><td class='num'>7</td><td class='num'>1</td><td>inpc-correctness</td></tr>
+<tr><td class='mod'>Broker/obj/Debug/Statement</td><td class='num'>16.0</td><td class='num'>8</td><td class='num'>0</td><td>general-quality</td></tr>
+<tr><td class='mod'>BrokerDataClasses/AiDos/Models</td><td class='num'>16.0</td><td class='num'>8</td><td class='num'>0</td><td>inpc-correctness</td></tr>
+<tr><td class='mod'>BrokerDataClasses/Personalization/Models</td><td class='num'>16.0</td><td class='num'>7</td><td class='num'>1</td><td>general-quality</td></tr>
+<tr><td class='mod'>BrokerDataClasses/obj/Debug</td><td class='num'>16.0</td><td class='num'>8</td><td class='num'>0</td><td>general-quality</td></tr>
+<tr><td class='mod'>BrokerPrint/RepoLibrary/obj/Debug</td><td class='num'>16.0</td><td class='num'>8</td><td class='num'>0</td><td>general-quality</td></tr>
+<tr><td class='mod'>CommonLib/obj/Debug/NewLogin/LoginForms/RemoteLogin/Views</td><td class='num'>16.0</td><td class='num'>8</td><td class='num'>0</td><td>general-quality</td></tr>
+<tr><td class='mod'>Core/Ambient</td><td class='num'>16.0</td><td class='num'>7</td><td class='num'>2</td><td>general-quality</td></tr>
+<tr><td class='mod'>MergeDB</td><td class='num'>16.0</td><td class='num'>6</td><td class='num'>0</td><td>general-quality</td></tr>
+<tr><td class='mod'>_/Src/FluentAssertions/Data</td><td class='num'>16.0</td><td class='num'>4</td><td class='num'>0</td><td>idisposable-leak</td></tr>
+<tr><td class='mod'>Broker/GTD/R2/G33Components/ViewModels</td><td class='num'>15.0</td><td class='num'>8</td><td class='num'>0</td><td>inpc-correctness</td></tr>
+<tr><td class='mod'>BrokerDataClasses/R2/ElAuxiliaryModels</td><td class='num'>15.0</td><td class='num'>8</td><td class='num'>0</td><td>inpc-correctness</td></tr>
+<tr><td class='mod'>Broker/GTD/R2/G54Components</td><td class='num'>14.0</td><td class='num'>8</td><td class='num'>0</td><td>wpf-freezable</td></tr>
+<tr><td class='mod'>Broker/GTD/R2/G9Components</td><td class='num'>14.0</td><td class='num'>8</td><td class='num'>0</td><td>inpc-correctness</td></tr>
+<tr><td class='mod'>CommonLib/CatSyncStatus</td><td class='num'>14.0</td><td class='num'>7</td><td class='num'>0</td><td>general-quality</td></tr>
+<tr><td class='mod'>ELFunctions/KTS</td><td class='num'>14.0</td><td class='num'>6</td><td class='num'>1</td><td>general-quality</td></tr>
+<tr><td class='mod'>Broker/GTD/R2/G14Components</td><td class='num'>12.0</td><td class='num'>7</td><td class='num'>0</td><td>inpc-correctness</td></tr>
+<tr><td class='mod'>Broker/GTD/R2/G2Components</td><td class='num'>12.0</td><td class='num'>7</td><td class='num'>0</td><td>inpc-correctness</td></tr>
+<tr><td class='mod'>Broker/obj/Debug/ExpresDT</td><td class='num'>12.0</td><td class='num'>6</td><td class='num'>0</td><td>general-quality</td></tr>
+<tr><td class='mod'>Broker/obj/Debug/GTD/R2/G31Components</td><td class='num'>12.0</td><td class='num'>6</td><td class='num'>0</td><td>general-quality</td></tr>
+<tr><td class='mod'>Broker/obj/Debug/KDTKTS</td><td class='num'>12.0</td><td class='num'>6</td><td class='num'>0</td><td>general-quality</td></tr>
+<tr><td class='mod'>CommonControls/obj/Debug</td><td class='num'>12.0</td><td class='num'>6</td><td class='num'>0</td><td>general-quality</td></tr>
+<tr><td class='mod'>ELDocEditor</td><td class='num'>12.0</td><td class='num'>3</td><td class='num'>1</td><td>general-quality</td></tr>
+<tr><td class='mod'>ExpImpMaster</td><td class='num'>12.0</td><td class='num'>4</td><td class='num'>2</td><td>general-quality</td></tr>
+<tr><td class='mod'>ExpImpMaster/obj/Debug</td><td class='num'>12.0</td><td class='num'>6</td><td class='num'>0</td><td>general-quality</td></tr>
+<tr><td class='mod'>MDP/obj/Debug</td><td class='num'>12.0</td><td class='num'>6</td><td class='num'>0</td><td>general-quality</td></tr>
+<tr><td class='mod'>Tests/UnitTests/Fakes</td><td class='num'>12.0</td><td class='num'>9</td><td class='num'>0</td><td>architecture</td></tr>
+<tr><td class='mod'>TransportDecl/obj/Debug</td><td class='num'>12.0</td><td class='num'>6</td><td class='num'>0</td><td>general-quality</td></tr>
+<tr><td class='mod'>UsersMGR/Helper</td><td class='num'>12.0</td><td class='num'>6</td><td class='num'>1</td><td>general-quality</td></tr>
+<tr><td class='mod'>UsersMGR/Model</td><td class='num'>12.0</td><td class='num'>6</td><td class='num'>0</td><td>general-quality</td></tr>
+<tr><td class='mod'>_/src/SharpCompress/Compressors/Xz</td><td class='num'>12.0</td><td class='num'>3</td><td class='num'>0</td><td>idisposable-leak</td></tr>
+</tbody></table>
+<h2>High-confidence findings — 3602</h2>
+<ul><li><span class='sev p1'>P1</span> <code>BaseDict/DictionaryList.cs:625</code> <strong>idisposable-leak</strong> <span class='tools'>codeql, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>BaseDict/DictionaryList.cs:703</code> <strong>idisposable-leak</strong> <span class='tools'>codeql, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/AmountWindow.xaml.cs:72</code> <strong>subscription-leak</strong> <span class='tools'>codeql, own-check, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/App.xaml.cs:13</code> <strong>idisposable-leak</strong> <span class='tools'>codeql, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/Copy_toG44_fromDT_byG40_win.xaml.cs:96</code> <strong>idisposable-leak</strong> <span class='tools'>codeql, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/Copy_toG44_fromDT_byG40_win.xaml.cs:112</code> <strong>idisposable-leak</strong> <span class='tools'>codeql, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/DatabaseOptimizationWindow.xaml.cs:174</code> <strong>subscription-leak</strong> <span class='tools'>own-check, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/DesignEditorWindow.xaml.cs:225</code> <strong>idisposable-leak</strong> <span class='tools'>codeql, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/ElErrorWindow.xaml.cs:58</code> <strong>idisposable-leak</strong> <span class='tools'>codeql, own-check, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/FLKWindow.xaml.cs:62</code> <strong>idisposable-leak</strong> <span class='tools'>codeql, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/GTDDataShow.cs:31</code> <strong>idisposable-leak</strong> <span class='tools'>codeql, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/GTDDataShow.cs:227</code> <strong>idisposable-leak</strong> <span class='tools'>codeql, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/GTDDataShow.cs:389</code> <strong>idisposable-leak</strong> <span class='tools'>codeql, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/GTDDataShow.cs:460</code> <strong>idisposable-leak</strong> <span class='tools'>codeql, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/GTDDataShow.cs:825</code> <strong>idisposable-leak</strong> <span class='tools'>codeql, infersharp, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/GTDDataShowPersonalize.cs:214</code> <strong>idisposable-leak</strong> <span class='tools'>codeql, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/GTDDataShowPersonalize.cs:345</code> <strong>idisposable-leak</strong> <span class='tools'>codeql, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/MainWindow.xaml.cs:360</code> <strong>idisposable-leak</strong> <span class='tools'>codeql, own-check, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/MainWindow.xaml.cs:1089</code> <strong>idisposable-leak</strong> <span class='tools'>codeql, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/MainWindow.xaml.cs:1528</code> <strong>idisposable-leak</strong> <span class='tools'>codeql, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/MainWindow.xaml.cs:1949</code> <strong>idisposable-leak</strong> <span class='tools'>codeql, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/MainWindow.xaml.cs:3949</code> <strong>subscription-leak</strong> <span class='tools'>codeql, own-check, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/MainWindow.xaml.cs:4061</code> <strong>subscription-leak</strong> <span class='tools'>own-check, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/MainWindow.xaml.cs:4087</code> <strong>subscription-leak</strong> <span class='tools'>own-check, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/MainWindow.xaml.cs:4220</code> <strong>subscription-leak</strong> <span class='tools'>own-check, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/MainWindow.xaml.cs:4246</code> <strong>subscription-leak</strong> <span class='tools'>own-check, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/MainWindow.xaml.cs:9622</code> <strong>idisposable-leak</strong> <span class='tools'>codeql, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/MainWindow.xaml.cs:10592</code> <strong>idisposable-leak</strong> <span class='tools'>codeql, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/MainWindow.xaml.cs:12990</code> <strong>subscription-leak</strong> <span class='tools'>own-check, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/MainWindow.xaml.cs:13162</code> <strong>subscription-leak</strong> <span class='tools'>own-check, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/MainWindow.xaml.cs:13222</code> <strong>idisposable-leak</strong> <span class='tools'>codeql, infersharp, own-check, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/MainWindow.xaml.cs:13902</code> <strong>idisposable-leak</strong> <span class='tools'>codeql, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/MainWindow.xaml.cs:14719</code> <strong>idisposable-leak</strong> <span class='tools'>codeql, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/MainWindow.xaml.cs:15304</code> <strong>idisposable-leak</strong> <span class='tools'>own-check, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/MainWindow.xaml.cs:15834</code> <strong>idisposable-leak</strong> <span class='tools'>codeql, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/MainWindow.xaml.cs:15958</code> <strong>subscription-leak</strong> <span class='tools'>own-check, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/OpenDocumentWindow.xaml.cs:203</code> <strong>idisposable-leak</strong> <span class='tools'>codeql, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/OpenDocumentWindow.xaml.cs:484</code> <strong>idisposable-leak</strong> <span class='tools'>codeql, infersharp, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/OpenDocumentWindow.xaml.cs:518</code> <strong>idisposable-leak</strong> <span class='tools'>codeql, infersharp, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/OpenDocumentWindow.xaml.cs:537</code> <strong>idisposable-leak</strong> <span class='tools'>codeql, infersharp, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/OpenDocumentWindow.xaml.cs:626</code> <strong>idisposable-leak</strong> <span class='tools'>codeql, infersharp, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/RelatedDocumentsTree.xaml.cs:94</code> <strong>idisposable-leak</strong> <span class='tools'>codeql, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/ReportDlg.xaml.cs:232</code> <strong>idisposable-leak</strong> <span class='tools'>codeql, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/ReportUsersWindow.xaml.cs:25</code> <strong>subscription-leak</strong> <span class='tools'>codeql, own-check, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/ShareWindow.xaml.cs:25</code> <strong>idisposable-leak</strong> <span class='tools'>own-check, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/SummaryWindow.xaml.cs:32</code> <strong>subscription-leak</strong> <span class='tools'>codeql, own-check, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/TrashWindow.xaml.cs:455</code> <strong>idisposable-leak</strong> <span class='tools'>codeql, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/TrashWindow.xaml.cs:522</code> <strong>idisposable-leak</strong> <span class='tools'>codeql, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/TrashWindow.xaml.cs:583</code> <strong>idisposable-leak</strong> <span class='tools'>codeql, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/TrashWindow.xaml.cs:646</code> <strong>idisposable-leak</strong> <span class='tools'>codeql, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/TrashWindow.xaml.cs:709</code> <strong>idisposable-leak</strong> <span class='tools'>codeql, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/TrashWindow.xaml.cs:774</code> <strong>idisposable-leak</strong> <span class='tools'>codeql, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/TrashWindow.xaml.cs:816</code> <strong>idisposable-leak</strong> <span class='tools'>codeql, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/TrashWindow.xaml.cs:852</code> <strong>idisposable-leak</strong> <span class='tools'>codeql, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/TrashWindow.xaml.cs:888</code> <strong>idisposable-leak</strong> <span class='tools'>codeql, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/TrashWindow.xaml.cs:926</code> <strong>idisposable-leak</strong> <span class='tools'>codeql, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/Wares.xaml.cs:237</code> <strong>idisposable-leak</strong> <span class='tools'>codeql, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/Wares.xaml.cs:333</code> <strong>idisposable-leak</strong> <span class='tools'>codeql, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/sprUslPrice.xaml.cs:43</code> <strong>idisposable-leak</strong> <span class='tools'>codeql, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/sprUslPrice.xaml.cs:295</code> <strong>idisposable-leak</strong> <span class='tools'>codeql, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/sprUslPrice.xaml.cs:485</code> <strong>idisposable-leak</strong> <span class='tools'>codeql, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/sprUslPrice.xaml.cs:519</code> <strong>idisposable-leak</strong> <span class='tools'>codeql, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/tnvedTreeActionsPopupWindowxaml.xaml.cs:117</code> <strong>idisposable-leak</strong> <span class='tools'>codeql, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/ucStart.xaml.cs:779</code> <strong>idisposable-leak</strong> <span class='tools'>codeql, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/ucStartPersonalize.xaml.cs:1242</code> <strong>idisposable-leak</strong> <span class='tools'>codeql, infersharp, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/ucStartPersonalize.xaml.cs:1263</code> <strong>idisposable-leak</strong> <span class='tools'>codeql, infersharp, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/ucStartPersonalize.xaml.cs:1284</code> <strong>idisposable-leak</strong> <span class='tools'>infersharp, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/ucTotalTableCosts.xaml.cs:151</code> <strong>subscription-leak</strong> <span class='tools'>own-check, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/CommonControls/eDeclarant.xaml.cs:42</code> <strong>subscription-leak</strong> <span class='tools'>own-check, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/CommonControls/eDeclarant.xaml.cs:228</code> <strong>subscription-leak</strong> <span class='tools'>codeql, own-check, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/CommonControls/eDeclarant.xaml.cs:352</code> <strong>subscription-leak</strong> <span class='tools'>own-check, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/CommonControls/eITN.xaml.cs:92</code> <strong>subscription-leak</strong> <span class='tools'>own-check, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/CommonControls/eITN.xaml.cs:398</code> <strong>subscription-leak</strong> <span class='tools'>own-check, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/CommonControls/R2/eDeclarant_ex_R2.xaml.cs:95</code> <strong>subscription-leak</strong> <span class='tools'>own-check, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/CommonControls/R2/eDeclarant_ex_R2.xaml.cs:417</code> <strong>subscription-leak</strong> <span class='tools'>codeql, own-check, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/CommonControls/R2/eDeclarant_ex_R2.xaml.cs:641</code> <strong>subscription-leak</strong> <span class='tools'>own-check, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/DTS/DTS3.xaml.cs:22</code> <strong>subscription-leak</strong> <span class='tools'>codeql, own-check, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/DTS/DTSMain1Legacy.xaml.cs:42</code> <strong>subscription-leak</strong> <span class='tools'>own-check, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/DTS/DTSMain1Legacy.xaml.cs:224</code> <strong>subscription-leak</strong> <span class='tools'>own-check, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/DTS2/AdditionalDataWindow.xaml.cs:36</code> <strong>subscription-leak</strong> <span class='tools'>own-check, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/DTS2/DTS23456.xaml.cs:68</code> <strong>subscription-leak</strong> <span class='tools'>own-check, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/DTS2/DTSCurrencyPaymentWindow.xaml.cs:18</code> <strong>subscription-leak</strong> <span class='tools'>own-check, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/DTS2/eG8Legacy.xaml.cs:686</code> <strong>idisposable-leak</strong> <span class='tools'>codeql, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/DTS2/eG8_.xaml.cs:794</code> <strong>idisposable-leak</strong> <span class='tools'>codeql, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/ExpresDT/ExpresDTInfo.cs:37</code> <strong>idisposable-leak</strong> <span class='tools'>codeql, infersharp, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/ExpresDT/ExpresDTInfo.cs:59</code> <strong>idisposable-leak</strong> <span class='tools'>codeql, infersharp, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/ExpresDT/ExpresDTInfo.cs:143</code> <strong>idisposable-leak</strong> <span class='tools'>codeql, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/ExpresDT/ExpresDTInfo.cs:182</code> <strong>idisposable-leak</strong> <span class='tools'>codeql, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/ExpresDT/ExpresDTInfo.cs:401</code> <strong>idisposable-leak</strong> <span class='tools'>codeql, infersharp, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/ExpresDT/ExpresDTInfoPersonalize.cs:31</code> <strong>idisposable-leak</strong> <span class='tools'>codeql, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/ExpresDT/ExpresDTInfoPersonalize.cs:69</code> <strong>idisposable-leak</strong> <span class='tools'>codeql, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/ExpresDT/ExpresDT_DopList.xaml.cs:69</code> <strong>subscription-leak</strong> <span class='tools'>own-check, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/GTD/eAvtoGoodsGroupDescription.xaml.cs:89</code> <strong>subscription-leak</strong> <span class='tools'>codeql, own-check, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/GTD/eG18.xaml.cs:94</code> <strong>subscription-leak</strong> <span class='tools'>codeql, own-check, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/GTD/eG21.xaml.cs:93</code> <strong>subscription-leak</strong> <span class='tools'>codeql, own-check, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/GTD/eG30Item.xaml.cs:41</code> <strong>subscription-leak</strong> <span class='tools'>own-check, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/GTD/eG40.xaml.cs:469</code> <strong>idisposable-leak</strong> <span class='tools'>codeql, infersharp, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/GTD/eG44_.xaml.cs:887</code> <strong>idisposable-leak</strong> <span class='tools'>codeql, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/GTD/eG47.xaml.cs:51</code> <strong>subscription-leak</strong> <span class='tools'>codeql, own-check, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/GTD/eG50Org.xaml.cs:32</code> <strong>subscription-leak</strong> <span class='tools'>own-check, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/GTD/eGB.xaml.cs:33</code> <strong>subscription-leak</strong> <span class='tools'>own-check, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/GTD/eGoodsGroupDescription.xaml.cs:123</code> <strong>subscription-leak</strong> <span class='tools'>codeql, own-check, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/GTD/eTextGoodsGroupDescription.xaml.cs:59</code> <strong>subscription-leak</strong> <span class='tools'>own-check, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/GTD/eUslPrice.xaml.cs:62</code> <strong>subscription-leak</strong> <span class='tools'>own-check, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/GTD/R2/G31Components/eAvtoGoodsGroupDescription_r2.xaml.cs:171</code> <strong>subscription-leak</strong> <span class='tools'>own-check, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/GTD/R2/G31Components/eGoodsGroupDescription_r2.xaml.cs:196</code> <strong>subscription-leak</strong> <span class='tools'>codeql, own-check, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/GTD/R2/G40Components/eG40_r2.xaml.cs:51</code> <strong>idisposable-leak</strong> <span class='tools'>codeql, infersharp, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/GTD/R2/G44Components/eG44_R2.xaml.cs:887</code> <strong>idisposable-leak</strong> <span class='tools'>codeql, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/KDT/KDTGoodsList.xaml.cs:59</code> <strong>subscription-leak</strong> <span class='tools'>codeql, own-check, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/KDT/KDTGoodsList.xaml.cs:221</code> <strong>subscription-leak</strong> <span class='tools'>own-check, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/KDT/KDTMain.xaml.cs:91</code> <strong>subscription-leak</strong> <span class='tools'>own-check, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/KDT/KDTMain.xaml.cs:439</code> <strong>subscription-leak</strong> <span class='tools'>codeql, own-check, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/KDT2/KDTGoods.xaml.cs:228</code> <strong>subscription-leak</strong> <span class='tools'>codeql, own-check, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/KDTKTS/KDTGoods.xaml.cs:56</code> <strong>subscription-leak</strong> <span class='tools'>own-check, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/KDTKTS/KDTKTS_Main.xaml.cs:96</code> <strong>subscription-leak</strong> <span class='tools'>own-check, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/KDTKTS/KDTKTS_Main.xaml.cs:486</code> <strong>subscription-leak</strong> <span class='tools'>own-check, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/KDTKTS/KDTKTS_Main.xaml.cs:514</code> <strong>subscription-leak</strong> <span class='tools'>own-check, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/KTS/KTSGoods2.xaml.cs:77</code> <strong>subscription-leak</strong> <span class='tools'>codeql, own-check</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/KTS/KTSGoods2.xaml.cs:328</code> <strong>region-escape</strong> <span class='tools'>own-check, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/KTS/KTSGoods2.xaml.cs:377</code> <strong>subscription-leak</strong> <span class='tools'>own-check, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/KTS/KTSGoodsList.xaml.cs:84</code> <strong>subscription-leak</strong> <span class='tools'>own-check, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/KTS/KTSGoodsList.xaml.cs:434</code> <strong>subscription-leak</strong> <span class='tools'>own-check, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/KTS/KTSMain2.xaml.cs:271</code> <strong>subscription-leak</strong> <span class='tools'>own-check, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/KTS/KTSMain2.xaml.cs:493</code> <strong>subscription-leak</strong> <span class='tools'>own-check, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/KTS/KTSTableWindow.xaml.cs:114</code> <strong>idisposable-leak</strong> <span class='tools'>codeql, infersharp, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/MDP/MDPDopList2.xaml.cs:82</code> <strong>subscription-leak</strong> <span class='tools'>own-check, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/PaymentGuaranteeCalculation/PGC_Main.xaml.cs:68</code> <strong>subscription-leak</strong> <span class='tools'>codeql, own-check, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/PaymentGuaranteeCalculation/PGC_Main.xaml.cs:142</code> <strong>subscription-leak</strong> <span class='tools'>own-check, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/PaymentGuaranteeCalculation/PGC_Main.xaml.cs:162</code> <strong>subscription-leak</strong> <span class='tools'>own-check, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/PaymentGuaranteeCalculation/TableWindow.xaml.cs:107</code> <strong>idisposable-leak</strong> <span class='tools'>codeql, infersharp, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/PaymentGuaranteeCalculation/eG44_.xaml.cs:476</code> <strong>idisposable-leak</strong> <span class='tools'>codeql, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/PaymentGuaranteeCalculation/eGoods.xaml.cs:24</code> <strong>subscription-leak</strong> <span class='tools'>codeql, own-check, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/R2/ucTotalTableCosts_R2.xaml.cs:156</code> <strong>subscription-leak</strong> <span class='tools'>own-check, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/SprDlg/DlgParticipantsVED.xaml.cs:211</code> <strong>subscription-leak</strong> <span class='tools'>codeql, own-check, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/SprDlg/DlgParticipantsVED.xaml.cs:235</code> <strong>subscription-leak</strong> <span class='tools'>codeql, own-check, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/SprDlg/DlgServices.xaml.cs:93</code> <strong>subscription-leak</strong> <span class='tools'>own-check, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/SprDlg/DlgServices.xaml.cs:205</code> <strong>idisposable-leak</strong> <span class='tools'>codeql, infersharp, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/SprDlg/dlgTnvedTree.xaml.cs:45</code> <strong>idisposable-leak</strong> <span class='tools'>codeql, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/SprDlg/dlgTnvedTree.xaml.cs:99</code> <strong>idisposable-leak</strong> <span class='tools'>codeql, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/Statement/MainStatement.xaml.cs:138</code> <strong>subscription-leak</strong> <span class='tools'>codeql, own-check, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/Statement/OpenStatementDocWindow.xaml.cs:35</code> <strong>idisposable-leak</strong> <span class='tools'>codeql, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/Statement/StatementDataShow.cs:26</code> <strong>idisposable-leak</strong> <span class='tools'>codeql, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/Statement/StatementDataShow.cs:45</code> <strong>idisposable-leak</strong> <span class='tools'>codeql, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/Statement/StatementDataShow.cs:114</code> <strong>idisposable-leak</strong> <span class='tools'>codeql, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/Statement/StatementDataShow.cs:149</code> <strong>idisposable-leak</strong> <span class='tools'>codeql, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/Statement/StatementDataShow.cs:225</code> <strong>idisposable-leak</strong> <span class='tools'>codeql, infersharp, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/Statement/StatementDataShowPersonalize.cs:30</code> <strong>idisposable-leak</strong> <span class='tools'>codeql, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/Statement/StatementDataShowPersonalize.cs:67</code> <strong>idisposable-leak</strong> <span class='tools'>codeql, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/Statement/StatementWindow.xaml.cs:61</code> <strong>subscription-leak</strong> <span class='tools'>codeql, own-check, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/Statement/StatementWindow.xaml.cs:522</code> <strong>idisposable-leak</strong> <span class='tools'>codeql, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/Statement/StatementWindow.xaml.cs:1180</code> <strong>idisposable-leak</strong> <span class='tools'>codeql, infersharp, own-check, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/StatementDT/MainStatementDT.xaml.cs:147</code> <strong>subscription-leak</strong> <span class='tools'>own-check, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/StatementDT/MainStatementDT.xaml.cs:563</code> <strong>subscription-leak</strong> <span class='tools'>own-check, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/StatementDT/OpenStatementDTWindow.xaml.cs:44</code> <strong>idisposable-leak</strong> <span class='tools'>codeql, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/StatementDT/StatementDTDataShow.cs:18</code> <strong>idisposable-leak</strong> <span class='tools'>codeql, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/StatementDT/StatementDTDataShow.cs:45</code> <strong>idisposable-leak</strong> <span class='tools'>codeql, infersharp, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/StatementDT/StatementDTDataShow.cs:108</code> <strong>idisposable-leak</strong> <span class='tools'>codeql, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/StatementDT/StatementDTDataShow.cs:143</code> <strong>idisposable-leak</strong> <span class='tools'>codeql, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/StatementDT/StatementDTDataShow.cs:213</code> <strong>idisposable-leak</strong> <span class='tools'>codeql, infersharp, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/StatementDT/StatementDTDataShowPersonalize.cs:30</code> <strong>idisposable-leak</strong> <span class='tools'>codeql, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/StatementDT/StatementDTDataShowPersonalize.cs:67</code> <strong>idisposable-leak</strong> <span class='tools'>codeql, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/StatementDT/StatementDTWindow.xaml.cs:53</code> <strong>subscription-leak</strong> <span class='tools'>codeql, own-check, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/StatementDT/StatementDTWindow.xaml.cs:1102</code> <strong>idisposable-leak</strong> <span class='tools'>codeql, infersharp, own-check, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/StatementDT/eDeclInfo.xaml.cs:96</code> <strong>subscription-leak</strong> <span class='tools'>own-check, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/StatementDT/eDeclInfo.xaml.cs:338</code> <strong>subscription-leak</strong> <span class='tools'>codeql, own-check, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/StatementDT/eDeclInfo.xaml.cs:516</code> <strong>subscription-leak</strong> <span class='tools'>own-check, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/Transit/eAvtoGoodsGroupDescription.xaml.cs:34</code> <strong>subscription-leak</strong> <span class='tools'>codeql, own-check, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/Transit/eDeclarant_ex.xaml.cs:79</code> <strong>subscription-leak</strong> <span class='tools'>own-check, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/Transit/eDeclarant_ex.xaml.cs:329</code> <strong>subscription-leak</strong> <span class='tools'>codeql, own-check, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/Transit/eDeclarant_ex.xaml.cs:577</code> <strong>subscription-leak</strong> <span class='tools'>own-check, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/Transit/eG18_2.xaml.cs:113</code> <strong>subscription-leak</strong> <span class='tools'>own-check, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/Transit/eG18_2.xaml.cs:280</code> <strong>idisposable-leak</strong> <span class='tools'>codeql, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/Transit/eG21_2.xaml.cs:82</code> <strong>subscription-leak</strong> <span class='tools'>codeql, own-check, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/Transit/eG21_2.xaml.cs:245</code> <strong>idisposable-leak</strong> <span class='tools'>codeql, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/Transit/eG50_r2.xaml.cs:78</code> <strong>subscription-leak</strong> <span class='tools'>own-check, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/Transit/eGoods.xaml.cs:218</code> <strong>subscription-leak</strong> <span class='tools'>own-check, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/Transit/eGoods.xaml.cs:236</code> <strong>subscription-leak</strong> <span class='tools'>codeql, infersharp, own-check, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/Transit/eGoodsGroupDescription.xaml.cs:35</code> <strong>subscription-leak</strong> <span class='tools'>own-check, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/TransportDecl/eShipping.xaml.cs:91</code> <strong>subscription-leak</strong> <span class='tools'>own-check, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/TransportDecl/eShipping.xaml.cs:207</code> <strong>subscription-leak</strong> <span class='tools'>own-check, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/TransportDecl/eShipping.xaml.cs:372</code> <strong>subscription-leak</strong> <span class='tools'>own-check, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/VirtulaWarehouse/WarehouseDataExporter.cs:54</code> <strong>idisposable-leak</strong> <span class='tools'>codeql, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerDataClasses/AppData.cs:87</code> <strong>idisposable-leak</strong> <span class='tools'>codeql, infersharp, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerDataClasses/AppData.cs:100</code> <strong>idisposable-leak</strong> <span class='tools'>codeql, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerDataClasses/AppData.cs:201</code> <strong>idisposable-leak</strong> <span class='tools'>codeql, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerDataClasses/AppData.cs:322</code> <strong>idisposable-leak</strong> <span class='tools'>codeql, infersharp, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerDataClasses/AppData.cs:511</code> <strong>idisposable-leak</strong> <span class='tools'>codeql, infersharp, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerDataClasses/AppData.cs:643</code> <strong>idisposable-leak</strong> <span class='tools'>codeql, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerDataClasses/AppData.cs:669</code> <strong>idisposable-leak</strong> <span class='tools'>codeql, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerDataClasses/AppUsers.cs:9</code> <strong>idisposable-leak</strong> <span class='tools'>codeql, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerDataClasses/AutoSave.cs:18</code> <strong>idisposable-leak</strong> <span class='tools'>own-check, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerDataClasses/AutoSave.cs:69</code> <strong>subscription-leak</strong> <span class='tools'>own-check, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerDataClasses/AutoSaveManager.cs:40</code> <strong>idisposable-leak</strong> <span class='tools'>codeql, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerDataClasses/Bootstrap.cs:27</code> <strong>idisposable-leak</strong> <span class='tools'>codeql, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerDataClasses/Bootstrap.cs:50</code> <strong>idisposable-leak</strong> <span class='tools'>codeql, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerDataClasses/Bootstrap.cs:307</code> <strong>idisposable-leak</strong> <span class='tools'>codeql, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerDataClasses/BranchDescription.cs:21</code> <strong>subscription-leak</strong> <span class='tools'>codeql, own-check, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerDataClasses/BranchDescription.cs:171</code> <strong>subscription-leak</strong> <span class='tools'>codeql, own-check, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerDataClasses/BrokerPropertys.cs:43</code> <strong>idisposable-leak</strong> <span class='tools'>codeql, roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerDataClasses/BrokerPropertys.cs:192</code> <strong>idisposable-leak</strong> <span class='tools'>codeql, roslyn</span></li></ul>
+<h2>Candidates — 12201</h2>
+<ul><li><span class='sev p1'>P1</span> <code>Broker/CalcProcent_win.xaml.cs:279</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/Contacts.xaml.cs:23</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/DatabaseOptimizationWindow.xaml.cs:22</code> <strong>idisposable-leak</strong> <span class='tools'>own-check</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/Helper.cs:82</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/Helper.cs:92</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/Helper.cs:112</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/MainWindow.xaml.cs:11933</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/MainWindow.xaml.cs:11944</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/MainWindow.xaml.cs:11961</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/MainWindow.xaml.cs:11985</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/MainWindow.xaml.cs:11996</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/MainWindow.xaml.cs:12007</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/ProgressWithTimeRemaining.cs:13</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/PromotionWindow.xaml.cs:28</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/SelectGoodyFromDT_win.xaml.cs:33</code> <strong>subscription-leak</strong> <span class='tools'>own-check</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/ShareWindow.xaml.cs:175</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/sprUslPrice.xaml.cs:374</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/tnvedTreeActionsPopupWindowxaml.xaml.cs:192</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/ucProductInfo.xaml.cs:183</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/ucProductInfo.xaml.cs:282</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/DocCloud/CloudFLKWindow.xaml.cs:323</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/Excel/Services/ImportFromExcelCOMService.cs:71</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/Excel/Services/ImportFromExcelNewService.cs:55</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/GTD/R2/G44Components/WinAutoFill_r2.xaml.cs:16</code> <strong>subscription-leak</strong> <span class='tools'>own-check</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/KDT2/KDTMain.xaml.cs:520</code> <strong>subscription-leak</strong> <span class='tools'>own-check</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/RegistrationDT/Pages/Error.xaml.cs:42</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/Services/ShareService.cs:162</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/Services/ShareService.cs:306</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/Services/ShareService.cs:353</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/Services/ShareService.cs:378</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/Services/ShareService.cs:588</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/SprDlg/DlgServices.xaml.cs:258</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/SprDlg/dlgTnvedTree.xaml.cs:1671</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/SprDlg/dlgTnvedTree.xaml.cs:2060</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/SprDlg/dlgTnvedTree.xaml.cs:2211</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/SprDlg/dlgTnvedTree.xaml.cs:2258</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/Statement/StatementWindow.xaml.cs:1220</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/StatementDT/StatementDTWindow.xaml.cs:1193</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/StatementDT/StatementDTWindow.xaml.cs:1368</code> <strong>subscription-leak</strong> <span class='tools'>own-check</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/Transit/eG14_r2.xaml.cs:114</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/Transit/eG18_r2.xaml.cs:95</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/Transit/eG20_r2.xaml.cs:75</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/Transit/eG2_2.xaml.cs:189</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/Transit/eG2_r2.xaml.cs:101</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/Transit/eG50_r2.xaml.cs:119</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/Transit/eG51_r2.xaml.cs:87</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/Transit/eG52_r2.xaml.cs:172</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/Transit/eG53_r2.xaml.cs:98</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/Transit/eG55_r2.xaml.cs:108</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/Transit/eG8_r2.xaml.cs:100</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/Transit/eG9_r2.xaml.cs:58</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Broker/TransportDecl/AboutWindow.xaml.cs:51</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerDataClasses/ActRevision.cs:553</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerDataClasses/ActRevision.cs:715</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerDataClasses/AppData.cs:61</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerDataClasses/GTD.cs:471</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerDataClasses/GTD.cs:5024</code> <strong>subscription-leak</strong> <span class='tools'>own-check</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerDataClasses/GTD.cs:6610</code> <strong>idisposable-leak</strong> <span class='tools'>infersharp</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerDataClasses/GTDGoody.cs:2084</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerDataClasses/GoodsGroupDescription.cs:321</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerDataClasses/GoodsGroupDescription.cs:384</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerDataClasses/GridUtils.cs:113</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerDataClasses/Help.cs:13</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerDataClasses/ImportELCopy.cs:369</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerDataClasses/InitializeBackupFolder.cs:74</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerDataClasses/PrintListGoods.cs:337</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerDataClasses/PrintListGoods.cs:431</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerDataClasses/TableCostNew.cs:54</code> <strong>subscription-leak</strong> <span class='tools'>own-check</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerDataClasses/TextTemplate.cs:114</code> <strong>idisposable-leak</strong> <span class='tools'>codeql</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerDataClasses/TextTemplateItem.cs:50</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerDataClasses/TextTemplateManager.cs:24</code> <strong>idisposable-leak</strong> <span class='tools'>codeql</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerDataClasses/Excel/ExcelImport.cs:131</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerDataClasses/ExpresDT/ExpresDT.cs:822</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerDataClasses/KDT/ChangeList.cs:190</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerDataClasses/KDT/KDT.cs:1181</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerDataClasses/KDT/KDT.cs:1199</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerDataClasses/KDT/PrintKDT.cs:1303</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerDataClasses/KDT2/KDT2.cs:407</code> <strong>idisposable-leak</strong> <span class='tools'>codeql</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerDataClasses/KDT2/KDT2.cs:420</code> <strong>idisposable-leak</strong> <span class='tools'>codeql</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerDataClasses/KDT2/KDT2.cs:433</code> <strong>idisposable-leak</strong> <span class='tools'>codeql</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerDataClasses/KDT2/KDT2.cs:448</code> <strong>idisposable-leak</strong> <span class='tools'>codeql</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerDataClasses/KDT2/KDTGB.cs:182</code> <strong>subscription-leak</strong> <span class='tools'>own-check</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerDataClasses/KDTKTS/KDTKTS.cs:101</code> <strong>subscription-leak</strong> <span class='tools'>own-check</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerDataClasses/KDTKTS/KDTKTS.cs:208</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerDataClasses/KTS/KTS.cs:111</code> <strong>subscription-leak</strong> <span class='tools'>own-check</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerDataClasses/KTS/KTS.cs:167</code> <strong>subscription-leak</strong> <span class='tools'>own-check</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerDataClasses/KTS/KTS.cs:222</code> <strong>subscription-leak</strong> <span class='tools'>own-check</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerDataClasses/KTS/KTS.cs:242</code> <strong>subscription-leak</strong> <span class='tools'>own-check</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerDataClasses/KTS/KTS.cs:262</code> <strong>subscription-leak</strong> <span class='tools'>own-check</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerDataClasses/KTS/KTS.cs:300</code> <strong>subscription-leak</strong> <span class='tools'>own-check</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerDataClasses/KTS/KTSGoody.cs:104</code> <strong>subscription-leak</strong> <span class='tools'>own-check</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerDataClasses/KTS/KTSGoody.cs:178</code> <strong>subscription-leak</strong> <span class='tools'>own-check</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerDataClasses/KTS/KTSGoody.cs:216</code> <strong>subscription-leak</strong> <span class='tools'>own-check</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerDataClasses/KTS/KTSGoody.cs:254</code> <strong>subscription-leak</strong> <span class='tools'>own-check</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerDataClasses/KTS/KTSGoody.cs:310</code> <strong>subscription-leak</strong> <span class='tools'>own-check</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerDataClasses/MDP/MDP.cs:1125</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerDataClasses/MDP/MDP.cs:1136</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerDataClasses/PaymentGuaranteeCalculation/PGC.cs:80</code> <strong>subscription-leak</strong> <span class='tools'>own-check</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerDataClasses/PaymentGuaranteeCalculation/PGC.cs:140</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerDataClasses/PaymentGuaranteeCalculation/PGCGoody.cs:28</code> <strong>subscription-leak</strong> <span class='tools'>own-check</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerDataClasses/Personalization/OidcService.cs:89</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerDataClasses/Personalization/OidcService.cs:103</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerDataClasses/Personalization/RemoteUserService.cs:202</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerDataClasses/Personalization/RemoteUserService.cs:249</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerDataClasses/Reports/%D0%97%D1%8F%D0%B2%D0%BB%D0%B5%D0%BD%D0%B8%D0%B5_%D0%9A%D0%A2%D0%A1_263.cs:22</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerDataClasses/Reports/%D0%9E%D1%82%D1%87%D0%B5%D1%82%20%D0%A3%D0%9D%20%D0%B4%D0%BB%D1%8F%20%D0%A2%D0%A8%D0%9E%20%D0%BF%D0%BE%20%D0%BF%D1%80%D0%B8%D0%BA%D0%B0%D0%B7%D1%83%20239.cs:24</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerDataClasses/Reports/%D0%9E%D1%82%D1%87%D0%B5%D1%82%D0%94%D0%BB%D1%8F%D0%AD%D0%BA%D0%BE%D0%BD%D0%BE%D0%BC%D0%B8%D1%87%D0%B5%D1%81%D0%BA%D0%BE%D0%B3%D0%BE%D0%9E%D0%BF%D0%B5%D1%80%D0%B0%D1%82%D0%BE%D1%80%D0%B0.cs:28</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerDataClasses/Reports/%D0%9E%D1%82%D1%87%D0%B5%D1%82%D0%9F%D0%BE%D0%98%D1%81%D0%BF%D0%BE%D0%BB%D1%8C%D1%82%D0%B7%D0%BE%D0%B2%D0%B0%D0%BD%D0%B8%D1%8E%D0%98%D0%BD%D0%BE%D1%81%D1%82%D1%80%D0%A2%D0%BE%D0%B2%D0%B0%D1%80%D0%BE%D0%B2.cs:25</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerDataClasses/Reports/%D0%9E%D1%82%D1%87%D0%B5%D1%82%D0%9F%D0%BE%D0%98%D1%81%D0%BF%D0%BE%D0%BB%D1%8C%D1%82%D0%B7%D0%BE%D0%B2%D0%B0%D0%BD%D0%B8%D1%8E%D0%98%D0%BD%D0%BE%D1%81%D1%82%D1%80%D0%A2%D0%BE%D0%B2%D0%B0%D1%80%D0%BE%D0%B2_%D1%80%D0%B0%D1%81%D1%88%D0%B8%D1%80%D0%B5%D0%BD%D0%BD%D1%8B%D0%B9.cs:27</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerDataClasses/Reports/%D0%9E%D1%82%D1%87%D0%B5%D1%82%D0%9F%D0%BE%D0%A3%D1%81%D0%BB%D0%BE%D0%B2%D0%BD%D0%BE%D0%92%D1%8B%D0%BF%D1%83%D1%89%D0%B5%D0%BD%D0%BD%D1%8B%D0%BC%D0%A2%D0%BE%D0%B2%D0%B0%D1%80%D0%B0%D0%BC.cs:27</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerDataClasses/Reports/%D0%9E%D1%82%D1%87%D0%B5%D1%82%D0%9F%D0%BE%D0%A3%D1%81%D0%BB%D0%BE%D0%B2%D0%BD%D0%BE%D0%92%D1%8B%D0%BF%D1%83%D1%89%D0%B5%D0%BD%D0%BD%D1%8B%D0%BC%D0%A2%D0%BE%D0%B2%D0%B0%D1%80%D0%B0%D0%BC.cs:132</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerDataClasses/Reports/%D0%9E%D1%82%D1%87%D0%B5%D1%82%D0%A2%D0%B0%D0%BC%D0%BE%D0%B6%D0%B5%D0%BD%D0%BD%D0%BE%D0%B3%D0%BE%D0%9F%D1%80%D0%B5%D0%B4%D1%81%D1%82%D0%B0%D0%B2%D0%B8%D1%82%D0%B5%D0%BB%D1%8F_N374.cs:21</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerDataClasses/Reports/%D0%A3%D1%81%D0%BB%D0%BE%D0%B2%D0%BD%D1%8B%D0%B9%20%D0%B2%D1%8B%D0%BF%D1%83%D1%81%D0%BA%20%D0%94%D0%A2.cs:15</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerDataClasses/Reports/%D0%A3%D1%81%D0%BB%D0%BE%D0%B2%D0%BD%D1%8B%D0%B9%20%D0%B2%D1%8B%D0%BF%D1%83%D1%81%D0%BA%20%D0%94%D0%A2.cs:183</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerDataClasses/Reports/%D0%A3%D1%81%D0%BB%D0%BE%D0%B2%D0%BD%D1%8B%D0%B9%20%D0%B2%D1%8B%D0%BF%D1%83%D1%81%D0%BA%20%D0%94%D0%A2.cs:197</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerDataClasses/Reports/GoodsPaymentReport.cs:45</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerDataClasses/Reports/GoodsReport.cs:24</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerDataClasses/Reports/GoodsReportDutyRate.cs:24</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerDataClasses/Reports/GoodsReportShot.cs:27</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerDataClasses/Reports/LPPReport.cs:181</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerDataClasses/Reports/MAndMReport.cs:25</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerDataClasses/Reports/ParticipantsVEDReport.cs:24</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerDataClasses/Reports/ParticipantsVEDReport.cs:85</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerDataClasses/Reports/RegimeReport.cs:20</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerDataClasses/Reports/RegimeReport.cs:148</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerDataClasses/Reports/ReportOfCompletion.cs:76</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerDataClasses/Reports/ReportUserList.cs:61</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerDataClasses/Reports/SEZ.cs:28</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerDataClasses/Reports/SEZ.cs:354</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerDataClasses/Reports/SEZ_247.cs:30</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerDataClasses/Reports/SEZ_247.cs:232</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerDataClasses/Reports/SEZ_247.cs:566</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerDataClasses/Reports/TamPredReport.cs:21</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerDataClasses/Reports/TransferPricingReport.cs:40</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerDataClasses/Service/AccessTokenProviderService.cs:172</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerDataClasses/Service/CryptoService.cs:19</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerDataClasses/Service/DataTransformatorService.cs:145</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerDataClasses/Service/GTDService.cs:2954</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerDataClasses/Service/GTDService.cs:2968</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerDataClasses/Service/GTDService.cs:2981</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerDataClasses/Service/RegisteredGTDPusher.cs:119</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerDataClasses/StatementDT/PrintStatementDT.cs:378</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerDataClasses/StatementDT/PrintStatementDT.cs:421</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerDataClasses/StatementDT/PrintStatementDT.cs:484</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerDataClasses/StatementDT/StatementDT.cs:149</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerDataClasses/StatementDT/StatementDT.cs:1902</code> <strong>subscription-leak</strong> <span class='tools'>own-check</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerDataClasses/Transit/ActRevision.cs:526</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerDataClasses/Transit/ActRevision.cs:676</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerPrint/RepoLibrary/PrintDialog.cs:66</code> <strong>idisposable-leak</strong> <span class='tools'>codeql</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerPrint/RepoLibrary/PrintDialog.cs:173</code> <strong>idisposable-leak</strong> <span class='tools'>codeql</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerPrint/RepoLibrary/PrintEditor.cs:37</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerPrint/RepoLibrary/PrintPage.cs:23</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerPrint/RepoLibrary/PrintTreeViewItem.cs:79</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerPrint/RepoLibrary/VisualPage.cs:11</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>BrokerPrint/RepoLibrary/fmPrintDialog.xaml.cs:158</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>C:/Repos/HtmlAgilityPack/HtmlAgilityPack.Shared/HtmlDocument.cs:572</code> <strong>idisposable-leak</strong> <span class='tools'>infersharp</span></li>
+<li><span class='sev p1'>P1</span> <code>C:/Repos/HtmlAgilityPack/HtmlAgilityPack.Shared/HtmlWeb.Xpath.cs:62</code> <strong>idisposable-leak</strong> <span class='tools'>infersharp</span></li>
+<li><span class='sev p1'>P1</span> <code>C:/Repos/HtmlAgilityPack/HtmlAgilityPack.Shared/MixedCodeDocument.cs:320</code> <strong>idisposable-leak</strong> <span class='tools'>infersharp</span></li>
+<li><span class='sev p1'>P1</span> <code>C:/Repos/HtmlAgilityPack/HtmlAgilityPack.Shared/MixedCodeDocument.cs:331</code> <strong>idisposable-leak</strong> <span class='tools'>infersharp</span></li>
+<li><span class='sev p1'>P1</span> <code>C:/Repos/HtmlAgilityPack/HtmlAgilityPack.Shared/MixedCodeDocument.cs:345</code> <strong>idisposable-leak</strong> <span class='tools'>infersharp</span></li>
+<li><span class='sev p1'>P1</span> <code>C:/Repos/HtmlAgilityPack/HtmlAgilityPack.Shared/MixedCodeDocument.cs:360</code> <strong>idisposable-leak</strong> <span class='tools'>infersharp</span></li>
+<li><span class='sev p1'>P1</span> <code>C:/projects/closedxml/ClosedXML/Excel/Drawings/XLPicture.cs:78</code> <strong>idisposable-leak</strong> <span class='tools'>infersharp</span></li>
+<li><span class='sev p1'>P1</span> <code>CashBlock/StartWindow.xaml.cs:230</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>ClientDB/ClientDB.cs:678</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>CommonLib/AppRestarter.cs:60</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>CommonLib/CatSyncService.cs:72</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>CommonLib/CatSyncService.cs:167</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>CommonLib/DialogWindow.xaml.cs:258</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>CommonLib/MSSQL2005WarningWindow.xaml.cs:32</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>CommonLib/MsgNeedLauncherWindow.xaml.cs:39</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>CommonLib/NeedAutoUpdateSystemWarningWindow.xaml.cs:32</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>CommonLib/NetworkMonitorService.cs:12</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>CommonLib/OldKeyWarningWindow.xaml.cs:35</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>CommonLib/OldKeyWarningWindow.xaml.cs:44</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>CommonLib/TransformWindow.xaml.cs:18</code> <strong>subscription-leak</strong> <span class='tools'>own-check</span></li>
+<li><span class='sev p1'>P1</span> <code>CommonLib/ucLicenseInfo.xaml.cs:71</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>CommonLib/ActivationProgram/ContactInfo.xaml.cs:31</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>CommonLib/ActivationProgram/Pages/ActivateByCode.xaml.cs:97</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>CommonLib/ActivationProgram/Pages/ActivationSuccessful.xaml.cs:27</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Configurator/FLKEditDBWindow.xaml.cs:51</code> <strong>idisposable-leak</strong> <span class='tools'>codeql</span></li>
+<li><span class='sev p1'>P1</span> <code>Configurator/FLKEditDBWindow.xaml.cs:61</code> <strong>idisposable-leak</strong> <span class='tools'>codeql</span></li>
+<li><span class='sev p1'>P1</span> <code>Core/KeyboardListener.cs:16</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Core/Mail.cs:53</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Core/SaveObjectList.cs:20</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>CurrencyLoad/CurrencyLoad/CurrencyInterface.cs:7</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>CurrencyLoad/CurrencyLoad/SessionManager.cs:10</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>EnvironmentProvider/Base/DSectorUtils.cs:136</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>EnvironmentProvider/Base/RecoveryPointHelper.cs:87</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>EnvironmentProvider/Base/RecoveryPointHelper.cs:106</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>MDP/MDPDataShow.cs:22</code> <strong>idisposable-leak</strong> <span class='tools'>codeql</span></li>
+<li><span class='sev p1'>P1</span> <code>MDP/MDPDataShow.cs:101</code> <strong>idisposable-leak</strong> <span class='tools'>codeql</span></li>
+<li><span class='sev p1'>P1</span> <code>Manager/BAD_OS_alert_win.xaml.cs:45</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Manager/BackupLauncherInstructionsWindow.xaml.cs:29</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Manager/CatalogsSettingsWindow.xaml.cs:109</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Manager/CatalogsSettingsWindow.xaml.cs:121</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>MergeDB/Export.cs:84</code> <strong>idisposable-leak</strong> <span class='tools'>codeql</span></li>
+<li><span class='sev p1'>P1</span> <code>MergeDB/Import.cs:164</code> <strong>idisposable-leak</strong> <span class='tools'>codeql</span></li>
+<li><span class='sev p1'>P1</span> <code>Sender/Client/ShareClient.cs:107</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Tests/DocumentsTest/G47/ReducedNdsRatesContextTests.cs:121</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li>
+<li><span class='sev p1'>P1</span> <code>Tests/DocumentsTest/Print/TST84.cs:77</code> <strong>idisposable-leak</strong> <span class='tools'>roslyn</span></li><li><em>+12001 more</em></li></ul>
+<h2>Coverage / honesty</h2>
+<ul><li>findings ingested: 73407 (kept 72569, suppressed 605)</li><li>suppressed — third-party: DevExpress.: 605</li><li>analysis-skipped (coverage notes, not scored): 233 — OWN050 x233</li><li>unmapped rules (pending taxonomy, not dropped): `CS0067` x5, `CS0105` x1, `CS0108` x17, `CS0114` x1, `CS0162` x3, `CS0168` x31, `CS0169` x24, `CS0219` x48, `CS0252` x4, `CS0414` x10, `CS0618` x43, `CS0649` x16, `CS0659` x2, `CS1717` x1, `CS1998` x26, `CS4014` x1, `CS9236` x5, `MSTEST0003` x1, `MSTEST0006` x2, `MSTEST0012` x2, `MSTEST0016` x9, `MSTEST0017` x19, `MSTEST0030` x1, `MSTEST0032` x1, `MSTEST0034` x1, `MSTEST0037` x222, `MSTEST0039` x11, `MSTEST0045` x8, `MSTEST0046` x26, `MSTEST0049` x63, `NULLPTR_DEREFERENCE` x58, `THREAD_SAFETY_VIOLATION` x8</li><li>by severity: P1=1018, P2=12672, P3=2113</li></ul>
+</body></html>
+

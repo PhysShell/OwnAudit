@@ -1,0 +1,23 @@
+../STS_new/SectorTS/Broker/AmountWindow.xaml.cs:72: warning: [OWN001] event 'fGoods.PropertyChanged' is subscribed (handler 'new PropertyChangedEventHandler(GoodsPropertyChanged)') but never unsubscribed; its source is an injected dependency whose lifetime is unknown, so it may outlive and keep 'AmountWindow' alive (possible leak) [resource: subscription token]
+../STS_new/SectorTS/Broker/DatabaseOptimizationWindow.xaml.cs:22: error: [OWN001] IDisposable field 'cancellationTokenSource' (type 'CancellationTokenSource') is never disposed � its owner 'DatabaseOptimizationWindow' leaks it (leak) [resource: disposable field]
+../STS_new/SectorTS/Broker/DatabaseOptimizationWindow.xaml.cs:174: warning: [OWN001] event 'stage.PropertyChanged' is subscribed (handler '(s2, e2) => OnPropertyChanged("Stages")') but never unsubscribed; its source is an injected dependency whose lifetime is unknown, so it may outlive and keep 'DatabaseOptimizationWindow' alive (possible leak � and being an inline lambda it has no '-=' handle, so it could never be detached) [resource: subscription token]
+../STS_new/SectorTS/Broker/ElErrorWindow.xaml.cs:77: error: [OWN001] IDisposable local 'MyProc' is never disposed (leak) [resource: disposable]
+../STS_new/SectorTS/Broker/ExpresDT/MainWindow.xaml.cs:1409: error: [OWN001] IDisposable local 'myProcess' is never disposed (leak) [resource: disposable]
+../STS_new/SectorTS/Broker/GTD/R2/G44Components/WinAutoFill_r2.xaml.cs:16: warning: [OWN001] event 'viewModel.RequestCloseEvent' is subscribed (handler '(dialogResult) =>
+
+            {
+
+                DialogResult = dialogResult;
+
+                this.Close();
+
+            }') but never unsubscribed; its source is an injected dependency whose lifetime is unknown, so it may outlive and keep 'WinAutoFill_r2' alive (possible leak � and being an inline lambda it has no '-=' handle, so it could never be detached) [resource: subscription token]
+../STS_new/SectorTS/Broker/KTS/KTSGoods2.xaml.cs:328: error: [OWN014] event 'fThis.PropertyChanged' is subscribed (handler 'data_PropertyChanged') to a static (process-lived) event source that outlives 'KTSGoods2'; the strong subscription promotes 'KTSGoods2' to the source's lifetime, so it can never be collected � a region escape (leak, no release path) [resource: subscription token]
+../STS_new/SectorTS/Broker/MainWindow.xaml.cs:13228: error: [OWN001] IDisposable local 'myProcess' is never disposed (leak) [resource: disposable]
+../STS_new/SectorTS/Broker/SelectGoodyFromDT_win.xaml.cs:33: warning: [OWN001] event 'GoodyList.ListChanged' is subscribed (handler 'CheckCount') but never unsubscribed; its source is an injected dependency whose lifetime is unknown, so it may outlive and keep 'SelectGoodyFromDT_win' alive (possible leak) [resource: subscription token]
+../STS_new/SectorTS/Broker/ShareWindow.xaml.cs:25: error: [OWN001] IDisposable field '_timer' (type 'Timer') is never disposed � its owner 'ShareWindow' leaks it (leak) [resource: disposable field]
+../STS_new/SectorTS/Broker/SprDlg/DlgParticipantsVED.xaml.cs:272: warning: [OWN001] event 'value.ListChanged' is subscribed (handler 'new ListChangedEventHandler(value_ListChanged)') but never unsubscribed; its source is an injected dependency whose lifetime is unknown, so it may outlive and keep 'DlgParticipantsVED' alive (possible leak) [resource: subscription token]
+../STS_new/SectorTS/Broker/Statement/StatementWindow.xaml.cs:1207: error: [OWN001] IDisposable local 'myProcess' is never disposed (leak) [resource: disposable]
+../STS_new/SectorTS/Broker/StatementDT/StatementDTWindow.xaml.cs:1129: error: [OWN001] IDisposable local 'myProcess' is never disposed (leak) [resource: disposable]
+
+13 findings (264 unchecked hidden).
