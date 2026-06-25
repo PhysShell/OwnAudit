@@ -171,6 +171,27 @@ def test_ai_loop_gives_up_after_max_rounds():
         shutil.rmtree(d, ignore_errors=True)
 
 
+def test_ai_plan_restores_tree_when_reaudit_raises():
+    # if re-audit blows up mid-loop, the candidate written for it must not leak
+    d, _ = _tmp(SRC)
+
+    def boom(wd):
+        raise RuntimeError("audit failed")
+
+    try:
+        applier = AiFixApplier([FINDING], MockLlmClient(GOOD_REPLY), reaudit=boom,
+                               before=[FINDING], max_rounds=2, ctx=4)
+        raised = False
+        try:
+            applier.dry_run(d, FINDING.rule)
+        except RuntimeError:
+            raised = True
+        assert raised
+        assert open(os.path.join(d, "Core", "Sample.cs"), encoding="utf-8").read() == SRC
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+
 # ---- bare-python runner ----------------------------------------------------
 
 def _main() -> int:

@@ -168,17 +168,21 @@ class AiFixApplier:
                 original = fh.read()
             cur, occupied = original.splitlines(keepends=True), set()
             self._feedback = ""
-            for f in fs:
-                a = max(0, f.line - 1 - self.ctx)
-                b = min(len(cur), f.line - 1 + self.ctx + 1)
-                if set(range(a, b)) & occupied:
-                    skipped.append((f, "ai-overlap"))
-                    continue
-                accepted = self._revise(workdir, path, rel, cur, a, b, f, skipped)
-                if accepted is not None:
-                    cur, occupied = accepted, occupied | set(range(a, b))
-            with open(path, "w", encoding="utf-8") as fh:   # planning is side-effect-free
-                fh.write(original)
+            try:
+                for f in fs:
+                    a = max(0, f.line - 1 - self.ctx)
+                    b = min(len(cur), f.line - 1 + self.ctx + 1)
+                    if set(range(a, b)) & occupied:
+                        skipped.append((f, "ai-overlap"))
+                        continue
+                    accepted = self._revise(workdir, path, rel, cur, a, b, f, skipped)
+                    if accepted is not None:
+                        cur, occupied = accepted, occupied | set(range(a, b))
+            finally:
+                # planning is side-effect-free even if re-audit raises mid-loop — the
+                # candidate written for the audit must not leak into the worktree.
+                with open(path, "w", encoding="utf-8") as fh:
+                    fh.write(original)
             out[rel] = "".join(cur)
         self._planned, self.skipped = out, skipped
         return out
