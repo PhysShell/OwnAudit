@@ -115,13 +115,14 @@ No step is AI-judged. The asserts are exact, mirroring Arm 2's scenario discipli
   Build-free, develops and unit-tests on Linux against synthetic fixtures (Roslyn and
   both CLIs are cross-platform).
 - **Build — the OWN fixer** (T4): `OWN001`/`OWN014`. Structural, build-free, reviewable
-  patches. Fixtures come straight from real STS messages:
-  - `Mail.cs` — `SmtpClient` with `//client.Dispose()` commented out → restore dispose;
-  - `ShareWindow` — undisposed `Timer _timer` field → add `IDisposable`/teardown;
-  - `KTSGoods2` — `OWN014` strong subscription to a static (process-lived) event source
-    → suggest a release path (weak handler / `-=` on Unloaded/Closed).
-  These are **suggestions with a clear handle**, never blind rewrites — the static text
-  itself flags when an inline lambda has "no `-=` handle, so it could never be detached".
+  patches — built in [`../fix/fixarm/own_fix.py`](../fix/fixarm/own_fix.py). First slice
+  fixes the **named-handler subscription** shape by inserting a teardown detach
+  (`Window` → `Closed`, `FrameworkElement` → `Unloaded`); fixtures are real STS sites
+  (`AmountWindow` OWN001, `KTSGoods2` OWN014). The **inline-lambda** shape is classified
+  **suggest-only** and never patched — own-check itself flags it has "no `-=` handle, so
+  it could never be detached", so it needs lambda extraction first. Still to build:
+  disposable-field/local shapes, lambda extraction, and folding into an existing
+  `OnClosed`/`Dispose`. Every OWN result is queued-for-review (T4), never auto.
 
 ---
 

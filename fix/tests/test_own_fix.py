@@ -1,0 +1,244 @@
+"""T4 OWN001/OWN014 fixer tests (docs/fix-arm.md §5). Bare python3 or pytest:
+
+    PYTHONPATH=fix python3 fix/tests/test_own_fix.py
+
+Drives the real OWN fixer (it actually rewrites the source — not a replay) through
+the same wrapper as every other applier, so the safety contract is exercised too.
+"""
+import os
+import shutil
+import sys
+import tempfile
+from contextlib import contextmanager
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+ROOT = os.path.dirname(os.path.dirname(HERE))
+sys.path.insert(0, os.path.join(ROOT, "fix"))
+
+from fixarm import tiers                                              # noqa: E402
+from fixarm.appliers import ReplayReaudit                            # noqa: E402
+from fixarm.own_fix import (                                         # noqa: E402
+    OwnFixApplier, classify, plan_file,
+    NAMED_HANDLER_SUB, INLINE_LAMBDA_SUB,
+)
+from fixarm.orchestrate import (                                     # noqa: E402
+    Finding, load_findings, run_fix, OK, REJECTED,
+)
+
+FIX = os.path.join(ROOT, "fix", "fixtures")
+
+
+def _seed(fixture: str) -> str:
+    d = tempfile.mkdtemp(prefix="ownfix-")
+    src = os.path.join(FIX, fixture, "before")
+    for dp, _, names in os.walk(src):
+        for n in names:
+            full = os.path.join(dp, n)
+            dst = os.path.join(d, os.path.relpath(full, src))
+            os.makedirs(os.path.dirname(dst), exist_ok=True)
+            shutil.copy2(full, dst)
+    return d
+
+
+@contextmanager
+def _wrapped(fixture: str, rule: str):
+    fdir = os.path.join(FIX, fixture)
+    before = load_findings(os.path.join(fdir, "before.findings.json"))
+    wd = _seed(fixture)
+    try:
+        applier = OwnFixApplier([f for f in before if f.rule == rule])
+        yield run_fix(
+            before=before, workdir=wd, rule=rule, applier=applier,
+            reaudit=ReplayReaudit(os.path.join(fdir, "after.findings.json")),
+        ), wd, applier
+    finally:
+        shutil.rmtree(wd, ignore_errors=True)
+
+
+def _read(wd: str, rel: str) -> list[str]:
+    with open(os.path.join(wd, rel), encoding="utf-8") as fh:
+        return fh.readlines()
+
+
+# ---- classifier: the honesty boundary --------------------------------------
+
+def test_classify_named_vs_lambda():
+    named = "event 'fGoods.PropertyChanged' is subscribed (handler 'new PropertyChangedEventHandler(GoodsPropertyChanged)')"
+    lam = "event 'stage.PropertyChanged' is subscribed (handler '(s2, e2) => OnPropertyChanged(\"Stages\")') ... inline lambda"
+    assert classify(named)[0] == NAMED_HANDLER_SUB
+    assert classify(named)[1:] == ("fGoods.PropertyChanged", "new PropertyChangedEventHandler(GoodsPropertyChanged)")
+    assert classify(lam)[0] == INLINE_LAMBDA_SUB
+
+
+# ---- OWN001 named handler on a Window -> Closed teardown -------------------
+
+def test_own001_window_inserts_closed_detach():
+    rel = "Broker/AmountWindow.xaml.cs"
+    before = _read(_seed("own001-sub-window"), rel)   # length reference
+    with _wrapped("own001-sub-window", "OWN001") as (res, wd, _applier):
+        assert res.status == OK, res.ledger()
+        assert res.tier == tiers.T4 and res.gate == tiers.REVIEW   # never auto
+        assert not res.committable
+        lines = _read(wd, rel)
+        assert len(lines) == len(before) + 1            # exactly one line added
+        sub = next(i for i, line in enumerate(lines) if "fGoods.PropertyChanged +=" in line)
+        # the detach is inserted immediately after the subscription, in a Closed hook
+        assert lines[sub + 1].strip() == (
+            "this.Closed += (s, e) => fGoods.PropertyChanged -= "
+            "new PropertyChangedEventHandler(GoodsPropertyChanged);")
+        assert lines[sub].startswith("            ") and lines[sub + 1].startswith("            ")
+
+
+# ---- OWN014 region-escape on a UserControl -> Unloaded teardown ------------
+
+def test_own014_usercontrol_inserts_unloaded_detach():
+    rel = "Broker/KTS/KTSGoods2.xaml.cs"
+    with _wrapped("own014-region-escape", "OWN014") as (res, wd, _applier):
+        assert res.status == OK, res.ledger()
+        assert res.tier == tiers.T4
+        lines = _read(wd, rel)
+        sub = next(i for i, line in enumerate(lines) if "fThis.PropertyChanged +=" in line)
+        assert lines[sub + 1].strip() == (
+            "this.Unloaded += (s, e) => fThis.PropertyChanged -= data_PropertyChanged;")
+
+
+# ---- inline lambda is suggest-only: NOT patched ----------------------------
+
+def test_inline_lambda_is_not_patched():
+    fdir = os.path.join(FIX, "own001-lambda")
+    rel = "Broker/DatabaseOptimizationWindow.xaml.cs"
+    before = load_findings(os.path.join(fdir, "before.findings.json"))
+    wd = _seed("own001-lambda")
+    try:
+        applier = OwnFixApplier(before)
+        original = _read(wd, rel)
+        applier.apply(wd, "OWN001")
+        assert _read(wd, rel) == original                # tree untouched
+        assert len(applier.skipped) == 1                 # surfaced, not dropped
+        assert applier.skipped[0][1] == INLINE_LAMBDA_SUB
+    finally:
+        shutil.rmtree(wd, ignore_errors=True)
+
+
+# ---- the fixer's own revert: a rejected OWN fix rolls back -----------------
+
+def test_own_fix_reverts_on_regression():
+    fdir = os.path.join(FIX, "own001-sub-window")
+    rel = "Broker/AmountWindow.xaml.cs"
+    before = load_findings(os.path.join(fdir, "before.findings.json"))
+    wd = _seed("own001-sub-window")
+    original = _read(wd, rel)
+    try:
+        applier = OwnFixApplier(before)
+        # re-audit pretends the detach introduced a brand-new finding -> must reject + revert
+        regress = [Finding("CS0103", rel, 15, tool="roslyn", message="name 's' does not exist")]
+        res = run_fix(before=before, workdir=wd, rule="OWN001",
+                      applier=applier, reaudit=lambda _wd: regress)
+        assert res.status == REJECTED, res.ledger()
+        assert res.reverted
+        assert _read(wd, rel) == original                # detach rolled back out
+    finally:
+        shutil.rmtree(wd, ignore_errors=True)
+
+
+# ---- review hardening: unbraced guards, dedup, path safety, CLI ------------
+
+def _tmp_cs(src: str):
+    d = tempfile.mkdtemp(prefix="ownfix-")
+    p = os.path.join(d, "W.cs")
+    with open(p, "w", encoding="utf-8") as fh:
+        fh.write(src)
+    return d, p
+
+
+def test_unbraced_if_guard_is_skipped():
+    # subscription is the single statement of an unbraced `if` -> suggest-only
+    src = ("public partial class W : Window\n"
+           "{\n"
+           "    public W(Goods g)\n"
+           "    {\n"
+           "        if (g != null)\n"
+           "            g.PropertyChanged += new PropertyChangedEventHandler(H);\n"
+           "    }\n"
+           "}\n")
+    d, p = _tmp_cs(src)
+    try:
+        f = Finding("OWN001", "W.cs", 6, tool="own-check",
+                    message="event 'g.PropertyChanged' is subscribed (handler 'new PropertyChangedEventHandler(H)')")
+        new, applied, skipped = plan_file(p, [f])
+        assert new == src and applied == []           # tree untouched
+        assert skipped and skipped[0][1] == "unbraced-control-flow"
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+
+def test_duplicate_findings_one_insert():
+    src = ("public partial class W : Window\n"
+           "{\n"
+           "    public W(Goods g)\n"
+           "    {\n"
+           "        g.PropertyChanged += new PropertyChangedEventHandler(H);\n"
+           "    }\n"
+           "}\n")
+    d, p = _tmp_cs(src)
+    try:
+        msg = "event 'g.PropertyChanged' is subscribed (handler 'new PropertyChangedEventHandler(H)')"
+        dupes = [Finding("OWN001", "W.cs", 5, tool="own-check", message=msg),
+                 Finding("OWN001", "W.cs", 5, tool="own-check", message=msg)]
+        new, applied, _ = plan_file(p, dupes)
+        assert new.count("this.Closed +=") == 1       # one detach, not two
+        assert len(applied) == 1
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+
+def test_path_traversal_is_rejected():
+    wd = _seed("own001-sub-window")
+    try:
+        for bad in ("../escape.cs", "/etc/passwd"):
+            applier = OwnFixApplier([Finding("OWN001", bad, 1, tool="own-check",
+                                             message="event 'a.E' is subscribed (handler 'H')")])
+            try:
+                applier.apply(wd, "OWN001")
+                assert False, f"expected ValueError for {bad!r}"
+            except ValueError:
+                pass
+    finally:
+        shutil.rmtree(wd, ignore_errors=True)
+
+
+def test_cli_replay_on_own_fixture_fails_fast():
+    from fixarm.cli import main
+    rc = main(["--fixture", os.path.join(FIX, "own001-sub-window"),
+               "--rule", "OWN001", "--applier", "replay"])
+    assert rc == 2                                     # no after/ tree -> refuse, don't delete
+
+
+def test_cli_defaults_own_rule_to_own_applier():
+    from fixarm.cli import main
+    rc = main(["--fixture", os.path.join(FIX, "own001-sub-window"), "--rule", "OWN001"])
+    assert rc == 0                                     # OWN* auto-routes to the own fixer
+
+
+# ---- bare-python runner ----------------------------------------------------
+
+def _main() -> int:
+    tests = [v for k, v in sorted(globals().items())
+             if k.startswith("test_") and callable(v)]
+    failed = 0
+    for t in tests:
+        try:
+            t()
+            print(f"PASS  {t.__name__}")
+        except AssertionError as e:
+            failed += 1
+            print(f"FAIL  {t.__name__}: {e}")
+        except Exception as e:  # noqa: BLE001
+            failed += 1
+            print(f"ERROR {t.__name__}: {type(e).__name__}: {e}")
+    print(f"\n{len(tests) - failed}/{len(tests)} passed")
+    return 1 if failed else 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(_main())

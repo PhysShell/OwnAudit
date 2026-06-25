@@ -20,6 +20,7 @@ import sys
 import tempfile
 
 from .appliers import ReplayApplier, ReplayReaudit
+from .own_fix import OwnFixApplier
 from .orchestrate import load_findings, run_fix, OK, REJECTED, NO_EFFECT, NO_OP, UNFIXABLE
 
 
@@ -37,17 +38,29 @@ def _seed_workdir(before_dir: str) -> str:
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(prog="fixarm", description="Fix-arm safety wrapper")
     ap.add_argument("--fixture", required=True, help="fixture dir (before/ after/ *.findings.json)")
-    ap.add_argument("--rule", required=True, help="diagnostic id to fix (e.g. IDISP001)")
+    ap.add_argument("--rule", required=True, help="diagnostic id to fix (e.g. IDISP001, OWN001)")
+    ap.add_argument("--applier", choices=("replay", "own"), default=None,
+                    help="replay = recorded after/ tree; own = the real OWN001/OWN014 fixer. "
+                         "Default: own for OWN* rules, else replay.")
     ap.add_argument("--line-tol", type=int, default=0)
     ap.add_argument("--show-diff", action="store_true", help="print the reviewable patch")
     args = ap.parse_args(argv)
 
+    # OWN* rules default to the OWN fixer; replay needs a recorded after/ tree, so
+    # refuse it on a fixture that has none (else it reads the absent tree as deletions).
+    kind = args.applier or ("own" if args.rule.startswith("OWN") else "replay")
+    if kind == "replay" and not os.path.isdir(os.path.join(args.fixture, "after")):
+        print(f"error: fixture {args.fixture!r} has no after/ tree; replay would read it as "
+              f"file deletions. Use --applier own.", file=sys.stderr)
+        return 2
+
     before = load_findings(os.path.join(args.fixture, "before.findings.json"))
     wd = _seed_workdir(os.path.join(args.fixture, "before"))
     try:
+        applier = (OwnFixApplier([f for f in before if f.rule == args.rule])
+                   if kind == "own" else ReplayApplier(args.fixture))
         res = run_fix(
-            before=before, workdir=wd, rule=args.rule,
-            applier=ReplayApplier(args.fixture),
+            before=before, workdir=wd, rule=args.rule, applier=applier,
             reaudit=ReplayReaudit(os.path.join(args.fixture, "after.findings.json")),
             line_tol=args.line_tol,
         )
