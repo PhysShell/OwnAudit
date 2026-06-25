@@ -29,13 +29,6 @@ class Finding:
     def basename(self) -> str:
         return os.path.basename(self.path.replace("\\", "/"))
 
-    def key(self, line_tol: int = 0) -> tuple:
-        """Identity for set-diffing two audit runs. Mirrors the audit's own
-        matching: same rule + same basename + line within tolerance. With
-        line_tol>0 the line is bucketed so a fix that shifts lines still matches."""
-        ln = self.line if line_tol <= 0 else self.line // (line_tol + 1)
-        return (self.rule, self.basename, ln)
-
 
 def load_findings(path: str) -> list[Finding]:
     with open(path, encoding="utf-8") as fh:
@@ -61,6 +54,19 @@ class Applier(Protocol):
     name: str
     def dry_run(self, workdir: str, rule: str) -> str: ...   # reviewable patch text
     def apply(self, workdir: str, rule: str) -> None: ...     # mutate workdir in place
+    def revert(self, workdir: str) -> None: ...              # undo apply() — restore workdir
+
+
+def _revert(applier: "Applier", workdir: str) -> bool:
+    """Roll a rejected/ineffective apply back out of the tree. Returns whether a
+    revert capability existed. The safety contract requires the worktree to be
+    restored on every non-success path, so a non-revertable applier is a defect,
+    not a silent no-op — surfaced via FixResult.reverted in the ledger."""
+    fn = getattr(applier, "revert", None)
+    if fn is None:
+        return False
+    fn(workdir)
+    return True
 
 
 Reaudit = Callable[[str], list[Finding]]   # re-run the audit over a tree -> findings
@@ -70,22 +76,39 @@ Reaudit = Callable[[str], list[Finding]]   # re-run the audit over a tree -> fin
 
 def diff_findings(before: Iterable[Finding], after: Iterable[Finding], line_tol: int = 0):
     """Returns (removed, introduced). 'introduced' = present after but not before —
-    the regression set the safety contract rejects on. Multiplicity-aware so two
-    findings of the same key don't collapse."""
-    from collections import Counter
-    b = Counter(f.key(line_tol) for f in before)
-    a = Counter(f.key(line_tol) for f in after)
-    before_by_key: dict = {}
-    after_by_key: dict = {}
-    for f in before:
-        before_by_key.setdefault(f.key(line_tol), []).append(f)
-    for f in after:
-        after_by_key.setdefault(f.key(line_tol), []).append(f)
-    removed, introduced = [], []
-    for key in (b - a).elements():
-        removed.append(before_by_key[key].pop())
-    for key in (a - b).elements():
-        introduced.append(after_by_key[key].pop())
+    the regression set the safety contract rejects on. Within each (rule, basename)
+    group, before/after findings are matched by ABSOLUTE line distance ≤ line_tol
+    (nearest-first, greedy), so a fix that shifts a diagnostic by ≤ line_tol lines is
+    treated as the same finding, not as one removed + one introduced. With line_tol=0
+    this is exact-line matching. Multiplicity-aware: N copies need N matches."""
+    from collections import defaultdict
+
+    def group(findings) -> dict:
+        g: dict = defaultdict(list)
+        for f in findings:
+            g[(f.rule, f.basename)].append(f)
+        return g
+
+    gb, ga = group(before), group(after)
+    removed: list[Finding] = []
+    introduced: list[Finding] = []
+    for key in set(gb) | set(ga):
+        bs = sorted(gb.get(key, []), key=lambda f: f.line)
+        as_ = sorted(ga.get(key, []), key=lambda f: f.line)
+        used = [False] * len(as_)
+        for bf in bs:
+            best, best_d = -1, None
+            for i, af in enumerate(as_):
+                if used[i]:
+                    continue
+                d = abs(af.line - bf.line)
+                if d <= line_tol and (best_d is None or d < best_d):
+                    best, best_d = i, d
+            if best >= 0:
+                used[best] = True          # matched — survives, neither side
+            else:
+                removed.append(bf)
+        introduced.extend(af for i, af in enumerate(as_) if not used[i])
     return removed, introduced
 
 
@@ -108,6 +131,7 @@ class FixResult:
     introduced: list = field(default_factory=list)
     diff: str = ""
     selected: int = 0
+    reverted: bool = False   # was the tree rolled back on a non-success path?
 
     @property
     def committable(self) -> bool:
@@ -121,6 +145,7 @@ class FixResult:
             "gate": self.gate, "selected": self.selected,
             "fixed_sites": len(self.targeted_removed),
             "introduced": len(self.introduced),
+            "reverted": self.reverted,
         }
 
 
@@ -148,7 +173,15 @@ def run_fix(
 
     diff = applier.dry_run(workdir, rule)
     applier.apply(workdir, rule)
-    after = reaudit(workdir)
+
+    # Everything after apply() must restore the tree on any non-success path — a
+    # rejected/ineffective fix (or a re-audit that throws) must not leak into a
+    # later rule run or a manual commit (docs/fix-arm.md §4).
+    try:
+        after = reaudit(workdir)
+    except Exception:
+        _revert(applier, workdir)
+        raise
 
     removed, introduced = diff_findings(before, after, line_tol)
     targeted_removed = [f for f in removed if f.rule == rule]
@@ -156,9 +189,12 @@ def run_fix(
     # Safety contract §4.4: a fix that introduces ANY new finding is rejected,
     # regardless of tier. Trading one finding for another is not a fix.
     if introduced:
+        reverted = _revert(applier, workdir)
         return FixResult(rule, REJECTED, tier, gate, targeted_removed, introduced,
-                         diff, len(selected))
+                         diff, len(selected), reverted)
     if not targeted_removed:
-        return FixResult(rule, NO_EFFECT, tier, gate, [], [], diff, len(selected))
+        reverted = _revert(applier, workdir)
+        return FixResult(rule, NO_EFFECT, tier, gate, [], [], diff, len(selected), reverted)
 
+    # OK: the fix stays in the tree — it is the deliverable (auto-commit or review).
     return FixResult(rule, OK, tier, gate, targeted_removed, [], diff, len(selected))

@@ -10,6 +10,7 @@ import os
 import shutil
 import sys
 import tempfile
+from contextlib import contextmanager
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(os.path.dirname(HERE))      # repo root
@@ -39,19 +40,22 @@ def _workdir(fixture: str) -> str:
     return d
 
 
+@contextmanager
 def _run(fixture: str, rule: str, line_tol: int = 0):
+    """Run a fixture through the wrapper, yielding (result, workdir) so the test can
+    inspect the patched/reverted tree, then always reap the temp workdir."""
     fdir = os.path.join(FIX, fixture)
     before = load_findings(os.path.join(fdir, "before.findings.json"))
     wd = _workdir(fixture)
     try:
-        return run_fix(
+        yield run_fix(
             before=before, workdir=wd, rule=rule,
             applier=ReplayApplier(fdir),
             reaudit=ReplayReaudit(os.path.join(fdir, "after.findings.json")),
             line_tol=line_tol,
         ), wd
     finally:
-        pass  # caller inspects wd; tmp dirs are small and reaped by the OS
+        shutil.rmtree(wd, ignore_errors=True)
 
 
 # ---- tier map (docs/fix-arm.md §3) -----------------------------------------
@@ -80,29 +84,45 @@ def test_diff_findings_introduced_and_removed():
     assert [f.rule for f in introduced] == ["IDISP005"]
 
 
+def test_line_tolerance_matches_within_distance():
+    # Same finding shifted by 1 line: within tol -> matched (not removed+introduced);
+    # the old bucketing flagged this as a false regression at bucket boundaries.
+    before = [Finding("IDISP001", "Core/Mail.cs", 11)]
+    after = [Finding("IDISP001", "Core/Mail.cs", 12)]
+    assert diff_findings(before, after, line_tol=1) == ([], [])
+    rm, ins = diff_findings(before, after, line_tol=0)   # exact -> not the same site
+    assert [f.rule for f in rm] == ["IDISP001"] and [f.rule for f in ins] == ["IDISP001"]
+
+
 # ---- happy path: clean T2 fix, gated to review -----------------------------
 
 def test_clean_fix_ok_and_gated_to_review():
-    res, wd = _run("idisp001-clean", "IDISP001")
-    assert res.status == OK, res.ledger()
-    assert res.tier == tiers.T2
-    assert res.gate == tiers.REVIEW            # T2 -> not auto-committed
-    assert not res.committable                 # human review required
-    assert len(res.targeted_removed) == 1
-    assert res.introduced == []
-    assert "using (var client" in res.diff and "+" in res.diff   # reviewable patch
-    # the applier actually rewrote the tree to the fixed form
-    with open(os.path.join(wd, "Core", "Mail.cs"), encoding="utf-8") as fh:
-        assert "using (var client" in fh.read()
+    with _run("idisp001-clean", "IDISP001") as (res, wd):
+        assert res.status == OK, res.ledger()
+        assert res.tier == tiers.T2
+        assert res.gate == tiers.REVIEW            # T2 -> not auto-committed
+        assert not res.committable                 # human review required
+        assert len(res.targeted_removed) == 1
+        assert res.introduced == []
+        assert "using (var client" in res.diff and "+" in res.diff   # reviewable patch
+        # the applier actually rewrote the tree to the fixed form
+        with open(os.path.join(wd, "Core", "Mail.cs"), encoding="utf-8") as fh:
+            assert "using (var client" in fh.read()
 
 
-# ---- the crux: a fix that introduces a new finding is REJECTED -------------
+# ---- the crux: a fix that introduces a new finding is REJECTED + reverted ---
 
-def test_regression_is_rejected():
-    res, _ = _run("idisp001-regress", "IDISP001")
-    assert res.status == REJECTED, res.ledger()
-    assert [f.rule for f in res.introduced] == ["IDISP005"]
-    assert not res.committable                 # never committed on regression
+def test_regression_is_rejected_and_tree_reverted():
+    with _run("idisp001-regress", "IDISP001") as (res, wd):
+        assert res.status == REJECTED, res.ledger()
+        assert [f.rule for f in res.introduced] == ["IDISP005"]
+        assert not res.committable                 # never committed on regression
+        assert res.reverted                        # safety contract: tree rolled back
+        # the rejected patch must NOT remain in the tree
+        with open(os.path.join(wd, "Core", "Mail.cs"), encoding="utf-8") as fh:
+            body = fh.read()
+        assert "using (client = new SmtpClient" not in body
+        assert "// client.Dispose();" in body      # restored to the before/ state
 
 
 # ---- detect-only is unfixable, not silently skipped ------------------------
@@ -127,9 +147,9 @@ def test_detect_only_is_unfixable():
 # ---- nothing selected -> no-op ---------------------------------------------
 
 def test_no_op_when_rule_absent():
-    res, _ = _run("idisp001-clean", "RCS9999")
-    assert res.status == NO_OP
-    assert res.selected == 0
+    with _run("idisp001-clean", "RCS9999") as (res, _):
+        assert res.status == NO_OP
+        assert res.selected == 0
 
 
 # ---- bare-python runner (no pytest needed) ---------------------------------

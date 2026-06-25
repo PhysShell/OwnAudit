@@ -57,10 +57,32 @@ class ReplayApplier:
         return "".join(chunks)
 
     def apply(self, workdir: str, rule: str) -> None:
-        for rel in _walk(self.after_dir):
+        before_files = set(_walk(self.before_dir))
+        after_files = set(_walk(self.after_dir))
+        # A fix can DELETE a file (present in before/, absent in after/). Overlaying
+        # after/ alone would leave it behind and diverge from after.findings.json.
+        for rel in before_files - after_files:
+            stale = os.path.join(workdir, rel)
+            if os.path.exists(stale):
+                os.remove(stale)
+        for rel in sorted(after_files):
             dst = os.path.join(workdir, rel)
             os.makedirs(os.path.dirname(dst), exist_ok=True)
             shutil.copy2(os.path.join(self.after_dir, rel), dst)
+
+    def revert(self, workdir: str) -> None:
+        """Restore the before/ state — undo apply() on a rejected/ineffective fix.
+        Files added by the fix (after-only) are removed; everything else is reset."""
+        before_files = set(_walk(self.before_dir))
+        after_files = set(_walk(self.after_dir))
+        for rel in after_files - before_files:
+            stray = os.path.join(workdir, rel)
+            if os.path.exists(stray):
+                os.remove(stray)
+        for rel in sorted(before_files):
+            dst = os.path.join(workdir, rel)
+            os.makedirs(os.path.dirname(dst), exist_ok=True)
+            shutil.copy2(os.path.join(self.before_dir, rel), dst)
 
 
 class ReplayReaudit:
@@ -75,6 +97,13 @@ class ReplayReaudit:
 
 
 # ---- real adapters (Windows stand, .NET / MSBuild) -------------------------
+
+def _git_revert(workdir: str) -> None:
+    """Restore a git-tracked worktree: discard tracked edits and drop new files.
+    The real appliers run inside a checkout, so this rolls a rejected fix back out."""
+    subprocess.run(["git", "checkout", "--", "."], cwd=workdir, check=True)
+    subprocess.run(["git", "clean", "-fd"], cwd=workdir, check=True)
+
 
 class RoslynatorApplier:
     """`roslynator fix` over a solution, filtered to one diagnostic. Loads external
@@ -104,6 +133,9 @@ class RoslynatorApplier:
     def apply(self, workdir: str, rule: str) -> None:
         subprocess.run(self._cmd(rule), cwd=workdir, check=True)
 
+    def revert(self, workdir: str) -> None:
+        _git_revert(workdir)
+
 
 class DotnetFormatApplier:
     """`dotnet format analyzers` over a project, filtered to one diagnostic.
@@ -130,6 +162,9 @@ class DotnetFormatApplier:
 
     def apply(self, workdir: str, rule: str) -> None:
         subprocess.run(self._cmd(rule), cwd=workdir, check=True)
+
+    def revert(self, workdir: str) -> None:
+        _git_revert(workdir)
 
 
 class ScriptReaudit:

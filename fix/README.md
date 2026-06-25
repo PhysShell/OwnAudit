@@ -4,15 +4,16 @@ The audit-grade safety wrapper from [`../docs/fix-arm.md`](../docs/fix-arm.md) �
 to end on one rule. **We don't ship a fix engine** — `roslynator fix` / `dotnet format`
 are the appliers. This is the glue that makes mass-apply honest:
 
-```
+```text
 select(rule) → dry-run → diff → apply → re-audit → assert NO new findings → tier gate
 ```
 
 ## Run it (bare python3 — no .NET)
 
 ```bash
-python3 fix/tests/test_orchestrate.py                              # the contract tests
-python3 -m fixarm.cli --fixture fix/fixtures/idisp001-clean --rule IDISP001    # demo
+# fixarm lives under fix/, so put it on PYTHONPATH (or cd fix first)
+PYTHONPATH=fix python3 fix/tests/test_orchestrate.py            # the contract tests
+PYTHONPATH=fix python3 -m fixarm.cli --fixture fix/fixtures/idisp001-clean --rule IDISP001   # demo
 ```
 
 The demo applies the IDISP001 fix to a recorded fixture, prints the coverage ledger,

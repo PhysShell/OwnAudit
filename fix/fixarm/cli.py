@@ -44,22 +44,25 @@ def main(argv: list[str] | None = None) -> int:
 
     before = load_findings(os.path.join(args.fixture, "before.findings.json"))
     wd = _seed_workdir(os.path.join(args.fixture, "before"))
-    res = run_fix(
-        before=before, workdir=wd, rule=args.rule,
-        applier=ReplayApplier(args.fixture),
-        reaudit=ReplayReaudit(os.path.join(args.fixture, "after.findings.json")),
-        line_tol=args.line_tol,
-    )
+    try:
+        res = run_fix(
+            before=before, workdir=wd, rule=args.rule,
+            applier=ReplayApplier(args.fixture),
+            reaudit=ReplayReaudit(os.path.join(args.fixture, "after.findings.json")),
+            line_tol=args.line_tol,
+        )
 
-    print(json.dumps(res.ledger(), indent=2))
-    if res.status == REJECTED:
-        print(f"\nREJECTED — fix introduced {len(res.introduced)} new finding(s):", file=sys.stderr)
-        for f in res.introduced:
-            print(f"  + {f.rule} {f.path}:{f.line}  {f.message}", file=sys.stderr)
-    elif res.status == OK and (args.show_diff or res.gate != "auto-commit"):
-        print(f"\n--- reviewable patch (gate: {res.gate}) ---\n{res.diff}")
+        print(json.dumps(res.ledger(), indent=2))
+        if res.status == REJECTED:
+            print(f"\nREJECTED — fix introduced {len(res.introduced)} new finding(s):", file=sys.stderr)
+            for f in res.introduced:
+                print(f"  + {f.rule} {f.path}:{f.line}  {f.message}", file=sys.stderr)
+        elif res.status == OK and (args.show_diff or res.gate != "auto-commit"):
+            print(f"\n--- reviewable patch (gate: {res.gate}) ---\n{res.diff}")
 
-    return {OK: 0, NO_OP: 0, UNFIXABLE: 0, REJECTED: 2, NO_EFFECT: 3}.get(res.status, 0)
+        return {OK: 0, NO_OP: 0, UNFIXABLE: 0, REJECTED: 2, NO_EFFECT: 3}.get(res.status, 0)
+    finally:
+        shutil.rmtree(wd, ignore_errors=True)
 
 
 if __name__ == "__main__":
