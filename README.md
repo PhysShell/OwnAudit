@@ -32,5 +32,6 @@ console crash on the Russian-locale Windows target.
 | static aggregation, taxonomy, scoring, reporters | `Own.NET/audit/aggregate` + `audit/static` | **canonical** |
 | runtime LeakHarness / DuplicateDetector / storm profiler | `Own.NET/audit/runtime` | **canonical** |
 | boundary + STS runner + artifacts + lift-out home | `OwnAudit/` (this repo) | active |
+| fix arm — wire mass appliers + safety wrapper + OWN fixer | `OwnAudit/` ([docs/fix-arm.md](docs/fix-arm.md)) | design |
 
-See [PLAN.md](PLAN.md).
+See [PLAN.md](PLAN.md) and the [Fix arm design](docs/fix-arm.md).
