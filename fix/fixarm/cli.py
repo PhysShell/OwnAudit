@@ -20,6 +20,7 @@ import sys
 import tempfile
 
 from .appliers import ReplayApplier, ReplayReaudit
+from .own_fix import OwnFixApplier
 from .orchestrate import load_findings, run_fix, OK, REJECTED, NO_EFFECT, NO_OP, UNFIXABLE
 
 
@@ -37,7 +38,9 @@ def _seed_workdir(before_dir: str) -> str:
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(prog="fixarm", description="Fix-arm safety wrapper")
     ap.add_argument("--fixture", required=True, help="fixture dir (before/ after/ *.findings.json)")
-    ap.add_argument("--rule", required=True, help="diagnostic id to fix (e.g. IDISP001)")
+    ap.add_argument("--rule", required=True, help="diagnostic id to fix (e.g. IDISP001, OWN001)")
+    ap.add_argument("--applier", choices=("replay", "own"), default="replay",
+                    help="replay = recorded after/ tree; own = the real OWN001/OWN014 fixer")
     ap.add_argument("--line-tol", type=int, default=0)
     ap.add_argument("--show-diff", action="store_true", help="print the reviewable patch")
     args = ap.parse_args(argv)
@@ -45,9 +48,10 @@ def main(argv: list[str] | None = None) -> int:
     before = load_findings(os.path.join(args.fixture, "before.findings.json"))
     wd = _seed_workdir(os.path.join(args.fixture, "before"))
     try:
+        applier = (OwnFixApplier([f for f in before if f.rule == args.rule])
+                   if args.applier == "own" else ReplayApplier(args.fixture))
         res = run_fix(
-            before=before, workdir=wd, rule=args.rule,
-            applier=ReplayApplier(args.fixture),
+            before=before, workdir=wd, rule=args.rule, applier=applier,
             reaudit=ReplayReaudit(os.path.join(args.fixture, "after.findings.json")),
             line_tol=args.line_tol,
         )

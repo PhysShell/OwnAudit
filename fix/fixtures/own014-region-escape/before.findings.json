@@ -1,0 +1,12 @@
+{
+  "findings": [
+    {
+      "tool": "own-check",
+      "path": "Broker/KTS/KTSGoods2.xaml.cs",
+      "line": 11,
+      "rule": "OWN014",
+      "category_name": "region-escape",
+      "message": "event 'fThis.PropertyChanged' is subscribed (handler 'data_PropertyChanged') to a static (process-lived) event source that outlives 'KTSGoods2'; the strong subscription promotes 'KTSGoods2' to the source's lifetime, so it can never be collected - a region escape (leak, no release path) [resource: subscription token]"
+    }
+  ]
+}

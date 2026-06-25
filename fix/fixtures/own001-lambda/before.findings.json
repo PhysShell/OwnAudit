@@ -1,0 +1,12 @@
+{
+  "findings": [
+    {
+      "tool": "own-check",
+      "path": "Broker/DatabaseOptimizationWindow.xaml.cs",
+      "line": 10,
+      "rule": "OWN001",
+      "category_name": "subscription-leak",
+      "message": "event 'stage.PropertyChanged' is subscribed (handler '(s2, e2) => OnPropertyChanged(\"Stages\")') but never unsubscribed; its source is an injected dependency whose lifetime is unknown, so it may outlive and keep 'DatabaseOptimizationWindow' alive (possible leak - and being an inline lambda it has no '-=' handle, so it could never be detached) [resource: subscription token]"
+    }
+  ]
+}

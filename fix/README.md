@@ -28,6 +28,7 @@ target but **introduces** a new finding is **rejected** (exit 2), never committe
 | `fixarm/tiers.py` | rule → risk tier (T1 auto / T2 review / T3 unfixable / T4 bespoke) |
 | `fixarm/orchestrate.py` | the wrapper: select, diff two audit runs, no-new-findings gate, ledger |
 | `fixarm/appliers.py` | adapters — `Replay*` (CI fixtures) and real `Roslynator`/`DotnetFormat`/`ScriptReaudit` (.NET stand) |
+| `fixarm/own_fix.py` | **T4 OWN001/OWN014 fixer** — the one fixer no off-the-shelf tool covers (build-free, structural) |
 | `fixarm/cli.py` | run a fixture through the wrapper |
 | `fixtures/` | recorded before/after trees + before/after `findings.json` per rule |
 | `tests/` | the safety-contract tests (bare python3 or pytest) |
@@ -41,8 +42,32 @@ target but **introduces** a new finding is **rejected** (exit 2), never committe
   Gated on the **fix-spike** (`docs/fix-arm.md` §6): does `roslynator fix` even load
   `Broker.sln` through MSBuildWorkspace?
 
+## T4 — the OWN fixer (`fixarm/own_fix.py`)
+
+The only fixer that is ours, because own-check's `OWN001`/`OWN014` rules are ours.
+It plugs into the wrapper as an `Applier`, so it inherits dry-run, the no-new-findings
+gate, and rollback. OWN is tier T4 → every result is **queued-for-review**, never auto.
+
+```bash
+PYTHONPATH=fix python3 -m fixarm.cli --fixture fix/fixtures/own001-sub-window \
+    --rule OWN001 --applier own --show-diff
+```
+
+This slice fixes the **named-handler subscription** shape by inserting a teardown
+detach (`Window` → `Closed`, `FrameworkElement` → `Unloaded`):
+
+```diff
+  fGoods.PropertyChanged += new PropertyChangedEventHandler(GoodsPropertyChanged);
++ this.Closed += (s, e) => fGoods.PropertyChanged -= new PropertyChangedEventHandler(GoodsPropertyChanged);
+```
+
+It **refuses** the inline-lambda shape (own-check: "no `-=` handle … could never be
+detached") — a lambda must be extracted to a named handler first, so it's classified
+suggest-only and surfaced in `applier.skipped`, never patched with a fake fix.
+
 ## Next
 
 - Promote proven-mechanical rules into `tiers._T1_RULES` (auto-commit) from real diffs.
-- Add the **T4 OWN001/OWN014 fixer** behind the same `Applier` interface — the one piece
-  no off-the-shelf tool covers.
+- OWN fixer: handle disposable-field/local shapes; lambda **extraction** then detach;
+  consolidate into an existing `OnClosed`/`Dispose` override when one is present.
+- Windows-bound fix-spike: does `roslynator fix` load `Broker.sln` (docs/fix-arm.md §6).
