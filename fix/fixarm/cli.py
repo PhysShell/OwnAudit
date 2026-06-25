@@ -59,11 +59,18 @@ def main(argv: list[str] | None = None) -> int:
     try:
         applier = (OwnFixApplier([f for f in before if f.rule == args.rule])
                    if kind == "own" else ReplayApplier(args.fixture))
-        res = run_fix(
-            before=before, workdir=wd, rule=args.rule, applier=applier,
-            reaudit=ReplayReaudit(os.path.join(args.fixture, "after.findings.json")),
-            line_tol=args.line_tol,
-        )
+        try:
+            res = run_fix(
+                before=before, workdir=wd, rule=args.rule, applier=applier,
+                reaudit=ReplayReaudit(os.path.join(args.fixture, "after.findings.json")),
+                line_tol=args.line_tol,
+            )
+        except FileNotFoundError:
+            # re-audit was actually reached, but this fixture records no after.findings.json.
+            # (no-op / unfixable rules return before re-audit, so they never hit this.)
+            print(f"error: fixture {args.fixture!r} has no after.findings.json (needed to "
+                  f"re-audit the applied fix).", file=sys.stderr)
+            return 2
 
         print(json.dumps(res.ledger(), indent=2))
         if res.status == REJECTED:

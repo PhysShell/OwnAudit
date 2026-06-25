@@ -60,6 +60,13 @@ def _read(wd: str, rel: str) -> list[str]:
         return fh.readlines()
 
 
+def _expect(actual, expected, what="value"):
+    """`-O`-safe equality check — `assert` is stripped under python -O, so exit-code
+    checks must raise explicitly."""
+    if actual != expected:
+        raise AssertionError(f"{what}: expected {expected!r}, got {actual!r}")
+
+
 # ---- classifier: the honesty boundary --------------------------------------
 
 def test_classify_named_vs_lambda():
@@ -185,9 +192,10 @@ def test_duplicate_findings_one_insert():
         msg = "event 'g.PropertyChanged' is subscribed (handler 'new PropertyChangedEventHandler(H)')"
         dupes = [Finding("OWN001", "W.cs", 5, tool="own-check", message=msg),
                  Finding("OWN001", "W.cs", 5, tool="own-check", message=msg)]
-        new, applied, _ = plan_file(p, dupes)
+        new, applied, skipped = plan_file(p, dupes)
         assert new.count("this.Closed +=") == 1       # one detach, not two
         assert len(applied) == 1
+        assert [r for _, r in skipped] == ["duplicate-site"]   # the dupe is in the ledger, not dropped
     finally:
         shutil.rmtree(d, ignore_errors=True)
 
@@ -200,7 +208,7 @@ def test_path_traversal_is_rejected():
                                              message="event 'a.E' is subscribed (handler 'H')")])
             try:
                 applier.apply(wd, "OWN001")
-                assert False, f"expected ValueError for {bad!r}"
+                raise AssertionError(f"expected ValueError for {bad!r}")  # not `assert` (stripped under -O)
             except ValueError:
                 pass
     finally:
@@ -211,13 +219,30 @@ def test_cli_replay_on_own_fixture_fails_fast():
     from fixarm.cli import main
     rc = main(["--fixture", os.path.join(FIX, "own001-sub-window"),
                "--rule", "OWN001", "--applier", "replay"])
-    assert rc == 2                                     # no after/ tree -> refuse, don't delete
+    _expect(rc, 2, "replay on after-less fixture")     # refuse, don't delete
 
 
 def test_cli_defaults_own_rule_to_own_applier():
     from fixarm.cli import main
     rc = main(["--fixture", os.path.join(FIX, "own001-sub-window"), "--rule", "OWN001"])
-    assert rc == 0                                     # OWN* auto-routes to the own fixer
+    _expect(rc, 0, "OWN* auto-routes to own fixer")
+
+
+def test_cli_no_op_does_not_need_after_findings():
+    # own001-lambda has no after.findings.json; a no-op rule returns before re-audit,
+    # so the missing file must NOT be treated as an error (deferred check).
+    from fixarm.cli import main
+    rc = main(["--fixture", os.path.join(FIX, "own001-lambda"), "--rule", "RCS9999",
+               "--applier", "own"])
+    _expect(rc, 0, "no-op, re-audit never reached")
+
+
+def test_cli_missing_after_findings_fails_cleanly_when_reaudit_needed():
+    # Same fixture, but a fixable rule -> re-audit IS reached -> clean exit 2, not a stacktrace.
+    from fixarm.cli import main
+    rc = main(["--fixture", os.path.join(FIX, "own001-lambda"), "--rule", "OWN001",
+               "--applier", "own"])
+    _expect(rc, 2, "reaudit needed but after.findings.json missing")
 
 
 # ---- bare-python runner ----------------------------------------------------
