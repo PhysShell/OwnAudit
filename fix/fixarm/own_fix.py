@@ -238,20 +238,46 @@ def _fold_target(lines, cls_idx, ev):
     """If the class already has a teardown method to fold cleanup into, return its
     block anchor. Today: a `protected override void OnClosed(...)` for ev == Closed —
     it runs exactly when the Window's Closed event would, so folding is equivalent and
-    cleaner than stacking another lambda."""
+    cleaner than stacking another lambda. Only a member-depth OnClosed of THIS class
+    counts — a nested type's override (deeper brace depth) must not be folded into."""
     if ev != "Closed":
         return None
     end = _class_close(lines, cls_idx)
     end = end if end is not None else len(lines)
+    depth, started = 0, False
     for i in range(cls_idx, end):
-        if re.search(r"\boverride\s+void\s+OnClosed\b", lines[i]):
+        if started and depth == 1 and re.search(r"\boverride\s+void\s+OnClosed\b", lines[i]):
             return _fold_after_open_brace(lines, i, end)
+        for ch in _code_skeleton(lines[i]):
+            if ch == "{":
+                depth, started = depth + 1, True
+            elif ch == "}":
+                depth -= 1
     return None
 
 
-def _plan_teardown(lines, f, idx, stmt, anchor_missing="site-not-found"):
+_MODIFIER = r"(?:public|private|protected|internal|static|readonly|const|volatile|virtual|override|sealed|new|required)"
+
+
+def _is_class_member(lines, cls_idx, root):
+    """Is `root` a member (field/property) of the class — i.e. in scope inside a method
+    body like OnClosed? `this` always is. Members carry an access/field modifier;
+    constructor parameters and locals do not, so requiring a modifier separates them.
+    Used to keep the fold sound: a ctor-local source must stay on the captured lambda."""
+    if root == "this":
+        return True
+    end = _class_close(lines, cls_idx)
+    end = end if end is not None else len(lines)
+    decl = re.compile(rf"^\s*(\[[^\]]*\]\s*)?({_MODIFIER}\s+)+[\w<>\[\].,\s]*?\b{re.escape(root)}\b\s*(=|;|\{{|=>)")
+    return any(decl.match(_code_skeleton(lines[i])) for i in range(cls_idx, end))
+
+
+def _plan_teardown(lines, f, idx, stmt, anchor_missing="site-not-found", fold_root=None):
     """Subscription / disposable-field: run `stmt` on the owner's teardown. Folds into
-    an existing OnClosed override when present; otherwise adds a fresh teardown lambda."""
+    an existing OnClosed override when present AND the source is a class member (so it
+    stays in scope there); otherwise adds a fresh teardown lambda at the call site,
+    which captures whatever is in scope (incl. ctor locals). fold_root=None ⇒ always
+    foldable (a disposable field is a member by construction)."""
     if idx is None:
         return None, anchor_missing
     if _in_unbraced_control_flow(lines, idx):
@@ -262,7 +288,7 @@ def _plan_teardown(lines, f, idx, stmt, anchor_missing="site-not-found"):
         return None, "no-safe-teardown"
     cls_idx = _enclosing_class_idx(lines, idx)
     fold = _fold_target(lines, cls_idx, ev) if cls_idx is not None else None
-    if fold is not None:
+    if fold is not None and (fold_root is None or _is_class_member(lines, cls_idx, fold_root)):
         brace_idx, body_indent = fold
         return [(brace_idx + 1, brace_idx + 1, [f"{body_indent}{stmt};\n"])], f"{ev}/fold"
     indent = re.match(r"\s*", lines[idx]).group(0)
@@ -312,11 +338,13 @@ def _plan_local(lines, f, name):
 # name maps to different delegates across frameworks (RoutedEventArgs vs EventArgs),
 # so extracting them blindly could emit a wrong signature → they stay suggest-only.
 _EVENT_ARGS = {
-    "PropertyChanged": "PropertyChangedEventArgs",
-    "PropertyChanging": "PropertyChangingEventArgs",
-    "ListChanged": "ListChangedEventArgs",
-    "CollectionChanged": "NotifyCollectionChangedEventArgs",
-    "ErrorsChanged": "DataErrorsChangedEventArgs",
+    # fully qualified: the extracted method names the type explicitly, so it must
+    # compile even if the file's lambda relied on type inference without the using.
+    "PropertyChanged": "System.ComponentModel.PropertyChangedEventArgs",
+    "PropertyChanging": "System.ComponentModel.PropertyChangingEventArgs",
+    "ListChanged": "System.ComponentModel.ListChangedEventArgs",
+    "CollectionChanged": "System.Collections.Specialized.NotifyCollectionChangedEventArgs",
+    "ErrorsChanged": "System.ComponentModel.DataErrorsChangedEventArgs",
 }
 _LAMBDA2 = re.compile(r"^\(\s*(\w+)\s*,\s*(\w+)\s*\)\s*=>\s*(.+?)\s*$")
 
@@ -375,7 +403,8 @@ def _plan_one(lines, f):
     """Dispatch a finding to its shape's planner."""
     shape, a, b = classify(f.message)
     if shape == NAMED_HANDLER_SUB:
-        return _plan_teardown(lines, f, _find_sub_line(lines, f.line, a), f"{a} -= {b}")
+        return _plan_teardown(lines, f, _find_sub_line(lines, f.line, a), f"{a} -= {b}",
+                              fold_root=a.split(".")[0])   # source's root must be in scope to fold
     if shape == DISPOSABLE_FIELD:
         return _plan_teardown(lines, f, _find_ctor_anchor(lines, f.line),
                               f"{a}?.Dispose()", anchor_missing="no-ctor-anchor")
