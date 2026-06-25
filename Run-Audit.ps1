@@ -27,9 +27,11 @@ param(
     [string]$Worktree  = "C:\Repos\_ownaudit\ownnet-main",
     [string]$Out       = (Join-Path $PSScriptRoot "artifacts"),
     [switch]$Codeql,
+    [switch]$Strict,                       # CodeQL: + security-experimental suite
     [string]$CodeqlExe = "C:\Repos\codeql-bundle-win64\codeql\codeql.exe",
     [string]$CodeqlDb  = "C:\Repos\_ownaudit\codeql-db\sectorts",
-    [switch]$RebuildCodeqlDb
+    [switch]$RebuildCodeqlDb,
+    [int]$LineTol = 3                       # cluster window; use ~8 when folding Infer#
 )
 $ErrorActionPreference = "Stop"
 $env:PYTHONUTF8 = "1"   # report.py prints '>=' / '·' — crashes on a cp1251 console
@@ -79,10 +81,20 @@ if ($Codeql) {
         Write-Host "CodeQL: reusing DB at $CodeqlDb (-RebuildCodeqlDb to force)"
     }
     $cqsarif = Join-Path $Out "codeql.sarif"
-    & $CodeqlExe database analyze $CodeqlDb --format=sarifv2.1.0 --output=$cqsarif --threads=0 `
-        codeql/csharp-queries:codeql-suites/csharp-security-and-quality.qls
-    Write-Host "CodeQL SARIF: $cqsarif"
+    # security-and-quality is the practical max for a desktop app; -Strict adds the
+    # experimental suite (marginal here — mostly web-shaped queries — but complete).
+    $suites = @("codeql/csharp-queries:codeql-suites/csharp-security-and-quality.qls")
+    if ($Strict) { $suites += "codeql/csharp-queries:codeql-suites/csharp-security-experimental.qls" }
+    & $CodeqlExe database analyze $CodeqlDb --format=sarifv2.1.0 --output=$cqsarif --threads=0 @suites
+    Write-Host "CodeQL SARIF: $cqsarif  [$($suites.Count) suite(s)]"
     $sarifInputs += "codeql=$cqsarif"
+}
+
+# Infer# (build-required) — fold in if a SARIF is present. Produce it first with
+# Run-Infersharp.ps1 (WSL). Infer# reports at the last-access line, so use -LineTol ~8.
+if (Test-Path (Join-Path $Out "infersharp.sarif")) {
+    Write-Host "Infer# SARIF: $Out\infersharp.sarif (folding in)"
+    $sarifInputs += "infersharp=$(Join-Path $Out 'infersharp.sarif')"
 }
 
 # 4. audit/ aggregation -> report (markdown + html + json). Cross-tool agreement happens
@@ -91,9 +103,13 @@ $findings = Join-Path $Out "findings.json"
 $commit   = (git -C $Target rev-parse --short HEAD 2>$null)
 $nargs = @()
 foreach ($s in $sarifInputs) { $nargs += @("--sarif", $s) }
-python "$Worktree\audit\aggregate\normalize.py" @nargs --strip "$leaf/" --json $findings
+# Three tools, three path shapes: own-check '<leaf>/...', codeql '<leaf-relative>',
+# Infer# absolute 'C:/.../<leaf>/...'. Strip both leaf prefixes so modules align in the
+# heatmap (clustering itself is basename-based, so this only cleans the labels).
+$absStrip = ($Target -replace '\\', '/').TrimEnd('/') + "/"
+python "$Worktree\audit\aggregate\normalize.py" @nargs --strip "$leaf/" --strip $absStrip --json $findings
 foreach ($fmt in @(@{f='markdown';e='md'}, @{f='html';e='html'}, @{f='json';e='json'})) {
-    python "$Worktree\audit\aggregate\report.py" --findings $findings --format $fmt.f --target $leaf --commit $commit |
+    python "$Worktree\audit\aggregate\report.py" --findings $findings --format $fmt.f --target $leaf --commit $commit --line-tol $LineTol |
         Set-Content -LiteralPath (Join-Path $Out "health-report.$($fmt.e)") -Encoding utf8
 }
-Write-Host "Report: $Out\health-report.md  (+ .html, .json)  [tools: $($sarifInputs -join ', ')]"
+Write-Host "Report: $Out\health-report.md  (+ .html, .json)  [tools: $($sarifInputs -join ', '); line-tol $LineTol]"
