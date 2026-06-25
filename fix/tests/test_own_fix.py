@@ -75,13 +75,13 @@ def test_classify_named_vs_lambda():
 def test_own001_window_inserts_closed_detach():
     rel = "Broker/AmountWindow.xaml.cs"
     before = _read(_seed("own001-sub-window"), rel)   # length reference
-    with _wrapped("own001-sub-window", "OWN001") as (res, wd, applier):
+    with _wrapped("own001-sub-window", "OWN001") as (res, wd, _applier):
         assert res.status == OK, res.ledger()
         assert res.tier == tiers.T4 and res.gate == tiers.REVIEW   # never auto
         assert not res.committable
         lines = _read(wd, rel)
         assert len(lines) == len(before) + 1            # exactly one line added
-        sub = next(i for i, l in enumerate(lines) if "fGoods.PropertyChanged +=" in l)
+        sub = next(i for i, line in enumerate(lines) if "fGoods.PropertyChanged +=" in line)
         # the detach is inserted immediately after the subscription, in a Closed hook
         assert lines[sub + 1].strip() == (
             "this.Closed += (s, e) => fGoods.PropertyChanged -= "
@@ -93,11 +93,11 @@ def test_own001_window_inserts_closed_detach():
 
 def test_own014_usercontrol_inserts_unloaded_detach():
     rel = "Broker/KTS/KTSGoods2.xaml.cs"
-    with _wrapped("own014-region-escape", "OWN014") as (res, wd, applier):
+    with _wrapped("own014-region-escape", "OWN014") as (res, wd, _applier):
         assert res.status == OK, res.ledger()
         assert res.tier == tiers.T4
         lines = _read(wd, rel)
-        sub = next(i for i, l in enumerate(lines) if "fThis.PropertyChanged +=" in l)
+        sub = next(i for i, line in enumerate(lines) if "fThis.PropertyChanged +=" in line)
         assert lines[sub + 1].strip() == (
             "this.Unloaded += (s, e) => fThis.PropertyChanged -= data_PropertyChanged;")
 
@@ -139,6 +139,85 @@ def test_own_fix_reverts_on_regression():
         assert _read(wd, rel) == original                # detach rolled back out
     finally:
         shutil.rmtree(wd, ignore_errors=True)
+
+
+# ---- review hardening: unbraced guards, dedup, path safety, CLI ------------
+
+def _tmp_cs(src: str):
+    d = tempfile.mkdtemp(prefix="ownfix-")
+    p = os.path.join(d, "W.cs")
+    with open(p, "w", encoding="utf-8") as fh:
+        fh.write(src)
+    return d, p
+
+
+def test_unbraced_if_guard_is_skipped():
+    # subscription is the single statement of an unbraced `if` -> suggest-only
+    src = ("public partial class W : Window\n"
+           "{\n"
+           "    public W(Goods g)\n"
+           "    {\n"
+           "        if (g != null)\n"
+           "            g.PropertyChanged += new PropertyChangedEventHandler(H);\n"
+           "    }\n"
+           "}\n")
+    d, p = _tmp_cs(src)
+    try:
+        f = Finding("OWN001", "W.cs", 6, tool="own-check",
+                    message="event 'g.PropertyChanged' is subscribed (handler 'new PropertyChangedEventHandler(H)')")
+        new, applied, skipped = plan_file(p, [f])
+        assert new == src and applied == []           # tree untouched
+        assert skipped and skipped[0][1] == "unbraced-control-flow"
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+
+def test_duplicate_findings_one_insert():
+    src = ("public partial class W : Window\n"
+           "{\n"
+           "    public W(Goods g)\n"
+           "    {\n"
+           "        g.PropertyChanged += new PropertyChangedEventHandler(H);\n"
+           "    }\n"
+           "}\n")
+    d, p = _tmp_cs(src)
+    try:
+        msg = "event 'g.PropertyChanged' is subscribed (handler 'new PropertyChangedEventHandler(H)')"
+        dupes = [Finding("OWN001", "W.cs", 5, tool="own-check", message=msg),
+                 Finding("OWN001", "W.cs", 5, tool="own-check", message=msg)]
+        new, applied, _ = plan_file(p, dupes)
+        assert new.count("this.Closed +=") == 1       # one detach, not two
+        assert len(applied) == 1
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+
+def test_path_traversal_is_rejected():
+    wd = _seed("own001-sub-window")
+    try:
+        for bad in ("../escape.cs", "/etc/passwd"):
+            applier = OwnFixApplier([Finding("OWN001", bad, 1, tool="own-check",
+                                             message="event 'a.E' is subscribed (handler 'H')")])
+            try:
+                applier.apply(wd, "OWN001")
+                assert False, f"expected ValueError for {bad!r}"
+            except ValueError:
+                pass
+    finally:
+        shutil.rmtree(wd, ignore_errors=True)
+
+
+def test_cli_replay_on_own_fixture_fails_fast():
+    from fixarm.cli import main
+    rc = main(["--fixture", os.path.join(FIX, "own001-sub-window"),
+               "--rule", "OWN001", "--applier", "replay"])
+    assert rc == 2                                     # no after/ tree -> refuse, don't delete
+
+
+def test_cli_defaults_own_rule_to_own_applier():
+    from fixarm.cli import main
+    rc = main(["--fixture", os.path.join(FIX, "own001-sub-window"), "--rule", "OWN001"])
+    assert rc == 0                                     # OWN* auto-routes to the own fixer
 
 
 # ---- bare-python runner ----------------------------------------------------

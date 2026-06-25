@@ -33,6 +33,17 @@ INLINE_LAMBDA_SUB = "inline-lambda-sub"   # suggest-only: needs extraction first
 OTHER = "other"                           # not a subscription shape we handle here
 
 
+def _safe_join(workdir: str, rel: str) -> str:
+    """Join `rel` onto `workdir`, rejecting absolute paths and `..` escapes.
+    Finding.path is loaded verbatim from external findings JSON, so it must be
+    confirmed to stay inside the worktree before any open()/write()."""
+    base = os.path.abspath(workdir)
+    full = os.path.abspath(os.path.join(base, rel))
+    if os.path.isabs(rel) or (full != base and not full.startswith(base + os.sep)):
+        raise ValueError(f"unsafe finding path escapes workdir: {rel!r}")
+    return full
+
+
 def classify(message: str):
     """(shape, src_event, handler). Inline lambdas (handler contains `=>`, or the
     message flags 'inline lambda') are suggest-only — they have no detach handle."""
@@ -64,6 +75,39 @@ def _enclosing_class(lines: list[str], idx: int):
     return None, ""
 
 
+_CF_KW = r"if|else|while|for|foreach|using|lock"
+
+
+def _in_unbraced_control_flow(lines: list[str], idx: int) -> bool:
+    """True if the subscription at `idx` is the single statement of an unbraced
+    control-flow body — e.g. `if (x != null) src.Event += H;` or an `if (...)`
+    header on the line above with no `{`. Inserting an unconditional teardown next
+    to it would register the detach even when the guarded subscription was skipped,
+    or split an `if`/`else`. Such sites are left for review, never auto-patched."""
+    # (a) inline guard on the same line, before the '+=' (e.g. `if (x != null) a.E += h;`)
+    pre = lines[idx].split("+=", 1)[0]
+    if re.search(rf"\b({_CF_KW})\b", pre):
+        return True
+    # (b) previous meaningful line is an unbraced control-flow header / else / do
+    j = idx - 1
+    while j >= 0 and (not lines[j].strip() or lines[j].lstrip().startswith("//")):
+        j -= 1
+    if j >= 0:
+        prev = lines[j].rstrip()
+        if not prev.endswith("{") and (
+            (re.match(rf"^\s*(\}}\s*)?({_CF_KW})\b", prev) and prev.endswith(")"))
+            or re.match(r"^\s*(else|do)\s*$", prev)
+        ):
+            return True
+    # (c) next meaningful line is `else` — our insertion would split the if/else
+    k = idx + 1
+    while k < len(lines) and not lines[k].strip():
+        k += 1
+    if k < len(lines) and re.match(r"^\s*else\b", lines[k]):
+        return True
+    return False
+
+
 def _find_sub_line(lines: list[str], line_1based: int, src_event: str):
     """Locate the `src_event += ...` statement near the reported line (±3 for drift)."""
     target = line_1based - 1
@@ -80,6 +124,7 @@ def plan_file(path: str, findings):
     with open(path, encoding="utf-8") as fh:
         lines = fh.readlines()
     inserts: list[tuple[int, str]] = []
+    seen: set[tuple[int, str]] = set()
     applied, skipped = [], []
     for f in findings:
         shape, src_event, handler = classify(f.message)
@@ -90,13 +135,20 @@ def plan_file(path: str, findings):
         if idx is None:
             skipped.append((f, "site-not-found"))
             continue
+        if _in_unbraced_control_flow(lines, idx):
+            skipped.append((f, "unbraced-control-flow"))
+            continue
         _, decl = _enclosing_class(lines, idx)
         ev = _teardown_event(decl)
         if ev is None:
             skipped.append((f, "no-safe-teardown"))
             continue
         indent = re.match(r"\s*", lines[idx]).group(0)
-        inserts.append((idx, f"{indent}this.{ev} += (s, e) => {src_event} -= {handler};\n"))
+        ins = (idx, f"{indent}this.{ev} += (s, e) => {src_event} -= {handler};\n")
+        if ins in seen:
+            continue                         # same detach already planned for this site
+        seen.add(ins)
+        inserts.append(ins)
         applied.append((f, ev))
     # insert bottom-up so earlier indices stay valid
     for idx, text in sorted(inserts, key=lambda t: t[0], reverse=True):
@@ -111,37 +163,42 @@ class OwnFixApplier:
     name = "own-fix"
 
     def __init__(self, findings):
+        """`findings` are the OWN findings to fix (the wrapper selects them by rule)."""
         self.findings = list(findings)
         self._orig: dict[str, str] = {}
         self.skipped: list = []   # populated on the last plan — suggest-only / unfixable
 
     def _by_file(self):
+        """Group this applier's findings by their (relative) source path."""
         byf: dict[str, list] = {}
         for f in self.findings:
             byf.setdefault(f.path, []).append(f)
         return byf
 
     def _plan(self, workdir: str):
+        """Compute fixed content per file and record suggest-only/unfixable skips."""
         out, skipped = {}, []
         for rel, fs in self._by_file().items():
-            new, _applied, sk = plan_file(os.path.join(workdir, rel), fs)
+            new, _applied, sk = plan_file(_safe_join(workdir, rel), fs)
             out[rel] = new
             skipped.extend(sk)
         self.skipped = skipped
         return out
 
     def dry_run(self, workdir: str, rule: str) -> str:
+        """Reviewable unified diff of the planned detach insertions (no writes)."""
         chunks = []
         for rel, new in self._plan(workdir).items():
-            with open(os.path.join(workdir, rel), encoding="utf-8") as fh:
+            with open(_safe_join(workdir, rel), encoding="utf-8") as fh:
                 old = fh.readlines()
             chunks.extend(difflib.unified_diff(
                 old, new.splitlines(keepends=True), fromfile=f"a/{rel}", tofile=f"b/{rel}"))
         return "".join(chunks)
 
     def apply(self, workdir: str, rule: str) -> None:
+        """Write the fixes, snapshotting originals first so revert() can roll back."""
         for rel, new in self._plan(workdir).items():
-            p = os.path.join(workdir, rel)
+            p = _safe_join(workdir, rel)
             if rel not in self._orig:
                 with open(p, encoding="utf-8") as fh:
                     self._orig[rel] = fh.read()
@@ -149,7 +206,8 @@ class OwnFixApplier:
                 fh.write(new)
 
     def revert(self, workdir: str) -> None:
+        """Restore the snapshotted originals — the wrapper calls this on rejection."""
         for rel, orig in self._orig.items():
-            with open(os.path.join(workdir, rel), "w", encoding="utf-8") as fh:
+            with open(_safe_join(workdir, rel), "w", encoding="utf-8") as fh:
                 fh.write(orig)
         self._orig.clear()
