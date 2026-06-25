@@ -19,7 +19,7 @@ from fixarm import tiers                                              # noqa: E4
 from fixarm.appliers import ReplayReaudit                            # noqa: E402
 from fixarm.own_fix import (                                         # noqa: E402
     OwnFixApplier, classify, plan_file,
-    NAMED_HANDLER_SUB, INLINE_LAMBDA_SUB,
+    NAMED_HANDLER_SUB, INLINE_LAMBDA_SUB, DISPOSABLE_FIELD, DISPOSABLE_LOCAL,
 )
 from fixarm.orchestrate import (                                     # noqa: E402
     Finding, load_findings, run_fix, OK, REJECTED,
@@ -75,6 +75,10 @@ def test_classify_named_vs_lambda():
     assert classify(named)[0] == NAMED_HANDLER_SUB
     assert classify(named)[1:] == ("fGoods.PropertyChanged", "new PropertyChangedEventHandler(GoodsPropertyChanged)")
     assert classify(lam)[0] == INLINE_LAMBDA_SUB
+    field = "IDisposable field '_timer' (type 'Timer') is never disposed — its owner 'ShareWindow' leaks it"
+    local = "IDisposable local 'MyProc' is never disposed (leak)"
+    assert classify(field)[0] == DISPOSABLE_FIELD and classify(field)[1] == "_timer"
+    assert classify(local)[0] == DISPOSABLE_LOCAL    # suggest-only
 
 
 # ---- OWN001 named handler on a Window -> Closed teardown -------------------
@@ -107,6 +111,21 @@ def test_own014_usercontrol_inserts_unloaded_detach():
         sub = next(i for i, line in enumerate(lines) if "fThis.PropertyChanged +=" in line)
         assert lines[sub + 1].strip() == (
             "this.Unloaded += (s, e) => fThis.PropertyChanged -= data_PropertyChanged;")
+
+
+# ---- OWN001 disposable field on a Window -> dispose on Closed ---------------
+
+def test_own001_disposable_field_disposes_on_closed():
+    rel = "Broker/ShareWindow.xaml.cs"
+    before = _read(_seed("own001-disposable-field"), rel)
+    with _wrapped("own001-disposable-field", "OWN001") as (res, wd, _applier):
+        assert res.status == OK, res.ledger()
+        assert res.tier == tiers.T4 and res.gate == tiers.REVIEW
+        lines = _read(wd, rel)
+        assert len(lines) == len(before) + 1
+        # the dispose hook is anchored right after InitializeComponent(), in a Closed hook
+        init = next(i for i, line in enumerate(lines) if "InitializeComponent()" in line)
+        assert lines[init + 1].strip() == "this.Closed += (s, e) => _timer?.Dispose();"
 
 
 # ---- inline lambda is suggest-only: NOT patched ----------------------------

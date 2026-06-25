@@ -6,18 +6,18 @@ it inherits dry-run, the no-new-findings regression gate, and rollback for free.
 OWN rules are tier T4 → the wrapper always routes the result to REVIEW; nothing
 here auto-commits, because lifetime-correct teardown placement is a judgement call.
 
-Scope of THIS slice — honest about the boundary:
-  * FIXES the named-handler subscription shape
-        src.Event += Handler;   (Handler a method group or `new D(M)`)
-    by inserting a teardown detach next to it:
-        this.<Closed|Unloaded> += (s, e) => src.Event -= Handler;
-    Closed for a Window, Unloaded for a FrameworkElement; anything else is left
-    for review (we can't pick a safe teardown blind).
-  * REFUSES the inline-lambda shape
-        src.Event += (s, e) => ...;
-    own-check itself says it "has no '-=' handle, so it could never be detached".
-    A lambda must be extracted to a named handler FIRST, which is a real refactor —
-    so we classify it suggest-only and never emit a patch that pretends to fix it.
+Scope of THIS slice — honest about the boundary. For a WPF owner we hang the cleanup
+on a teardown event (Closed for a Window, Unloaded for a FrameworkElement); anything
+else is left for review (we can't pick a safe teardown blind).
+  * FIXES the named-handler subscription shape — `src.Event += Handler;` (method group
+    or `new D(M)`) → `this.<teardown> += (s, e) => src.Event -= Handler;`
+  * FIXES the disposable-field shape — an IDisposable field never disposed (a Timer,
+    CancellationTokenSource, …) → `this.<teardown> += (s, e) => field?.Dispose();`,
+    anchored after the ctor's InitializeComponent().
+  * REFUSES the inline-lambda subscription — own-check says it "has no '-=' handle, so
+    it could never be detached"; a lambda needs extraction to a named handler first.
+  * REFUSES the disposable-local shape — wrapping a local needs a scoped `using`, not a
+    teardown hook. Both refusals are classified suggest-only, never a fake patch.
 """
 from __future__ import annotations
 
@@ -27,10 +27,14 @@ import re
 
 # event '<src.event>' is subscribed (handler '<handler>')
 _SUB_RE = re.compile(r"event '([^']+)' is subscribed \(handler '(.+?)'\)", re.S)
+_FIELD_RE = re.compile(r"IDisposable field '([^']+)'")     # ... is never disposed
+_LOCAL_RE = re.compile(r"IDisposable local '([^']+)'")
 
 NAMED_HANDLER_SUB = "named-handler-sub"   # fixable: insert a detach
-INLINE_LAMBDA_SUB = "inline-lambda-sub"   # suggest-only: needs extraction first
-OTHER = "other"                           # not a subscription shape we handle here
+DISPOSABLE_FIELD = "disposable-field"     # fixable on a WPF owner: dispose on teardown
+INLINE_LAMBDA_SUB = "inline-lambda-sub"   # suggest-only: needs lambda extraction first
+DISPOSABLE_LOCAL = "disposable-local"     # suggest-only: needs a scoped `using`
+OTHER = "other"                           # not a shape we handle here
 
 
 def _safe_join(workdir: str, rel: str) -> str:
@@ -45,15 +49,23 @@ def _safe_join(workdir: str, rel: str) -> str:
 
 
 def classify(message: str):
-    """(shape, src_event, handler). Inline lambdas (handler contains `=>`, or the
-    message flags 'inline lambda') are suggest-only — they have no detach handle."""
-    m = _SUB_RE.search(message or "")
-    if not m:
-        return OTHER, None, None
-    src_event, handler = m.group(1), m.group(2)
-    if "=>" in handler or "inline lambda" in (message or ""):
-        return INLINE_LAMBDA_SUB, src_event, handler
-    return NAMED_HANDLER_SUB, src_event, handler
+    """(shape, a, b). For subscriptions a=src.event, b=handler; for a disposable
+    field a=field name, b=None. Inline lambdas (handler has `=>`) and disposable
+    locals are suggest-only — they have no detach handle / need a scoped `using`."""
+    msg = message or ""
+    m = _SUB_RE.search(msg)
+    if m:
+        src_event, handler = m.group(1), m.group(2)
+        if "=>" in handler or "inline lambda" in msg:
+            return INLINE_LAMBDA_SUB, src_event, handler
+        return NAMED_HANDLER_SUB, src_event, handler
+    m = _FIELD_RE.search(msg)
+    if m:
+        return DISPOSABLE_FIELD, m.group(1), None
+    m = _LOCAL_RE.search(msg)
+    if m:
+        return DISPOSABLE_LOCAL, m.group(1), None
+    return OTHER, None, None
 
 
 def _teardown_event(decl_tail: str):
@@ -117,6 +129,25 @@ def _find_sub_line(lines: list[str], line_1based: int, src_event: str):
     return None
 
 
+def _find_ctor_anchor(lines: list[str], field_line_1based: int):
+    """For a disposable field (reported at its declaration), find an in-ctor anchor to
+    hang the teardown on: the `InitializeComponent()` call of the field's enclosing
+    class. WPF code-behind reliably has one, and a statement after it is in scope for
+    `this.<teardown> += ...`. Returns None (→ suggest-only) if there's no such anchor."""
+    start = field_line_1based - 1
+    cls_idx = None
+    for i in range(min(start, len(lines) - 1), -1, -1):
+        if re.search(r"\bclass\s+\w+", lines[i]):
+            cls_idx = i
+            break
+    if cls_idx is None:
+        return None
+    for i in range(cls_idx, len(lines)):
+        if "InitializeComponent()" in lines[i]:
+            return i
+    return None
+
+
 def plan_file(path: str, findings):
     """Compute (new_content, applied, skipped) for one file. `applied`/`skipped`
     are (finding, detail) lists so the ledger can report exactly what was and
@@ -127,13 +158,19 @@ def plan_file(path: str, findings):
     seen: set[tuple[int, str]] = set()
     applied, skipped = [], []
     for f in findings:
-        shape, src_event, handler = classify(f.message)
-        if shape != NAMED_HANDLER_SUB:
+        shape, a, b = classify(f.message)
+        # Per shape: find the in-scope anchor line and the statement to run on teardown.
+        if shape == NAMED_HANDLER_SUB:                  # a=src.event, b=handler
+            idx = _find_sub_line(lines, f.line, a)
+            stmt = None if idx is None else f"{a} -= {b}"
+        elif shape == DISPOSABLE_FIELD:                 # a=field name
+            idx = _find_ctor_anchor(lines, f.line)
+            stmt = None if idx is None else f"{a}?.Dispose()"
+        else:                                           # lambda / local / other -> suggest-only
             skipped.append((f, shape))
             continue
-        idx = _find_sub_line(lines, f.line, src_event)
         if idx is None:
-            skipped.append((f, "site-not-found"))
+            skipped.append((f, "site-not-found" if shape == NAMED_HANDLER_SUB else "no-ctor-anchor"))
             continue
         if _in_unbraced_control_flow(lines, idx):
             skipped.append((f, "unbraced-control-flow"))
@@ -144,7 +181,7 @@ def plan_file(path: str, findings):
             skipped.append((f, "no-safe-teardown"))
             continue
         indent = re.match(r"\s*", lines[idx]).group(0)
-        ins = (idx, f"{indent}this.{ev} += (s, e) => {src_event} -= {handler};\n")
+        ins = (idx, f"{indent}this.{ev} += (s, e) => {stmt};\n")
         if ins in seen:
             skipped.append((f, "duplicate-site"))   # detach already planned; keep the ledger complete
             continue

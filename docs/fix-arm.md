@@ -115,13 +115,15 @@ No step is AI-judged. The asserts are exact, mirroring Arm 2's scenario discipli
   Build-free, develops and unit-tests on Linux against synthetic fixtures (Roslyn and
   both CLIs are cross-platform).
 - **Build — the OWN fixer** (T4): `OWN001`/`OWN014`. Structural, build-free, reviewable
-  patches — built in [`../fix/fixarm/own_fix.py`](../fix/fixarm/own_fix.py). First slice
-  fixes the **named-handler subscription** shape by inserting a teardown detach
-  (`Window` → `Closed`, `FrameworkElement` → `Unloaded`); fixtures are real STS sites
-  (`AmountWindow` OWN001, `KTSGoods2` OWN014). The **inline-lambda** shape is classified
-  **suggest-only** and never patched — own-check itself flags it has "no `-=` handle, so
-  it could never be detached", so it needs lambda extraction first. Still to build:
-  disposable-field/local shapes, lambda extraction, and folding into an existing
+  patches — built in [`../fix/fixarm/own_fix.py`](../fix/fixarm/own_fix.py). On a WPF
+  owner it hangs cleanup on a teardown event (`Window` → `Closed`, `FrameworkElement` →
+  `Unloaded`) and fixes two shapes: the **named-handler subscription** (insert
+  `src.Event -= Handler`) and the **disposable field** (insert `field?.Dispose()`,
+  anchored after the ctor's `InitializeComponent()`). Fixtures are real STS sites
+  (`AmountWindow` OWN001, `KTSGoods2` OWN014, `ShareWindow._timer`). The **inline-lambda**
+  subscription and the **disposable-local** are classified **suggest-only** and never
+  patched (lambda needs extraction; a local needs a scoped `using`). Still to build:
+  disposable-local → `using`, lambda extraction, folding into an existing
   `OnClosed`/`Dispose`. Every OWN result is queued-for-review (T4), never auto.
 
 ---

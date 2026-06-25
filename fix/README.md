@@ -53,21 +53,28 @@ PYTHONPATH=fix python3 -m fixarm.cli --fixture fix/fixtures/own001-sub-window \
     --rule OWN001 --applier own --show-diff
 ```
 
-This slice fixes the **named-handler subscription** shape by inserting a teardown
-detach (`Window` → `Closed`, `FrameworkElement` → `Unloaded`):
+It fixes two shapes on a WPF owner by hanging cleanup on a teardown event
+(`Window` → `Closed`, `FrameworkElement` → `Unloaded`):
 
 ```diff
+  // named-handler subscription
   fGoods.PropertyChanged += new PropertyChangedEventHandler(GoodsPropertyChanged);
 + this.Closed += (s, e) => fGoods.PropertyChanged -= new PropertyChangedEventHandler(GoodsPropertyChanged);
+
+  // disposable field (Timer / CancellationTokenSource / …), anchored after the ctor
+  public ShareWindow() {
+      InitializeComponent();
++     this.Closed += (s, e) => _timer?.Dispose();
 ```
 
-It **refuses** the inline-lambda shape (own-check: "no `-=` handle … could never be
-detached") — a lambda must be extracted to a named handler first, so it's classified
-suggest-only and surfaced in `applier.skipped`, never patched with a fake fix.
+It **refuses** the inline-lambda subscription (own-check: "no `-=` handle … could never
+be detached" → needs extraction first) and the disposable-**local** (needs a scoped
+`using`) — both are classified suggest-only and surfaced in `applier.skipped`, never
+patched with a fake fix.
 
 ## Next
 
 - Promote proven-mechanical rules into `tiers._T1_RULES` (auto-commit) from real diffs.
-- OWN fixer: handle disposable-field/local shapes; lambda **extraction** then detach;
-  consolidate into an existing `OnClosed`/`Dispose` override when one is present.
+- OWN fixer: disposable-**local** → scoped `using`; inline-lambda **extraction** then
+  detach; consolidate into an existing `OnClosed`/`Dispose` override when one is present.
 - Windows-bound fix-spike: does `roslynator fix` load `Broker.sln` (docs/fix-arm.md §6).
