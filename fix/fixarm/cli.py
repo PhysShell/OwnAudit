@@ -21,6 +21,8 @@ import tempfile
 
 from .appliers import ReplayApplier, ReplayReaudit
 from .own_fix import OwnFixApplier
+from .ai_fix import AiFixApplier, LocalLlmClient
+from . import tiers
 from .orchestrate import load_findings, run_fix, OK, REJECTED, NO_EFFECT, NO_OP, UNFIXABLE
 
 
@@ -39,9 +41,13 @@ def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(prog="fixarm", description="Fix-arm safety wrapper")
     ap.add_argument("--fixture", required=True, help="fixture dir (before/ after/ *.findings.json)")
     ap.add_argument("--rule", required=True, help="diagnostic id to fix (e.g. IDISP001, OWN001)")
-    ap.add_argument("--applier", choices=("replay", "own"), default=None,
-                    help="replay = recorded after/ tree; own = the real OWN001/OWN014 fixer. "
-                         "Default: own for OWN* rules, else replay.")
+    ap.add_argument("--applier", choices=("replay", "own", "ai"), default=None,
+                    help="replay = recorded after/ tree; own = the OWN001/OWN014 fixer; "
+                         "ai = local-LLM proposer (always REVIEW). Default: own for OWN* rules, else replay.")
+    ap.add_argument("--llm-url", default="http://localhost:11434/v1",
+                    help="local OpenAI-compatible endpoint for --applier ai (default: Ollama)")
+    ap.add_argument("--model", default="qwen2.5-coder", help="local model name for --applier ai")
+    ap.add_argument("--max-rounds", type=int, default=3, help="--applier ai verify->revise rounds")
     ap.add_argument("--line-tol", type=int, default=0)
     ap.add_argument("--show-diff", action="store_true", help="print the reviewable patch")
     args = ap.parse_args(argv)
@@ -57,13 +63,23 @@ def main(argv: list[str] | None = None) -> int:
     before = load_findings(os.path.join(args.fixture, "before.findings.json"))
     wd = _seed_workdir(os.path.join(args.fixture, "before"))
     try:
-        applier = (OwnFixApplier([f for f in before if f.rule == args.rule])
-                   if kind == "own" else ReplayApplier(args.fixture))
+        sel = [f for f in before if f.rule == args.rule]
+        # AI proposals are never auto-committed — force the REVIEW gate regardless of rule tier.
+        gate_of = (lambda r, t="": tiers.T4) if kind == "ai" else tiers.tier_of
+        if kind == "own":
+            applier = OwnFixApplier(sel)
+        elif kind == "ai":
+            reaudit = ReplayReaudit(os.path.join(args.fixture, "after.findings.json"))
+            applier = AiFixApplier(sel, LocalLlmClient(args.llm_url, args.model),
+                                   reaudit=reaudit, before=before, max_rounds=args.max_rounds,
+                                   line_tol=args.line_tol)
+        else:
+            applier = ReplayApplier(args.fixture)
         try:
             res = run_fix(
                 before=before, workdir=wd, rule=args.rule, applier=applier,
                 reaudit=ReplayReaudit(os.path.join(args.fixture, "after.findings.json")),
-                line_tol=args.line_tol,
+                line_tol=args.line_tol, tier_of=gate_of,
             )
         except FileNotFoundError:
             # re-audit was actually reached, but this fixture records no after.findings.json.

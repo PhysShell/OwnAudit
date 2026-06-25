@@ -130,6 +130,35 @@ No step is AI-judged. The asserts are exact, mirroring Arm 2's scenario discipli
 
 ---
 
+## 5b. The AI tier — a local-LLM proposer for the residual
+
+Mechanical fixers give up on the residual: **T3 detect-only** (CodeQL `cs/*`, Infer#)
+and **T4-refused** suggest-only shapes (block lambdas, escaping locals, unknown
+delegates, non-WPF teardown). `fix/fixarm/ai_fix.py` fills it with `AiFixApplier` — a
+pluggable `Applier` that asks a **local** LLM to rewrite a window around each finding.
+
+The model is **not trusted**. Because it rides the same wrapper, its proposal is
+verified by the no-new-findings re-audit, shown as a reviewable diff, gated to **REVIEW**
+(never auto-commit), and rolled back on regression. The LLM only *proposes*; the audit
+and the human *judge* — which is why a modest local model is safe, and why this doesn't
+violate the "never AI-judged" discipline (we don't let it decide real/fixed).
+
+- **Local-only by design** — code never leaves the box (STS is proprietary). The client
+  speaks the OpenAI chat API, so it works against Ollama (default,
+  `http://localhost:11434/v1`, e.g. `qwen2.5-coder`), llama.cpp's server, LM Studio, vLLM.
+  A `MockLlmClient` drives the identical path in CI with no server.
+- **Verify→revise loop (no framework).** With a `reaudit` supplied, each proposal is
+  checked per round; if it doesn't clear the finding (or introduces new ones) the
+  failure is fed back and the model revises, up to `--max-rounds`. Every round still
+  passes through the audit — the loop just helps a weaker local model converge. A
+  framework (LangChain/LangGraph) buys nothing here: the safety is the audit re-run, not
+  the orchestration, and our thin OpenAI-compatible client is zero-lock-in if we ever
+  want one.
+- **Non-deterministic → always REVIEW, only the residual.** Never T1/T2.
+- CLI: `--applier ai --llm-url … --model …`. Real run needs a running local model +
+  the audit re-run (Windows stand); the harness + mock tests are CI/Linux-native
+  (`fix/tests/test_ai_fix.py`).
+
 ## 6. The build wall (honest caveat)
 
 `roslynator fix` and `dotnet format` load the solution through **MSBuildWorkspace** — so
