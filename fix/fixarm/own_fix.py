@@ -307,11 +307,16 @@ def _plan_local(lines, f, name):
     return edits, "using"
 
 
-# well-known events whose delegate's EventArgs type we can name without a compiler
+# Events whose delegate's EventArgs type is UNAMBIGUOUS without a compiler — the
+# INotify* family. Names like Click/TextChanged are deliberately excluded: the same
+# name maps to different delegates across frameworks (RoutedEventArgs vs EventArgs),
+# so extracting them blindly could emit a wrong signature → they stay suggest-only.
 _EVENT_ARGS = {
     "PropertyChanged": "PropertyChangedEventArgs",
+    "PropertyChanging": "PropertyChangingEventArgs",
     "ListChanged": "ListChangedEventArgs",
     "CollectionChanged": "NotifyCollectionChangedEventArgs",
+    "ErrorsChanged": "DataErrorsChangedEventArgs",
 }
 _LAMBDA2 = re.compile(r"^\(\s*(\w+)\s*,\s*(\w+)\s*\)\s*=>\s*(.+?)\s*$")
 

@@ -175,6 +175,29 @@ def test_own001_inline_lambda_extracted_and_detached():
 
 # ---- refused shapes stay suggest-only: NOT patched -------------------------
 
+def test_lambda_extraction_more_delegates():
+    # PropertyChanging is unambiguous (INotify family) -> extractable with the right args
+    src = ("public partial class W : Window\n"
+           "{\n"
+           "    public W(Model m)\n"
+           "    {\n"
+           "        InitializeComponent();\n"
+           "        m.PropertyChanging += (s, e) => Refresh();\n"
+           "    }\n"
+           "    private void Refresh() { }\n"
+           "}\n")
+    d, path = _tmp_cs(src)
+    try:
+        f = Finding("OWN001", "W.cs", 6, tool="own-check",
+                    message="event 'm.PropertyChanging' is subscribed (handler '(s, e) => Refresh()') ...")
+        new, applied, skipped = plan_file(path, [f])
+        assert [d for _, d in applied] == ["extract+detach"], skipped
+        assert "m.PropertyChanging += OnMPropertyChanging;" in new
+        assert "private void OnMPropertyChanging(object s, PropertyChangingEventArgs e) => Refresh();" in new
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+
 def test_block_lambda_is_not_patched():
     # a block-body lambda can't be a clean expression method -> suggest-only, untouched
     rel = "Broker/DatabaseOptimizationWindow.xaml.cs"
