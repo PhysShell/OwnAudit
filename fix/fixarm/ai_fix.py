@@ -21,6 +21,7 @@ from __future__ import annotations
 import difflib
 import json
 import re
+import urllib.parse
 import urllib.request
 
 from .orchestrate import diff_findings
@@ -65,8 +66,15 @@ class LocalLlmClient:
     (`ollama serve` → http://localhost:11434/v1). No API key, nothing leaves the box."""
     name = "local-llm"
 
+    _LOOPBACK = {"localhost", "127.0.0.1", "::1"}
+
     def __init__(self, base_url="http://localhost:11434/v1",
                  model="qwen2.5-coder", timeout=180):
+        u = urllib.parse.urlparse(base_url)
+        if u.scheme not in ("http", "https") or (u.hostname or "").lower() not in self._LOOPBACK:
+            raise ValueError(
+                f"LocalLlmClient is local-only (the point: STS code never leaves the box); "
+                f"refusing non-loopback endpoint {base_url!r}. Use localhost / 127.0.0.1 / ::1.")
         self.base_url, self.model, self.timeout = base_url.rstrip("/"), model, timeout
 
     def complete(self, system: str, user: str) -> str:
@@ -97,8 +105,8 @@ class MockLlmClient:
 
 # ---- the applier -----------------------------------------------------------
 
-def _still_present(after, f) -> bool:
-    return any(g.rule == f.rule and g.basename == f.basename and abs(g.line - f.line) <= 2
+def _still_present(after, f, line_tol=0) -> bool:
+    return any(g.rule == f.rule and g.basename == f.basename and abs(g.line - f.line) <= line_tol
                for g in after)
 
 
@@ -109,13 +117,15 @@ class AiFixApplier:
     without it, single-shot (the wrapper still verifies). Always REVIEW."""
     name = "ai-fix"
 
-    def __init__(self, findings, client, reaudit=None, before=None, max_rounds=3, ctx=12):
+    def __init__(self, findings, client, reaudit=None, before=None, max_rounds=3,
+                 ctx=12, line_tol=0):
         self.findings = list(findings)
         self.client = client
         self.reaudit = reaudit            # None -> single-shot; set -> revise loop
         self.before = list(before or [])
         self.max_rounds = max_rounds
         self.ctx = ctx
+        self.line_tol = line_tol          # same tolerance the wrapper uses to judge findings
         self._orig: dict[str, str] = {}
         self._planned = None
         self.skipped: list = []
@@ -134,27 +144,32 @@ class AiFixApplier:
         return cur[:a] + repl + cur[b:]
 
     def _revise(self, workdir, path, rel, cur, a, b, f, skipped):
-        """Return the accepted candidate lines, or None (and record why in skipped)."""
+        """Return the accepted candidate lines, or None (and record why in skipped).
+        `feedback` is LOCAL to this finding — a prior finding's rejection never leaks
+        into a fresh prompt."""
         if self.reaudit is None:           # single-shot — wrapper verifies
             cand = self._propose(rel, cur, a, b, f)
             if cand is None:
                 skipped.append((f, "ai-no-change"))
             return cand
+        feedback = ""
         for _ in range(self.max_rounds):
-            cand = self._propose(rel, cur, a, b, f, self._feedback)
+            cand = self._propose(rel, cur, a, b, f, feedback)
             if cand is None:
                 skipped.append((f, "ai-no-change"))
                 return None
             with open(path, "w", encoding="utf-8") as fh:   # let re-audit see the candidate
                 fh.write("".join(cand))
-            after = self.reaudit(workdir)
-            introduced = diff_findings(self.before, after)[1]
-            if not _still_present(after, f) and not introduced:
+            try:
+                after = self.reaudit(workdir)
+            finally:                                        # restore base whether it returns or throws
+                with open(path, "w", encoding="utf-8") as fh:
+                    fh.write("".join(cur))
+            introduced = diff_findings(self.before, after, self.line_tol)[1]
+            if not _still_present(after, f, self.line_tol) and not introduced:
                 return cand                # verified this round
-            with open(path, "w", encoding="utf-8") as fh:   # restore base for next round
-                fh.write("".join(cur))
-            self._feedback = ("it introduced new findings"
-                              if introduced else "the finding is still reported")
+            feedback = ("it introduced new findings"
+                        if introduced else "the finding is still reported")
         skipped.append((f, "ai-gave-up"))
         return None
 
@@ -167,7 +182,6 @@ class AiFixApplier:
             with open(path, encoding="utf-8") as fh:
                 original = fh.read()
             cur, occupied = original.splitlines(keepends=True), set()
-            self._feedback = ""
             try:
                 for f in fs:
                     a = max(0, f.line - 1 - self.ctx)

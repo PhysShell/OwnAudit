@@ -71,7 +71,8 @@ def main(argv: list[str] | None = None) -> int:
         elif kind == "ai":
             reaudit = ReplayReaudit(os.path.join(args.fixture, "after.findings.json"))
             applier = AiFixApplier(sel, LocalLlmClient(args.llm_url, args.model),
-                                   reaudit=reaudit, before=before, max_rounds=args.max_rounds)
+                                   reaudit=reaudit, before=before, max_rounds=args.max_rounds,
+                                   line_tol=args.line_tol)
         else:
             applier = ReplayApplier(args.fixture)
         try:

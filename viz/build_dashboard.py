@@ -67,6 +67,17 @@ def collect() -> dict:
 
     by_source = [{"source": s, "count": c, "codefix": int(s in _SHIPS_FIX)}
                  for s, c in src.most_common()]
+
+    # the cluster headline (high-confidence / candidate) is the report's, not
+    # recomputable from findings.json here — parse it from health-report.md so the KPI
+    # tracks the artifact instead of being a frozen literal.
+    md = open(os.path.join(STS, "health-report.md"), encoding="utf-8").read()
+    cm = re.search(r"\*\*([\d,]+) findings\*\* \(([\d,]+) high-confidence, ([\d,]+) candidate\)", md)
+    clusters = ({"total": int(cm.group(1).replace(",", "")),
+                 "high": int(cm.group(2).replace(",", "")),
+                 "candidate": int(cm.group(3).replace(",", "")), }
+                if cm else {"high": 0, "candidate": 0, "total": 0})
+
     return {
         "total": len(findings),
         "by_category": cat.most_common(),
@@ -74,8 +85,9 @@ def collect() -> dict:
         "by_source": by_source,
         "top_rules": rule.most_common(18),
         "own_shapes": shapes.most_common(),
+        "own_shapes_fixed": sum(1 for s, _ in shapes.most_common() if s != "other"),
         "modules": mods,
-        "clusters": {"high": 3602, "candidate": 12201, "total": 15803},
+        "clusters": clusters,
         "fixable_pct": round(100 * sum(s["count"] for s in by_source if s["codefix"]) / len(findings)),
     }
 
@@ -194,8 +206,9 @@ document.getElementById('themes').innerHTML=Object.entries(THEMES)
 document.getElementById('themes').onclick=e=>{const b=e.target.closest('button'); if(b) applyTheme(b.dataset.t);};
 
 // ---- KPIs ---------------------------------------------------------------
-const kpis=[['72,569','raw findings'],[D.fixable_pct+'%','auto-fixable (ships a fix)','ok'],
-  ['3,602','high-confidence clusters'],[D.modules.length,'modules ranked'],['4','OWN leak shapes fixed','ok']];
+const kpis=[[D.total.toLocaleString(),'raw findings'],[D.fixable_pct+'%','auto-fixable (ships a fix)','ok'],
+  [D.clusters.high.toLocaleString(),'high-confidence clusters'],[D.modules.length,'modules ranked'],
+  [D.own_shapes_fixed,'OWN leak shapes fixed','ok']];
 document.getElementById('kpis').innerHTML=kpis.map(k=>
   `<div class="kpi"><div class="n ${k[2]||''}">${k[0]}</div><div class="l">${k[1]}</div></div>`).join('');
 
@@ -256,7 +269,7 @@ def _plotly_tag() -> str:
 def main():
     data = collect()
     out = HTML.replace("%PLOTLY%", _plotly_tag()) \
-              .replace("%DATA%", json.dumps(data)) \
+              .replace("%DATA%", json.dumps(data).replace("</", "<\\/")) \
               .replace("%CLUSTERS%", f"{data['clusters']['total']:,} clusters")
     dst = os.path.join(ROOT, "viz", "sts-dashboard.html")
     with open(dst, "w", encoding="utf-8") as fh:
