@@ -29,6 +29,7 @@ target but **introduces** a new finding is **rejected** (exit 2), never committe
 | `fixarm/orchestrate.py` | the wrapper: select, diff two audit runs, no-new-findings gate, ledger |
 | `fixarm/appliers.py` | adapters — `Replay*` (CI fixtures) and real `Roslynator`/`DotnetFormat`/`ScriptReaudit` (.NET stand) |
 | `fixarm/own_fix.py` | **T4 OWN001/OWN014 fixer** — the one fixer no off-the-shelf tool covers (build-free, structural) |
+| `fixarm/ai_fix.py` | **AI tier** — a local-LLM proposer for the residual (T3 detect-only / T4-refused); always REVIEW, verified by re-audit, never trusted |
 | `fixarm/cli.py` | run a fixture through the wrapper |
 | `fixtures/` | recorded before/after trees + before/after `findings.json` per rule |
 | `tests/` | the safety-contract tests (bare python3 or pytest) |
