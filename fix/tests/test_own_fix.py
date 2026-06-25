@@ -176,6 +176,94 @@ def test_block_lambda_is_not_patched():
         shutil.rmtree(wd, ignore_errors=True)
 
 
+def test_local_passed_to_call_is_not_wrapped():
+    # local handed to a retaining API (Add) may be kept alive -> refuse, no use-after-dispose
+    src = ("public static class H\n"
+           "{\n"
+           "    public static void Run()\n"
+           "    {\n"
+           "        var p = new Process();\n"
+           "        sink.Add(p);\n"
+           "    }\n"
+           "}\n")
+    d, path = _tmp_cs(src)
+    try:
+        f = Finding("OWN001", "H.cs", 5, tool="own-check",
+                    message="IDisposable local 'p' is never disposed (leak)")
+        new, applied, skipped = plan_file(path, [f])
+        assert new == src and applied == []
+        assert [r for _, r in skipped] == ["local-escapes"]
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+
+def test_local_captured_by_lambda_is_not_wrapped():
+    # local captured by a closure that may outlive the block -> refuse
+    src = ("public partial class W : Window\n"
+           "{\n"
+           "    public void Run()\n"
+           "    {\n"
+           "        var p = new Process();\n"
+           "        button.Click += (s, e) => p.Start();\n"
+           "    }\n"
+           "}\n")
+    d, path = _tmp_cs(src)
+    try:
+        f = Finding("OWN001", "W.cs", 5, tool="own-check",
+                    message="IDisposable local 'p' is never disposed (leak)")
+        new, applied, skipped = plan_file(path, [f])
+        assert new == src and applied == []
+        assert [r for _, r in skipped] == ["local-escapes"]
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+
+def test_ctor_anchor_bounded_to_enclosing_class():
+    # the field's class has no InitializeComponent(); a LATER class does. The hook
+    # must NOT be anchored in the wrong class -> suggest-only (no-ctor-anchor).
+    src = ("public class A\n"
+           "{\n"
+           "    private readonly Timer _t;\n"
+           "}\n"
+           "public partial class B : Window\n"
+           "{\n"
+           "    public B() { InitializeComponent(); }\n"
+           "}\n")
+    d, path = _tmp_cs(src)
+    try:
+        f = Finding("OWN001", "A.cs", 3, tool="own-check",
+                    message="IDisposable field '_t' (type 'Timer') is never disposed — its owner 'A' leaks it")
+        new, applied, skipped = plan_file(path, [f])
+        assert new == src and applied == []
+        assert [r for _, r in skipped] == ["no-ctor-anchor"]
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+
+def test_multiple_disposable_fields_all_disposed():
+    # two fields anchored after the same InitializeComponent() must BOTH get a hook
+    src = ("public partial class W : Window\n"
+           "{\n"
+           "    private readonly Timer _t1;\n"
+           "    private readonly Timer _t2;\n"
+           "    public W()\n"
+           "    {\n"
+           "        InitializeComponent();\n"
+           "    }\n"
+           "}\n")
+    d, path = _tmp_cs(src)
+    try:
+        msg = "IDisposable field '{}' (type 'Timer') is never disposed — its owner 'W' leaks it"
+        fs = [Finding("OWN001", "W.cs", 3, tool="own-check", message=msg.format("_t1")),
+              Finding("OWN001", "W.cs", 4, tool="own-check", message=msg.format("_t2"))]
+        new, applied, skipped = plan_file(path, fs)
+        assert len(applied) == 2 and skipped == []           # neither skipped as overlap
+        assert new.count("this.Closed += (s, e) => _t1?.Dispose();") == 1
+        assert new.count("this.Closed += (s, e) => _t2?.Dispose();") == 1
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+
 def test_escaping_local_is_not_wrapped():
     # a local that is returned must NOT be wrapped (would dispose before use)
     src = ("public static class H\n"

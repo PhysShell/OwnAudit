@@ -144,7 +144,10 @@ def _find_ctor_anchor(lines: list[str], field_line_1based: int):
             break
     if cls_idx is None:
         return None
-    for i in range(cls_idx, len(lines)):
+    # bound the search to THIS class — a later class's InitializeComponent() must
+    # not anchor the hook in the wrong class (would emit uncompilable code).
+    end = _class_close(lines, cls_idx)
+    for i in range(cls_idx, end + 1 if end is not None else len(lines)):
         if "InitializeComponent()" in lines[i]:
             return i
     return None
@@ -251,6 +254,8 @@ def _plan_local(lines, f, name):
     if (re.search(rf"\breturn\b[^;]*\b{nm}\b", region)         # returned
             or re.search(rf"\b(out|ref)\s+{nm}\b", region)      # passed out/ref
             or re.search(rf"=\s*{nm}\s*[;,)]", region)          # stored elsewhere
+            or re.search(rf"[(,]\s*{nm}\s*[),]", region)        # passed as a call arg (may be retained)
+            or "=>" in region                                   # a closure here may capture + outlive it
             or "yield" in region):
         return None, "local-escapes"                # disposing here would be use-after-dispose
     edits = [
@@ -341,8 +346,9 @@ def plan_file(path: str, findings):
     with open(path, encoding="utf-8") as fh:
         lines = fh.readlines()
     planned, applied, skipped = [], [], []
-    seen: set = set()       # identical edit-sets -> duplicate-site
-    occupied: set = set()   # original line indices already targeted -> avoid overlaps
+    seen: set = set()        # identical edit-sets -> duplicate-site
+    replaced: set = set()    # original line indices a REPLACEMENT consumes
+    inserted_at: set = set() # anchors used by INSERTIONS (several may share one anchor)
     for f in findings:
         edits, detail = _plan_one(lines, f)
         if edits is None:
@@ -350,16 +356,23 @@ def plan_file(path: str, findings):
             continue
         key = tuple((s, e, tuple(r)) for s, e, r in edits)
         if key in seen:
-            skipped.append((f, "duplicate-site"))
+            skipped.append((f, "duplicate-site"))   # same fix already planned
             continue
-        touched = set()
+        f_repl, f_ins = set(), set()
         for s, e, _ in edits:
-            touched.update(range(s, max(e, s + 1)))
-        if touched & occupied:
+            if e > s:
+                f_repl.update(range(s, e))
+            else:
+                f_ins.add(s)
+        # Replacements must not overlap anything; insertions may share an anchor with
+        # other insertions (e.g. two disposable fields after one InitializeComponent())
+        # but must not land inside a replaced range.
+        if (f_repl & replaced) or (f_repl & inserted_at) or (f_ins & replaced):
             skipped.append((f, "overlapping-edit"))
             continue
         seen.add(key)
-        occupied |= touched
+        replaced |= f_repl
+        inserted_at |= f_ins
         planned.append(edits)
         applied.append((f, detail))
     # apply every edit bottom-up so earlier line indices stay valid
