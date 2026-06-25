@@ -113,8 +113,10 @@ foreach ($s in $sarifInputs) { $nargs += @("--sarif", $s) }
 # Three tools, three path shapes: own-check '<leaf>/...', codeql '<leaf-relative>',
 # Infer# absolute 'C:/.../<leaf>/...'. Strip both leaf prefixes so modules align in the
 # heatmap (clustering itself is basename-based, so this only cleans the labels).
-$absStrip = ($Target -replace '\\', '/').TrimEnd('/') + "/"
-python "$Worktree\audit\aggregate\normalize.py" @nargs --strip "$leaf/" --strip $absStrip --strip "file:///$absStrip" --json $findings
+# norm_path strips file:// FIRST, so roslyn 'file:///C:/...' becomes '/C:/...'. Pass all
+# three shapes ('<leaf>/...', 'C:/.../<leaf>', '/C:/.../<leaf>') so every tool's modules align.
+$absStrip = ($Target -replace '\\', '/').TrimEnd('/')
+python "$Worktree\audit\aggregate\normalize.py" @nargs --strip "$leaf" --strip $absStrip --strip "/$absStrip" --json $findings
 foreach ($fmt in @(@{f='markdown';e='md'}, @{f='html';e='html'}, @{f='json';e='json'})) {
     python "$Worktree\audit\aggregate\report.py" --findings $findings --format $fmt.f --target $leaf --commit $commit --line-tol $LineTol |
         Set-Content -LiteralPath (Join-Path $Out "health-report.$($fmt.e)") -Encoding utf8

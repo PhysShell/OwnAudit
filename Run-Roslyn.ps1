@@ -62,14 +62,22 @@ Write-Host "msbuild rc=$LASTEXITCODE (continue-on-error: partial SARIF is still 
 
 # 3. merge the non-_wpftmp per-project SARIFs into one roslyn.sarif
 python -c @"
-import json,glob,os
+import json,glob,os,re
+# Drop compiler-generated files the analyzers also see (own-check/CodeQL skip these).
+GEN=re.compile(r'(/obj/|/bin/|\.g\.cs$|\.g\.i\.cs$|\.Designer\.cs$|AssemblyInfo\.cs$|AssemblyAttributes|TemporaryGeneratedFile)', re.I)
+def uri(x):
+    try: return x['locations'][0]['physicalLocation']['artifactLocation']['uri'].replace('\\','/')
+    except Exception: return ''
 files=[f for f in glob.glob(os.path.join(r'$rsln','roslyn','*.sarif')) if '_wpftmp' not in f]
-res=[]
+res=[]; drop=0
 for f in files:
     d=json.load(open(f,encoding='utf-8'))
-    for r in d.get('runs',[]): res+=r.get('results',[])
+    for r in d.get('runs',[]):
+        for x in r.get('results',[]):
+            if GEN.search(uri(x)): drop+=1; continue
+            res.append(x)
 json.dump({'version':'2.1.0','runs':[{'tool':{'driver':{'name':'roslyn'}},'results':res}]},
           open(os.path.join(r'$Out','roslyn.sarif'),'w',encoding='utf-8'))
-print('merged',len(files),'projects ->',len(res),'findings into roslyn.sarif')
+print('merged',len(files),'projects ->',len(res),'findings (',drop,'generated dropped) into roslyn.sarif')
 "@
 Write-Host "Roslyn SARIF: $Out\roslyn.sarif  (Run-Audit.ps1 folds it; use -LineTol 8)"
