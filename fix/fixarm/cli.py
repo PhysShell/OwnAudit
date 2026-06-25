@@ -53,24 +53,24 @@ def main(argv: list[str] | None = None) -> int:
         print(f"error: fixture {args.fixture!r} has no after/ tree; replay would read it as "
               f"file deletions. Use --applier own.", file=sys.stderr)
         return 2
-    # The CLI re-audits via the recorded after.findings.json (both appliers), so it must
-    # exist. Suggest-only fixtures (e.g. own001-lambda) have none — they're unit-tested,
-    # not run through the CLI; fail fast rather than crash later in ReplayReaudit.
-    if not os.path.isfile(os.path.join(args.fixture, "after.findings.json")):
-        print(f"error: fixture {args.fixture!r} has no after.findings.json (needed to re-audit).",
-              file=sys.stderr)
-        return 2
 
     before = load_findings(os.path.join(args.fixture, "before.findings.json"))
     wd = _seed_workdir(os.path.join(args.fixture, "before"))
     try:
         applier = (OwnFixApplier([f for f in before if f.rule == args.rule])
                    if kind == "own" else ReplayApplier(args.fixture))
-        res = run_fix(
-            before=before, workdir=wd, rule=args.rule, applier=applier,
-            reaudit=ReplayReaudit(os.path.join(args.fixture, "after.findings.json")),
-            line_tol=args.line_tol,
-        )
+        try:
+            res = run_fix(
+                before=before, workdir=wd, rule=args.rule, applier=applier,
+                reaudit=ReplayReaudit(os.path.join(args.fixture, "after.findings.json")),
+                line_tol=args.line_tol,
+            )
+        except FileNotFoundError:
+            # re-audit was actually reached, but this fixture records no after.findings.json.
+            # (no-op / unfixable rules return before re-audit, so they never hit this.)
+            print(f"error: fixture {args.fixture!r} has no after.findings.json (needed to "
+                  f"re-audit the applied fix).", file=sys.stderr)
+            return 2
 
         print(json.dumps(res.ledger(), indent=2))
         if res.status == REJECTED:

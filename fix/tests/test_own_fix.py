@@ -221,6 +221,23 @@ def test_cli_defaults_own_rule_to_own_applier():
     assert rc == 0                                     # OWN* auto-routes to the own fixer
 
 
+def test_cli_no_op_does_not_need_after_findings():
+    # own001-lambda has no after.findings.json; a no-op rule returns before re-audit,
+    # so the missing file must NOT be treated as an error (deferred check).
+    from fixarm.cli import main
+    rc = main(["--fixture", os.path.join(FIX, "own001-lambda"), "--rule", "RCS9999",
+               "--applier", "own"])
+    assert rc == 0                                     # no-op, re-audit never reached
+
+
+def test_cli_missing_after_findings_fails_cleanly_when_reaudit_needed():
+    # Same fixture, but a fixable rule -> re-audit IS reached -> clean exit 2, not a stacktrace.
+    from fixarm.cli import main
+    rc = main(["--fixture", os.path.join(FIX, "own001-lambda"), "--rule", "OWN001",
+               "--applier", "own"])
+    assert rc == 2
+
+
 # ---- bare-python runner ----------------------------------------------------
 
 def _main() -> int:
