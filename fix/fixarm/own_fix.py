@@ -213,8 +213,45 @@ def _class_close(lines: list[str], cls_idx: int):
 # An edit is (start, end, repl_lines): `lines[start:end] = repl_lines` (insert when
 # start == end). plan_file applies them bottom-up so indices stay valid.
 
+def _enclosing_class_idx(lines, idx):
+    """Line index of the nearest `class X` declaration at or above idx."""
+    for i in range(idx, -1, -1):
+        if re.search(r"\bclass\s+\w+", lines[i]):
+            return i
+    return None
+
+
+def _fold_after_open_brace(lines, decl_idx, end):
+    """For a method whose declaration is at decl_idx, return (brace_line, body_indent)
+    if it has a clean BLOCK body (its `{` ends a line) — so a statement can be folded
+    in right after it. Returns None for one-liner/expression bodies (don't fold)."""
+    for i in range(decl_idx, end):
+        sk = _code_skeleton(lines[i]).rstrip()
+        if sk.endswith("{"):
+            return i, re.match(r"\s*", lines[i]).group(0) + "    "
+        if "{" in sk or sk.endswith(";") or "=>" in sk:   # one-liner / expr body -> skip
+            return None
+    return None
+
+
+def _fold_target(lines, cls_idx, ev):
+    """If the class already has a teardown method to fold cleanup into, return its
+    block anchor. Today: a `protected override void OnClosed(...)` for ev == Closed —
+    it runs exactly when the Window's Closed event would, so folding is equivalent and
+    cleaner than stacking another lambda."""
+    if ev != "Closed":
+        return None
+    end = _class_close(lines, cls_idx)
+    end = end if end is not None else len(lines)
+    for i in range(cls_idx, end):
+        if re.search(r"\boverride\s+void\s+OnClosed\b", lines[i]):
+            return _fold_after_open_brace(lines, i, end)
+    return None
+
+
 def _plan_teardown(lines, f, idx, stmt, anchor_missing="site-not-found"):
-    """Subscription / disposable-field: hang `stmt` on the owner's teardown event."""
+    """Subscription / disposable-field: run `stmt` on the owner's teardown. Folds into
+    an existing OnClosed override when present; otherwise adds a fresh teardown lambda."""
     if idx is None:
         return None, anchor_missing
     if _in_unbraced_control_flow(lines, idx):
@@ -223,6 +260,11 @@ def _plan_teardown(lines, f, idx, stmt, anchor_missing="site-not-found"):
     ev = _teardown_event(decl)
     if ev is None:
         return None, "no-safe-teardown"
+    cls_idx = _enclosing_class_idx(lines, idx)
+    fold = _fold_target(lines, cls_idx, ev) if cls_idx is not None else None
+    if fold is not None:
+        brace_idx, body_indent = fold
+        return [(brace_idx + 1, brace_idx + 1, [f"{body_indent}{stmt};\n"])], f"{ev}/fold"
     indent = re.match(r"\s*", lines[idx]).group(0)
     hook = f"{indent}this.{ev} += (s, e) => {stmt};\n"
     return [(idx + 1, idx + 1, [hook])], ev

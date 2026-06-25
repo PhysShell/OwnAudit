@@ -113,6 +113,21 @@ def test_own014_usercontrol_inserts_unloaded_detach():
             "this.Unloaded += (s, e) => fThis.PropertyChanged -= data_PropertyChanged;")
 
 
+# ---- OWN001 subscription folds into an existing OnClosed override -----------
+
+def test_own001_subscription_folds_into_onclosed():
+    rel = "Broker/FoldWindow.xaml.cs"
+    with _wrapped("own001-sub-fold", "OWN001") as (res, wd, _applier):
+        assert res.status == OK, res.ledger()
+        lines = _read(wd, rel)
+        # detach is folded into OnClosed (right after its '{'), NOT a fresh lambda
+        oc = next(i for i, line in enumerate(lines) if "override void OnClosed" in line)
+        assert lines[oc + 1].strip() == "{"
+        assert lines[oc + 2].strip() == (
+            "fGoods.PropertyChanged -= new PropertyChangedEventHandler(GoodsPropertyChanged);")
+        assert "this.Closed += (s, e) =>" not in "".join(lines)   # no stacked lambda
+
+
 # ---- OWN001 disposable field on a Window -> dispose on Closed ---------------
 
 def test_own001_disposable_field_disposes_on_closed():
