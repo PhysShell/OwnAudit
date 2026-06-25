@@ -32,6 +32,10 @@ lift-out home. The redundant C# static/reporting stubs were retired.
   - `src/` — a thin .NET skeleton (Core + Runtime + Cli) reserved for `audit/`'s C#
     on lift-out and the deferred ClrMD duplicate-detector. **Not** a parallel impl.
   - `spike/` — the OwnSharp-on-STS + analyzer build-spike scripts (reference).
+  - `docs/fix-arm.md` — **Arm 3 (Fix)** design: wire the off-the-shelf mass appliers
+    (`roslynator fix` / `dotnet format`), add an audit-grade safety wrapper (dry-run →
+    diff → re-audit no-new-findings → tier gate), and build the OWN001/OWN014 fixer that
+    no off-the-shelf tool covers. CI/Linux-native; the run-over-STS step is Windows-bound.
 
 ## Validated result (STS, this session)
 
