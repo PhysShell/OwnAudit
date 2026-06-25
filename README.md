@@ -1,44 +1,36 @@
 # OwnAudit
 
-A one-shot **audit orchestrator** for the STS legacy WPF desktop app. It does not
-analyze code itself — it drives existing tools (Own.NET/OwnSharp, Roslyn analyzers,
-FlaUI, ClrMD), collects their evidence, and produces one ranked leak/risk dossier.
+The **lift-out home** for Own.NET's audit pipeline. The audit itself is **canonical in
+[`Own.NET/audit/`](https://github.com/PhysShell/Own.NET/tree/main/audit)** — an
+orchestrator that runs ready-made analyzers over a legacy .NET 4.7.2 / WPF / DevExpress
+app, normalizes everything to SARIF, scores by cross-tool agreement, and renders a
+health report ranked by "where it hurts most." **Don't reimplement it here.**
 
-> **Core stays thin.** OwnAudit is the control panel, not a new checker. It consumes
-> Own.NET strictly through its CLI outputs (`own-check.ps1` → SARIF) and never
-> references core source. `C:\Repos\Own.NET` is untouched by design.
+This repo holds:
+- the **separate-repo boundary** — Own.NET's `Plan.md §7` lift-out destination;
+- **`Run-Audit.ps1`** — reproduce the STS health report through `audit/`;
+- **validated `artifacts/`** — a real run over STS (380 findings);
+- a thin **.NET skeleton** (`src/`) reserved for `audit/`'s C# on lift-out + the
+  deferred ClrMD duplicate-detector.
 
-See **[PLAN.md](PLAN.md)** for the full design, the seven decisions behind it, and
-the phased build-out.
-
-## Layout
-
-```
-src/OwnAudit.Cli        own-audit CLI (static | runtime | report | config)
-src/OwnAudit.Core       Finding model + AuditConfig (the hard-wall contract)
-src/OwnAudit.Static     Arm 1 — OwnSharp backbone + Roslyn analyzers -> ranked suspects
-src/OwnAudit.Runtime    Arm 2 — FlaUI drive + ClrMD heap-diff (top suspects only)
-src/OwnAudit.Reporting  Arm 3 — ranked markdown + SARIF dossier
-config/ownaudit.json    paths to Own.NET + STS, analyzer set
-spike/                  the first runnable tasks (derisk before building the pipeline)
-scenarios/              Arm 2 UI scenarios (YAML)
-```
-
-## Today (scaffold)
-
-The CLI verbs are wired as seams; build-out is phased. The live entry points are the
-spikes:
+## Run the audit over STS
 
 ```powershell
-# Arm 1a — OwnSharp over STS (no build needed) -> artifacts/ownsharp-sts.sarif
-spike\Invoke-OwnSharpOnSts.ps1
-
-# Arm 1b — prove headless msbuild + analyzer SARIF on the legacy tree
-spike\Invoke-BuildSpike.ps1
+pwsh ./Run-Audit.ps1
+# -> artifacts/health-report.md (+ .html, .json)
 ```
 
-## Build
+It drives the canonical pipeline — OwnSharp (build-free) → SARIF → `audit/aggregate`
+normalize → score → report. Needs `dotnet` + `python` on PATH; uses a worktree of
+Own.NET `main` (where `audit/` lives). `PYTHONUTF8=1` is set to dodge the cp1251
+console crash on the Russian-locale Windows target.
 
-```powershell
-dotnet build OwnAudit.slnx
-```
+## Where things live
+
+| concern | home | status |
+|---|---|---|
+| static aggregation, taxonomy, scoring, reporters | `Own.NET/audit/aggregate` + `audit/static` | **canonical** |
+| runtime LeakHarness / DuplicateDetector / storm profiler | `Own.NET/audit/runtime` | **canonical** |
+| boundary + STS runner + artifacts + lift-out home | `OwnAudit/` (this repo) | active |
+
+See [PLAN.md](PLAN.md).

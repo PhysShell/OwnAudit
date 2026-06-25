@@ -1,60 +1,47 @@
 using OwnAudit.Core;
 
-// own-audit — one-shot STS audit orchestrator (PLAN.md).
-// Verbs: static | runtime | report | config. This is the scaffold DISPATCHER: the
-// arms are wired as seams (OwnAudit.Static / .Runtime / .Reporting) and built out in
-// phases. Today's live entry points are the spike scripts under spike/.
+// own-audit — orientation + config for the OwnAudit repo.
+//
+// OwnAudit is the designated LIFT-OUT HOME for Own.NET's audit/ (Own.NET Plan.md §7).
+// The CANONICAL audit — static aggregation, taxonomy, scoring, the md/json/SARIF/HTML
+// reporters, and the runtime LeakHarness/storm-profiler — lives in Own.NET/audit/
+// (Python + a C# harness). Do NOT reimplement it here.
+//
+// To RUN the audit over STS, use Run-Audit.ps1 (it drives Own.NET/audit/ end-to-end).
+// This .NET solution is reserved for audit/'s C# on lift-out + the deferred ClrMD work.
 
 if (args.Length == 0) { Usage(); return 1; }
 
-var verb = args[0].ToLowerInvariant();
-var configPath = GetOpt(args, "--config") ?? "config/ownaudit.json";
-
-switch (verb)
+switch (args[0].ToLowerInvariant())
 {
-    case "static":
-        Console.WriteLine("own audit static — Arm 1 (OwnSharp backbone + Roslyn analyzers).");
-        Console.WriteLine("  Not yet built out. First derisk + first findings:");
-        Console.WriteLine("    spike/Invoke-OwnSharpOnSts.ps1   # OwnSharp over STS (no build) -> SARIF");
-        Console.WriteLine("    spike/Invoke-BuildSpike.ps1      # prove headless msbuild + analyzer SARIF");
-        Console.WriteLine("  See PLAN.md \"Arm 1\".");
-        return 0;
-
-    case "runtime":
-        Console.WriteLine("own audit runtime — Arm 2 (FlaUI drive + ClrMD heap-diff, top suspects).");
-        Console.WriteLine("  Gated on Arm 1 producing ranked suspects. See PLAN.md \"Arm 2\".");
-        return 0;
-
-    case "report":
-        Console.WriteLine("own audit report — Arm 3 (ranked markdown + SARIF dossier).");
-        Console.WriteLine("  See PLAN.md \"Reporting\".");
-        return 0;
-
     case "config":
-        if (!File.Exists(configPath)) { Console.Error.WriteLine($"no config at {configPath}"); return 2; }
-        var cfg = AuditConfig.Load(configPath);
-        Console.WriteLine($"OwnNetRoot     : {cfg.OwnNetRoot}");
+        var cp = GetOpt(args, "--config") ?? "config/ownaudit.json";
+        if (!File.Exists(cp)) { Console.Error.WriteLine($"no config at {cp}"); return 2; }
+        var cfg = AuditConfig.Load(cp);
+        Console.WriteLine($"OwnNetRoot     : {cfg.OwnNetRoot}   (audit/ is canonical there)");
         Console.WriteLine($"OwnCheckScript : {cfg.OwnCheckScript}");
         Console.WriteLine($"TargetSolution : {cfg.TargetSolution}");
         Console.WriteLine($"TargetRoot     : {cfg.TargetRoot}");
-        Console.WriteLine($"Analyzers      : {string.Join(", ", cfg.Analyzers)}");
+        return 0;
+
+    case "run":
+        Console.WriteLine("Run the audit over STS with:  pwsh ./Run-Audit.ps1");
+        Console.WriteLine("It drives Own.NET/audit/ (own-check -> SARIF -> normalize -> report).");
         return 0;
 
     default:
-        Console.Error.WriteLine($"unknown verb: {verb}");
         Usage();
         return 2;
 }
 
 static void Usage()
 {
-    Console.WriteLine("own-audit <static|runtime|report|config> [--config <path>]");
-    Console.WriteLine("  static   Arm 1: OwnSharp + Roslyn analyzers -> ranked suspects");
-    Console.WriteLine("  runtime  Arm 2: FlaUI + ClrMD prove the top suspects");
-    Console.WriteLine("  report   Arm 3: ranked dossier (markdown + SARIF)");
-    Console.WriteLine("  config   print the resolved audit config");
+    Console.WriteLine("OwnAudit — lift-out home for Own.NET/audit/ (the audit impl is canonical THERE).");
+    Console.WriteLine("  own-audit config [--config <path>]   print the resolved audit config");
+    Console.WriteLine("  own-audit run                        how to run the audit over STS");
     Console.WriteLine();
-    Console.WriteLine("Scaffold: see PLAN.md for the phased build-out. Live entry points today are spike/*.ps1.");
+    Console.WriteLine("Static analysis + aggregation + reporting are canonical in Own.NET/audit/.");
+    Console.WriteLine("Run them via Run-Audit.ps1. See PLAN.md for this repo's role.");
 }
 
 static string? GetOpt(string[] argv, string name)

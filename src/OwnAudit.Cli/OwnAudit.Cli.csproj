@@ -2,9 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\OwnAudit.Core\OwnAudit.Core.csproj" />
-    <ProjectReference Include="..\OwnAudit.Static\OwnAudit.Static.csproj" />
     <ProjectReference Include="..\OwnAudit.Runtime\OwnAudit.Runtime.csproj" />
-    <ProjectReference Include="..\OwnAudit.Reporting\OwnAudit.Reporting.csproj" />
   </ItemGroup>
 
   <PropertyGroup>

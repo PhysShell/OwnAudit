@@ -15,11 +15,12 @@ public sealed record Scenario(string Name, int Repeat, IReadOnlyList<string> Ste
 /// scenario, plus the GC root path ClrMD found for any survivor.
 public sealed record RetentionProof(string TypeName, int RetainedDelta, string? GcRootPath, bool Leaks);
 
-/// Arm 2 — runtime proof of the TOP suspects only (minimal-touch: FlaUI drives the
-/// built STS exe, ClrMD counts retained instances + gcroots the survivors). At most
-/// SemantixTrace's AutoAutomationId is added if FlaUI can't navigate; breadcrumbs +
-/// the Rust oracle are deferred. FlaUI.UIA3 + Microsoft.Diagnostics.Runtime package
-/// refs are added in the Arm-2 build-out phase, not at scaffold time. See PLAN.md "Arm 2".
+/// PLACEHOLDER — the runtime arm is CANONICAL in Own.NET/audit/runtime (the C#
+/// LeakHarness = FlaUI + procdump + ClrMD, the DuplicateDetector, and the
+/// PropertyChanged-storm profiler). Do NOT reimplement it here. This project is the
+/// reserved .NET home for audit/'s C# on lift-out (Own.NET Plan.md §7) and for the
+/// one runtime piece audit/ still defers — the ClrMD duplicate-immutable detector.
+/// Kept as a typed skeleton so the lifted harness has a place to land. See PLAN.md.
 public sealed class RuntimeArm
 {
     private readonly AuditConfig _cfg;
