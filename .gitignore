@@ -24,3 +24,4 @@ __pycache__/
 viz/plotly.min.js
 viz/sts-dashboard.html
 viz/preview.png
+viz/theme-*.png
