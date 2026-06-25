@@ -53,21 +53,40 @@ PYTHONPATH=fix python3 -m fixarm.cli --fixture fix/fixtures/own001-sub-window \
     --rule OWN001 --applier own --show-diff
 ```
 
-This slice fixes the **named-handler subscription** shape by inserting a teardown
-detach (`Window` → `Closed`, `FrameworkElement` → `Unloaded`):
+It fixes **four** shapes (conservatively — refuses rather than emit a wrong patch):
 
 ```diff
+  // 1. named-handler subscription -> detach on the owner's teardown event
   fGoods.PropertyChanged += new PropertyChangedEventHandler(GoodsPropertyChanged);
 + this.Closed += (s, e) => fGoods.PropertyChanged -= new PropertyChangedEventHandler(GoodsPropertyChanged);
+
+  // 2. disposable field (Timer / CTS / …) -> dispose on teardown, after the ctor
+  public ShareWindow() {
+      InitializeComponent();
++     this.Closed += (s, e) => _timer?.Dispose();
+
+  // 3. disposable local -> block `using` (only when it doesn't escape the block)
+- var myProcess = new Process();
++ using (var myProcess = new Process())
++ {
+      myProcess.Start();
++ }
+
+  // 4. inline-lambda subscription -> extract to a named handler, then detach
+- stage.PropertyChanged += (s2, e2) => OnPropertyChanged("Stages");
++ stage.PropertyChanged += OnStagePropertyChanged;
++ this.Closed += (s, e) => stage.PropertyChanged -= OnStagePropertyChanged;
++ private void OnStagePropertyChanged(object s2, PropertyChangedEventArgs e2) => OnPropertyChanged("Stages");
 ```
 
-It **refuses** the inline-lambda shape (own-check: "no `-=` handle … could never be
-detached") — a lambda must be extracted to a named handler first, so it's classified
-suggest-only and surfaced in `applier.skipped`, never patched with a fake fix.
+**Refusals stay honest** (surfaced in `applier.skipped`, never a fake patch): a local
+that escapes its block (return/out/ref/store) → `local-escapes`; a block-body or
+unknown-delegate lambda → `lambda-shape-unsupported` / `unknown-event-delegate`; an
+unbraced guard → `unbraced-control-flow`; no safe teardown → `no-safe-teardown`.
 
 ## Next
 
 - Promote proven-mechanical rules into `tiers._T1_RULES` (auto-commit) from real diffs.
-- OWN fixer: handle disposable-field/local shapes; lambda **extraction** then detach;
-  consolidate into an existing `OnClosed`/`Dispose` override when one is present.
+- OWN fixer: fold into an existing `OnClosed`/`Dispose` override when one is present;
+  widen lambda extraction to more event delegates.
 - Windows-bound fix-spike: does `roslynator fix` load `Broker.sln` (docs/fix-arm.md §6).

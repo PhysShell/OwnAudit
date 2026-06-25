@@ -19,7 +19,7 @@ from fixarm import tiers                                              # noqa: E4
 from fixarm.appliers import ReplayReaudit                            # noqa: E402
 from fixarm.own_fix import (                                         # noqa: E402
     OwnFixApplier, classify, plan_file,
-    NAMED_HANDLER_SUB, INLINE_LAMBDA_SUB,
+    NAMED_HANDLER_SUB, INLINE_LAMBDA_SUB, DISPOSABLE_FIELD, DISPOSABLE_LOCAL,
 )
 from fixarm.orchestrate import (                                     # noqa: E402
     Finding, load_findings, run_fix, OK, REJECTED,
@@ -75,6 +75,10 @@ def test_classify_named_vs_lambda():
     assert classify(named)[0] == NAMED_HANDLER_SUB
     assert classify(named)[1:] == ("fGoods.PropertyChanged", "new PropertyChangedEventHandler(GoodsPropertyChanged)")
     assert classify(lam)[0] == INLINE_LAMBDA_SUB
+    field = "IDisposable field '_timer' (type 'Timer') is never disposed — its owner 'ShareWindow' leaks it"
+    local = "IDisposable local 'MyProc' is never disposed (leak)"
+    assert classify(field)[0] == DISPOSABLE_FIELD and classify(field)[1] == "_timer"
+    assert classify(local)[0] == DISPOSABLE_LOCAL    # suggest-only
 
 
 # ---- OWN001 named handler on a Window -> Closed teardown -------------------
@@ -109,11 +113,57 @@ def test_own014_usercontrol_inserts_unloaded_detach():
             "this.Unloaded += (s, e) => fThis.PropertyChanged -= data_PropertyChanged;")
 
 
-# ---- inline lambda is suggest-only: NOT patched ----------------------------
+# ---- OWN001 disposable field on a Window -> dispose on Closed ---------------
 
-def test_inline_lambda_is_not_patched():
-    fdir = os.path.join(FIX, "own001-lambda")
+def test_own001_disposable_field_disposes_on_closed():
+    rel = "Broker/ShareWindow.xaml.cs"
+    before = _read(_seed("own001-disposable-field"), rel)
+    with _wrapped("own001-disposable-field", "OWN001") as (res, wd, _applier):
+        assert res.status == OK, res.ledger()
+        assert res.tier == tiers.T4 and res.gate == tiers.REVIEW
+        lines = _read(wd, rel)
+        assert len(lines) == len(before) + 1
+        # the dispose hook is anchored right after InitializeComponent(), in a Closed hook
+        init = next(i for i, line in enumerate(lines) if "InitializeComponent()" in line)
+        assert lines[init + 1].strip() == "this.Closed += (s, e) => _timer?.Dispose();"
+
+
+# ---- OWN001 disposable local -> block `using` wrap -------------------------
+
+def test_own001_disposable_local_wraps_in_using():
+    rel = "Broker/Helper.cs"
+    with _wrapped("own001-disposable-local", "OWN001") as (res, wd, _applier):
+        assert res.status == OK, res.ledger()
+        text = "".join(_read(wd, rel))
+        assert "using (var myProcess = new Process())" in text     # wrapped
+        assert "var myProcess = new Process();" not in text        # bare decl gone
+        # the using opener is immediately followed by its block brace
+        lines = _read(wd, rel)
+        u = next(i for i, line in enumerate(lines) if "using (var myProcess" in line)
+        assert lines[u + 1].strip() == "{"
+
+
+# ---- OWN001 inline lambda -> extract to a named handler + detach ------------
+
+def test_own001_inline_lambda_extracted_and_detached():
     rel = "Broker/DatabaseOptimizationWindow.xaml.cs"
+    with _wrapped("own001-lambda-extract", "OWN001") as (res, wd, _applier):
+        assert res.status == OK, res.ledger()
+        assert res.tier == tiers.T4
+        text = "".join(_read(wd, rel))
+        assert "stage.PropertyChanged += OnStagePropertyChanged;" in text          # method group
+        assert "this.Closed += (s, e) => stage.PropertyChanged -= OnStagePropertyChanged;" in text
+        assert ('private void OnStagePropertyChanged(object s2, PropertyChangedEventArgs e2) '
+                '=> OnPropertyChanged("Stages");') in text                          # extracted method
+        assert "+= (s2, e2) =>" not in text                                        # the lambda is gone
+
+
+# ---- refused shapes stay suggest-only: NOT patched -------------------------
+
+def test_block_lambda_is_not_patched():
+    # a block-body lambda can't be a clean expression method -> suggest-only, untouched
+    rel = "Broker/DatabaseOptimizationWindow.xaml.cs"
+    fdir = os.path.join(FIX, "own001-lambda")
     before = load_findings(os.path.join(fdir, "before.findings.json"))
     wd = _seed("own001-lambda")
     try:
@@ -121,10 +171,118 @@ def test_inline_lambda_is_not_patched():
         original = _read(wd, rel)
         applier.apply(wd, "OWN001")
         assert _read(wd, rel) == original                # tree untouched
-        assert len(applier.skipped) == 1                 # surfaced, not dropped
-        assert applier.skipped[0][1] == INLINE_LAMBDA_SUB
+        assert [r for _, r in applier.skipped] == ["lambda-shape-unsupported"]
     finally:
         shutil.rmtree(wd, ignore_errors=True)
+
+
+def test_local_passed_to_call_is_not_wrapped():
+    # local handed to a retaining API (Add) may be kept alive -> refuse, no use-after-dispose
+    src = ("public static class H\n"
+           "{\n"
+           "    public static void Run()\n"
+           "    {\n"
+           "        var p = new Process();\n"
+           "        sink.Add(p);\n"
+           "    }\n"
+           "}\n")
+    d, path = _tmp_cs(src)
+    try:
+        f = Finding("OWN001", "H.cs", 5, tool="own-check",
+                    message="IDisposable local 'p' is never disposed (leak)")
+        new, applied, skipped = plan_file(path, [f])
+        assert new == src and applied == []
+        assert [r for _, r in skipped] == ["local-escapes"]
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+
+def test_local_captured_by_lambda_is_not_wrapped():
+    # local captured by a closure that may outlive the block -> refuse
+    src = ("public partial class W : Window\n"
+           "{\n"
+           "    public void Run()\n"
+           "    {\n"
+           "        var p = new Process();\n"
+           "        button.Click += (s, e) => p.Start();\n"
+           "    }\n"
+           "}\n")
+    d, path = _tmp_cs(src)
+    try:
+        f = Finding("OWN001", "W.cs", 5, tool="own-check",
+                    message="IDisposable local 'p' is never disposed (leak)")
+        new, applied, skipped = plan_file(path, [f])
+        assert new == src and applied == []
+        assert [r for _, r in skipped] == ["local-escapes"]
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+
+def test_ctor_anchor_bounded_to_enclosing_class():
+    # the field's class has no InitializeComponent(); a LATER class does. The hook
+    # must NOT be anchored in the wrong class -> suggest-only (no-ctor-anchor).
+    src = ("public class A\n"
+           "{\n"
+           "    private readonly Timer _t;\n"
+           "}\n"
+           "public partial class B : Window\n"
+           "{\n"
+           "    public B() { InitializeComponent(); }\n"
+           "}\n")
+    d, path = _tmp_cs(src)
+    try:
+        f = Finding("OWN001", "A.cs", 3, tool="own-check",
+                    message="IDisposable field '_t' (type 'Timer') is never disposed — its owner 'A' leaks it")
+        new, applied, skipped = plan_file(path, [f])
+        assert new == src and applied == []
+        assert [r for _, r in skipped] == ["no-ctor-anchor"]
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+
+def test_multiple_disposable_fields_all_disposed():
+    # two fields anchored after the same InitializeComponent() must BOTH get a hook
+    src = ("public partial class W : Window\n"
+           "{\n"
+           "    private readonly Timer _t1;\n"
+           "    private readonly Timer _t2;\n"
+           "    public W()\n"
+           "    {\n"
+           "        InitializeComponent();\n"
+           "    }\n"
+           "}\n")
+    d, path = _tmp_cs(src)
+    try:
+        msg = "IDisposable field '{}' (type 'Timer') is never disposed — its owner 'W' leaks it"
+        fs = [Finding("OWN001", "W.cs", 3, tool="own-check", message=msg.format("_t1")),
+              Finding("OWN001", "W.cs", 4, tool="own-check", message=msg.format("_t2"))]
+        new, applied, skipped = plan_file(path, fs)
+        assert len(applied) == 2 and skipped == []           # neither skipped as overlap
+        assert new.count("this.Closed += (s, e) => _t1?.Dispose();") == 1
+        assert new.count("this.Closed += (s, e) => _t2?.Dispose();") == 1
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+
+def test_escaping_local_is_not_wrapped():
+    # a local that is returned must NOT be wrapped (would dispose before use)
+    src = ("public static class H\n"
+           "{\n"
+           "    public static Process Make()\n"
+           "    {\n"
+           "        var p = new Process();\n"
+           "        return p;\n"
+           "    }\n"
+           "}\n")
+    d, path = _tmp_cs(src)
+    try:
+        f = Finding("OWN001", "H.cs", 5, tool="own-check",
+                    message="IDisposable local 'p' is never disposed (leak)")
+        new, applied, skipped = plan_file(path, [f])
+        assert new == src and applied == []
+        assert [r for _, r in skipped] == ["local-escapes"]
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
 
 
 # ---- the fixer's own revert: a rejected OWN fix rolls back -----------------

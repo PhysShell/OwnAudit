@@ -1,0 +1,12 @@
+{
+  "findings": [
+    {
+      "tool": "own-check",
+      "path": "Broker/ShareWindow.xaml.cs",
+      "line": 8,
+      "rule": "OWN001",
+      "category_name": "idisposable-leak",
+      "message": "IDisposable field '_timer' (type 'Timer') is never disposed — its owner 'ShareWindow' leaks it (leak) [resource: disposable field]"
+    }
+  ]
+}

@@ -8,7 +8,7 @@ namespace Sts.Broker
         public DatabaseOptimizationWindow(Stage stage)
         {
             InitializeComponent();
-            stage.PropertyChanged += (s2, e2) => { OnPropertyChanged("Stages"); };
+            stage.PropertyChanged += (s2, e2) => OnPropertyChanged("Stages");
         }
 
         private void OnPropertyChanged(string name) { }

@@ -1,0 +1,12 @@
+{
+  "findings": [
+    {
+      "tool": "own-check",
+      "path": "Broker/Helper.cs",
+      "line": 9,
+      "rule": "OWN001",
+      "category_name": "idisposable-leak",
+      "message": "IDisposable local 'myProcess' is never disposed (leak) [resource: disposable]"
+    }
+  ]
+}
