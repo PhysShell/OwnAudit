@@ -1,0 +1,28 @@
+<Project>
+  <!-- Own.NET Audit analyzer injection (audit-local copy of audit/static/inject, with
+       the global-config severity fix so error-default analyzer rules don't fail the build). -->
+  <Import Project="$(MSBuildThisFileDirectory)Directory.Build.props.orig"
+          Condition="Exists('$(MSBuildThisFileDirectory)Directory.Build.props.orig')" />
+
+  <PropertyGroup Condition="'$(OwnAudit)' == 'true'">
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <AnalysisMode>All</AnalysisMode>
+    <ReportAnalyzer>true</ReportAnalyzer>
+    <OwnAuditOutDir Condition="'$(OwnAuditOutDir)' == ''">$(MSBuildProjectDirectory)\..\artifacts\own-audit</OwnAuditOutDir>
+    <ErrorLog>$(OwnAuditOutDir)\roslyn\$(MSBuildProjectName).sarif,version=2.1</ErrorLog>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <MSBuildTreatWarningsAsErrors>false</MSBuildTreatWarningsAsErrors>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(OwnAudit)' == 'true' and '$(OwnAuditAnalyzers)' != ''">
+    <!-- DLLs from a pre-restored audit cache (per-pack subdirs so each analyzer resolves
+         its own Gu.Roslyn.Extensions). -->
+    <Analyzer Include="$(OwnAuditAnalyzers)\**\*.dll" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(OwnAudit)' == 'true'">
+    <!-- Global config: downgrade ALL analyzer diagnostics to warning so an error-default
+         rule (Meziantou MA0037, etc.) is collected, not build-breaking. -->
+    <EditorConfigFiles Include="$(MSBuildThisFileDirectory)audit.globalconfig" />
+  </ItemGroup>
+</Project>

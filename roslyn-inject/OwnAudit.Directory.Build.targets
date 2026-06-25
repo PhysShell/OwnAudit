@@ -1,0 +1,15 @@
+<Project>
+  <!-- Own.NET Audit — companion targets (audit-local copy). Ensure the SARIF output
+       directory exists before CoreCompile writes <ErrorLog> into it. -->
+  <Import Project="$(MSBuildThisFileDirectory)Directory.Build.targets.orig"
+          Condition="Exists('$(MSBuildThisFileDirectory)Directory.Build.targets.orig')" />
+
+  <Target Name="OwnAuditEnsureErrorLogDir"
+          Condition="'$(OwnAudit)' == 'true'"
+          BeforeTargets="CoreCompile">
+    <PropertyGroup Condition="'$(OwnAuditOutDir)' == ''">
+      <OwnAuditOutDir>$(MSBuildProjectDirectory)\..\artifacts\own-audit</OwnAuditOutDir>
+    </PropertyGroup>
+    <MakeDir Directories="$(OwnAuditOutDir)\roslyn" />
+  </Target>
+</Project>

@@ -1,0 +1,5 @@
+# Own.NET Audit — force every analyzer diagnostic to 'warning' so an analyzer rule
+# whose DEFAULT severity is error (e.g. Meziantou MA0037) is COLLECTED in the SARIF
+# but never fails the audited build. Real compiler (CS####) errors are unaffected.
+is_global = true
+dotnet_analyzer_diagnostic.severity = warning

@@ -97,6 +97,13 @@ if (Test-Path (Join-Path $Out "infersharp.sarif")) {
     $sarifInputs += "infersharp=$(Join-Path $Out 'infersharp.sarif')"
 }
 
+# Roslyn analyzer packs (build-required) — fold in if a SARIF is present. Produce it
+# first with Run-Roslyn.ps1 (VS2022 build). High volume; use -LineTol 8 with it.
+if (Test-Path (Join-Path $Out "roslyn.sarif")) {
+    Write-Host "Roslyn SARIF: $Out\roslyn.sarif (folding in)"
+    $sarifInputs += "roslyn=$(Join-Path $Out 'roslyn.sarif')"
+}
+
 # 4. audit/ aggregation -> report (markdown + html + json). Cross-tool agreement happens
 #    automatically when both own-check and codeql findings cluster at the same site.
 $findings = Join-Path $Out "findings.json"
@@ -107,7 +114,7 @@ foreach ($s in $sarifInputs) { $nargs += @("--sarif", $s) }
 # Infer# absolute 'C:/.../<leaf>/...'. Strip both leaf prefixes so modules align in the
 # heatmap (clustering itself is basename-based, so this only cleans the labels).
 $absStrip = ($Target -replace '\\', '/').TrimEnd('/') + "/"
-python "$Worktree\audit\aggregate\normalize.py" @nargs --strip "$leaf/" --strip $absStrip --json $findings
+python "$Worktree\audit\aggregate\normalize.py" @nargs --strip "$leaf/" --strip $absStrip --strip "file:///$absStrip" --json $findings
 foreach ($fmt in @(@{f='markdown';e='md'}, @{f='html';e='html'}, @{f='json';e='json'})) {
     python "$Worktree\audit\aggregate\report.py" --findings $findings --format $fmt.f --target $leaf --commit $commit --line-tol $LineTol |
         Set-Content -LiteralPath (Join-Path $Out "health-report.$($fmt.e)") -Encoding utf8
