@@ -122,7 +122,7 @@ class _Intern:
 def collect() -> dict:
     raw = open(os.path.join(STS, "findings.json"), encoding="utf-8").read()
     # content digest = the audit run's identity for the trend series (below).
-    digest = hashlib.sha1(raw.encode("utf-8")).hexdigest()[:16]
+    digest = hashlib.sha256(raw.encode("utf-8")).hexdigest()[:16]
     findings = json.loads(raw)["findings"]
 
     # stable dimension orders: most-frequent first reads best in the chips/legends.
@@ -176,8 +176,9 @@ def collect() -> dict:
         "own_shapes": shapes.most_common(),
         "own_shapes_fixed": sum(1 for s, _ in shapes.most_common() if s != "other"),
         "clusters": clusters,
-        "fixable_pct": round(100 * sum(c for s, c in by_source.items()
-                                       if sources[s]["codefix"]) / len(findings)),
+        "fixable_pct": (round(100 * sum(c for s, c in by_source.items()
+                                        if sources[s]["codefix"]) / len(findings))
+                        if findings else 0),
         "tier_gates": {t: gate_for_tier(t) for t in TIERS},
         "dims": {"paths": paths.items, "rules": rules.items, "tools": tools.items,
                  "cats": cats.items, "sources": sources, "modules": [*mod_names, "(other)"],
