@@ -42,7 +42,7 @@ def build_user(rel: str, lines: list[str], a: int, b: int, finding, feedback: st
     """Prompt body: the file, the finding, the numbered window [a, b) to replace, and
     (on a revise round) why the previous attempt was rejected."""
     numbered = "".join(f"{i + 1:>5}  {lines[i]}" for i in range(a, b))
-    fb = f"\nYour previous attempt was rejected: {feedback}\nTry again.\n" if feedback else ""
+    fb = f"\n{feedback}\n" if feedback else ""
     return (f"File: {rel}\n"
             f"Finding at line {finding.line} [{finding.rule}]: {finding.message}\n"
             f"{fb}\nReplace lines {a + 1}..{b} (return only their corrected form):\n\n{numbered}")
@@ -110,6 +110,23 @@ def _still_present(after, f, line_tol=0) -> bool:
                for g in after)
 
 
+def _fmt_findings(fs, limit=5) -> str:
+    shown = ", ".join(f"{g.rule}@{g.basename}:{g.line}" for g in fs[:limit])
+    return shown + (f" (+{len(fs) - limit} more)" if len(fs) > limit else "")
+
+
+def _history_block(history) -> str:
+    """Render every prior REJECTED candidate + its specific reason. The LLM client is stateless
+    (no chat history), so this is the agent's only episodic memory across revise rounds — without
+    it the model re-proposes the same failing fix (COMPILOT RQ3/RQ6; docs/agent-loop-lessons.md)."""
+    if not history:
+        return ""
+    out = ["Previous attempts were REJECTED — do NOT repeat them; try a DIFFERENT fix:"]
+    for i, (code, reason) in enumerate(history, 1):
+        out.append(f"\n[attempt {i} — rejected: {reason}]\n{code.rstrip()}")
+    return "\n".join(out)
+
+
 class AiFixApplier:
     """For each finding, ask the LLM to rewrite a window around it; splice the reply
     back. Inherits dry-run/diff/re-audit/gate/rollback from the wrapper. With `reaudit`
@@ -152,9 +169,9 @@ class AiFixApplier:
             if cand is None:
                 skipped.append((f, "ai-no-change"))
             return cand
-        feedback = ""
+        history = []                       # (rejected candidate text, specific reason) per round
         for _ in range(self.max_rounds):
-            cand = self._propose(rel, cur, a, b, f, feedback)
+            cand = self._propose(rel, cur, a, b, f, _history_block(history))
             if cand is None:
                 skipped.append((f, "ai-no-change"))
                 return None
@@ -166,10 +183,17 @@ class AiFixApplier:
                 with open(path, "w", encoding="utf-8") as fh:
                     fh.write("".join(cur))
             introduced = diff_findings(self.before, after, self.line_tol)[1]
-            if not _still_present(after, f, self.line_tol) and not introduced:
+            still_present = _still_present(after, f, self.line_tol)
+            if not still_present and not introduced:
                 return cand                # verified this round
-            feedback = ("it introduced new findings"
-                        if introduced else "the finding is still reported")
+            reasons = []                   # both causes can hold at once — feed back both
+            if still_present:
+                reasons.append(f"the finding [{f.rule}] is still reported")
+            if introduced:
+                reasons.append(f"it introduced new findings: {_fmt_findings(introduced)}")
+            reason = "; ".join(reasons)
+            window = cand[a:len(cand) - (len(cur) - b)]      # just the rejected replacement,
+            history.append(("".join(window), reason))        # NOT the whole spliced file
         skipped.append((f, "ai-gave-up"))
         return None
 
