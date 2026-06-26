@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+
 namespace OwnAudit.Core;
 
 /// The family of resource/lifetime problem a finding belongs to. Drives ranking:
@@ -15,6 +17,18 @@ public enum LeakClass
 }
 
 public enum Severity { Error, Warning, Note }
+
+/// One secondary, structured location that explains a finding — a single step in its
+/// reachability slice (where a resource was acquired, where a borrow escapes, where the
+/// missing release should go, what consumed it). The structured successor to a message
+/// that merely *mentions* another site: a place a SARIF consumer can point at. The
+/// unordered <see cref="Finding.Evidence"/> rides along as SARIF relatedLocations; the
+/// ordered <see cref="Finding.Flow"/> rides as a codeFlows reachability slice (P-015).
+public sealed record EvidenceSpan(
+    string File,    // target-repo-relative, forward slashes; "" = same file as the finding
+    int Line,
+    string Label,   // human description of what happens at this step
+    string Role = "related"); // related | acquired | released | escaped | consumed | step
 
 /// One normalized finding from any static tool (OwnSharp or a Roslyn analyzer),
 /// reduced to a single site so findings from different tools at the same place can
@@ -36,4 +50,14 @@ public sealed record Finding(
     /// Computed rank score (set by the ranker). Higher = more worth a human look and
     /// a runtime proof in Arm 2. See PLAN.md "Ranking".
     public double Rank { get; init; }
+
+    /// Unordered secondary locations that explain this finding (acquire site,
+    /// missing-release point, consuming ctor) — emitted as SARIF relatedLocations.
+    /// Empty for a single-site finding.
+    public IReadOnlyList<EvidenceSpan> Evidence { get; init; } = System.Array.Empty<EvidenceSpan>();
+
+    /// The ORDERED reachability slice that leads to this finding (e.g. a DI captive's
+    /// singleton -> transient -> scoped retention path) — emitted as a SARIF codeFlows.
+    /// Empty when the finding is a single point with no path to show.
+    public IReadOnlyList<EvidenceSpan> Flow { get; init; } = System.Array.Empty<EvidenceSpan>();
 }
