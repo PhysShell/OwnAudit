@@ -1,0 +1,7 @@
+{
+  "_comment": "Runtime correlation config (runtime.correlate). leak_categories are the static categories the runtime can confirm/refute; a retained count exceeding `expected` by >= min_count is confirmed, by >= high_count is high-confidence.",
+  "leak_categories": ["subscription-leak", "idisposable-leak", "region-escape"],
+  "default_expected": 1,
+  "min_count": 2,
+  "high_count": 10
+}

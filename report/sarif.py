@@ -42,6 +42,9 @@ _DRIVERS = {
 # bulk style is a note (so it doesn't drown the signal in GitHub).
 _LEVEL_BY_CATEGORY = {
     "subscription-leak": "error", "idisposable-leak": "error", "region-escape": "error",
+    # a runtime-confirmed leak is the highest-signal finding we produce; a runtime-only leak
+    # (static blind spot) is a real bug too but not yet localized to a fix site.
+    "runtime-confirmed-leak": "error", "runtime-only-leak": "warning",
     "inpc-correctness": "warning", "wpf-freezable": "warning", "architecture": "warning",
     "general-quality": "note", "uncategorized": "note",
 }

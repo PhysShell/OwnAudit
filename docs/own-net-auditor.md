@@ -193,15 +193,31 @@ python3 -m arch.drift_cli --graph pr_graph.json   --baseline arch-snapshot.json 
 Ревьюер читает и понимает: «провели канализацию через гостиную». *Тестируется в CI*
 (`arch/tests/test_arch.py`, 41/41, и под `-O`).
 
-### Фаза 5 — Runtime correlation (killer feature №2) — Windows-only трек
+### Фаза 5 — Runtime correlation (killer feature №2) ✅ движок готов (Python-сторона)
 ```text
 static:  subscribes to DocumentStore.Changed, no matching unsubscribe
 runtime: 132 retained instances, held by static DocumentStore.Changed delegate
-=> MEM-WPF-014: event leak confirmed, ~84 MB retained after closing window 10×
+=> event leak confirmed, ~84 MB retained after closing window 10×
    confidence: high
 ```
-ClrMD для live process / dump. Связывает static finding + heap retained path +
-allocation stack + owning screen. Исходная цель проекта, упакованная в продукт.
+Исходная цель проекта, упакованная в продукт. Тот же сплит: heap-dump коллектор (ClrMD /
+dotnet-gcdump) гоняет сценарий N× на стенде и выдаёт `runtime.json` (контракт —
+`docs/runtime-contract.md`); Python (`runtime/`, stdlib-only, в CI) коррелирует находки с
+удержанием.
+
+`runtime/correlate.py` + `runtime/cli.py` — **трёхсторонний сплит** (ровно FP-rate/blind-spot
+триага из §audit-data-leverage):
+- **confirmed** — static-находка о течи + heap-удержание совпали → находка в схеме `findings.json`
+  (tool `own-runtime`, category `runtime-confirmed-leak` → SARIF `error`) с `confidence`.
+  `count − expected ≥ min_count` подтверждает; `≥ high_count` **или** удержание
+  `static-event`-делегатом → **high** (классическая WPF event-leak с поличным).
+- **static-only** — находка есть, удержания нет → **вероятный ложняк** / путь не покрыт сценарием.
+- **runtime-only** — удержание есть, статика молчала → **слепое пятно** анализатора (кандидат на
+  новое правило).
+- `python3 -m runtime.cli --findings … --runtime … [--gate-level high]` → `runtime-findings.json`
+  + `runtime-report.md`. Гейт по `--gate-level` (exit 2 на confirmed ≥ confidence).
+- *Тестируется в CI* (`runtime/tests/test_runtime.py`, 12/12, и под `-O`). Коллектор дампа —
+  sketch в `docs/runtime-contract.md`, на стенде (нужен CLR + живой STS), в repo не коммитится.
 
 ### Отложено сознательно
 - Свой query-DSL (CQLinq/CodeQL-подобный) — после YAML + C#-плагинов.
