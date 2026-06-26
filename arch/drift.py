@@ -9,8 +9,8 @@ trips a rule. That's the "PR raised coupling in Broker.Documents by 18%, new edg
 System.Data.SqlClient, new cycle Documents↔Services" report a reviewer reads at a glance.
 
 Pure structure over two `graph.json`s (via arch.metrics); no .NET, CI-testable. A snapshot is
-compact and committable (component metrics + the namespace dependency surface + the cycle set),
-so a baseline can live in the repo like phase-2's.
+compact (component metrics + the namespace dependency surface + the cycle set) and is a user
+artifact created on the stand — kept out of git and fed to CI like phase-2's baseline.
 """
 from __future__ import annotations
 

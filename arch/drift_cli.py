@@ -112,9 +112,9 @@ def main(argv=None) -> int:
         raise SystemExit(2) from None
     cur = D.snapshot(Graph.load(args.graph), key)
     d = D.diff(base, cur, cfg)
-    passed, blocking = (True, [])
+    passed = True
     if args.gate_level:
-        passed, blocking = D.gate(d, args.gate_level)
+        passed, _ = D.gate(d, args.gate_level)       # report sections come from d["items"]
 
     os.makedirs(args.out_dir, exist_ok=True)
     with open(os.path.join(args.out_dir, "drift.json"), "w", encoding="utf-8") as fh:
