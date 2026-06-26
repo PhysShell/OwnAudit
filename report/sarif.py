@@ -83,12 +83,18 @@ def _region(line) -> dict:
     return {"startLine": ln if ln >= 1 else 1}     # SARIF requires startLine >= 1
 
 
-def _evidence_steps(raw):
+def _evidence_steps(raw, default_path=""):
     """Parse an optional `evidence`/`flow` list — each item a {path, line, label} dict —
-    into clean (path, line, label) triples, dropping malformed entries and steps without
-    a resolvable line. Tolerant by design: these are optional, forward-compatible
-    additions to a finding record, so a producer that omits or half-fills them must not
-    break the export."""
+    into clean (path, line, label) triples, dropping anything unusable. A step is kept
+    only when it has BOTH a resolvable line (>= 1) AND a non-empty artifact path.
+
+    `default_path` is the parent finding's path: it resolves a step's same-file
+    convention (a missing/empty `path`, mirroring `EvidenceSpan.File == ""` in
+    Finding.cs, means "same file as the finding"). A step with no path and no fallback
+    is DROPPED rather than emitted with an empty `artifactLocation.uri` — an empty URI
+    makes the whole SARIF log unprocessable for GitHub code scanning, so one malformed
+    optional step must not be able to poison the export. Tolerant by design: these are
+    optional, forward-compatible additions to a finding record."""
     out = []
     if not isinstance(raw, list):
         return out
@@ -101,32 +107,36 @@ def _evidence_steps(raw):
             continue
         if ln < 1:
             continue
-        out.append((s.get("path") or "", ln, s.get("label") or ""))
+        path = s.get("path") or default_path
+        if not path:
+            continue
+        out.append((path, ln, s.get("label") or ""))
     return out
 
 
-def _related_locations(raw):
+def _related_locations(raw, default_path=""):
     """SARIF `relatedLocations` from a finding's optional `evidence` — the unordered
     secondary anchors (acquire site, missing-release point, consuming ctor) a consumer
-    renders as clickable, labelled links beside the primary."""
+    renders as clickable, labelled links beside the primary. `default_path` resolves a
+    step's same-file convention to the finding's own path."""
     return [
-        {"physicalLocation": {"artifactLocation": {"uri": p or ""},
+        {"physicalLocation": {"artifactLocation": {"uri": p},
                               "region": {"startLine": ln}},
          "message": {"text": label}}
-        for (p, ln, label) in _evidence_steps(raw)
+        for (p, ln, label) in _evidence_steps(raw, default_path)
     ]
 
 
-def _code_flows(raw):
+def _code_flows(raw, default_path=""):
     """SARIF `codeFlows` (a one-element list) from a finding's optional `flow` — the
     ORDERED reachability slice (e.g. a DI captive's singleton → transient → scoped
-    retention path). Empty when no step has a resolvable line, so the caller splices it
-    only when truthy."""
+    retention path). Empty when no step survives, so the caller splices it only when
+    truthy. `default_path` resolves a step's same-file convention to the finding's path."""
     locs = [
-        {"location": {"physicalLocation": {"artifactLocation": {"uri": p or ""},
+        {"location": {"physicalLocation": {"artifactLocation": {"uri": p},
                                            "region": {"startLine": ln}},
                       "message": {"text": label}}}
-        for (p, ln, label) in _evidence_steps(raw)
+        for (p, ln, label) in _evidence_steps(raw, default_path)
     ]
     return [{"threadFlows": [{"locations": locs}]}] if locs else []
 
@@ -182,11 +192,14 @@ def to_sarif(findings, min_level=None, max_results_per_run=None) -> dict:
                                "tool": tool, "resource": f.get("resource") or ""},
             }
             # P-015 reachability slice — optional, forward-compatible: only present when the
-            # producer attached structured evidence/flow to the finding record.
-            related = _related_locations(f.get("evidence"))
+            # producer attached structured evidence/flow. A step's empty path resolves to the
+            # finding's own path (same-file convention); a step with no usable path is dropped
+            # so we never emit an empty artifactLocation.uri (which GitHub would reject).
+            fpath = f.get("path") or ""
+            related = _related_locations(f.get("evidence"), fpath)
             if related:
                 res["relatedLocations"] = related
-            flows = _code_flows(f.get("flow"))
+            flows = _code_flows(f.get("flow"), fpath)
             if flows:
                 res["codeFlows"] = flows
             if f.get("suppressed"):
