@@ -47,10 +47,20 @@ we should not re-implement their correctness rules.
 
 ## Phase 1 — markup-only static pass (build-free, runs in CI)
 
-Pure XML: parse `.xaml`/`.axaml` with `xml.etree`, resolve resource scopes, build a
-merged-dictionary graph. **No .NET, no stand** — runs on Linux in CI like the rest of the Python
-side. This is the cheapest deliverable in the whole project and closes ~half the ⚠️ rows in the
-coverage matrix.
+Pure XML: parse `.xaml`/`.axaml`, resolve resource scopes, build a merged-dictionary graph.
+**No .NET, no stand** — runs on Linux in CI like the rest of the Python side. This is the cheapest
+deliverable in the whole project and closes ~half the ⚠️ rows in the coverage matrix.
+
+**Line preservation is a hard requirement, not a detail.** A plain `xml.etree.ElementTree.parse`
+discards source positions, but our finding contract requires a real `line` and `report/sarif.py`
+maps a missing/0 line to SARIF `startLine=1` — so a naive ElementTree pass would point *every*
+XAML alert at the top of the file in code scanning and the dashboard. The parse step must therefore
+be **line-preserving** while staying stdlib (still build-free): expat already tracks
+`CurrentLineNumber`, so a small `XMLParser`/`TreeBuilder` subclass that stamps each element's start
+line (the well-known `LineNumberingParser` recipe) gives us per-element lines with no third-party
+dependency — no `lxml`. Every rule below resolves its finding to the offending element's stamped
+line; a rule that can only locate a file-level issue says so explicitly rather than silently
+emitting line 1.
 
 | Rule | What it flags | Doc rationale | Avalonia |
 |---|---|---|---|
