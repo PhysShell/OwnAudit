@@ -105,7 +105,11 @@ def main(argv=None) -> int:
         return 2
 
     cfg = load_rules(args.rules).get("drift") or {}
-    base = D.as_snapshot(_load_json(args.baseline), key)
+    try:
+        base = D.as_snapshot(_load_json(args.baseline), key)
+    except ValueError as e:
+        print(f"error: {e}", file=sys.stderr)
+        raise SystemExit(2) from None
     cur = D.snapshot(Graph.load(args.graph), key)
     d = D.diff(base, cur, cfg)
     passed, blocking = (True, [])

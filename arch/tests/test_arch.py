@@ -441,6 +441,35 @@ def test_drift_gate_blocks_high_only():
     _expect(DR.gate(d2, "high")[0] and not DR.gate(d2, "medium")[0], d2["items"])
 
 
+def test_drift_cycle_key_uses_full_identity():
+    # two cycles sharing the SAME short names (Service/Repository) in DIFFERENT namespaces
+    # must be distinct — short-name keys would collapse them and mask the new one.
+    def cyc(ns_list):
+        nodes, edges = [], []
+        for ns in ns_list:
+            nodes += [_t(f"T:{ns}.Service", ns, name="Service"),
+                      _t(f"T:{ns}.Repo", ns, name="Repository")]
+            edges += [(f"T:{ns}.Service", f"T:{ns}.Repo"), (f"T:{ns}.Repo", f"T:{ns}.Service")]
+        return DR.snapshot(_g(nodes, edges))
+    base = cyc(["Sts.A"])
+    cur = cyc(["Sts.A", "Sts.B"])            # adds an identically-named cycle in Sts.B
+    d = DR.diff(base, cur, DRIFT_CFG)
+    new_type = [i for i in d["items"] if i["kind"] == "new_cycle" and "type" in i["detail"]]
+    _expect(len(new_type) == 1, d["items"])
+
+
+def test_drift_level_mismatch_rejected():
+    snap_ns = DR.snapshot(_base_graph(), "namespace")
+    raised = None
+    try:
+        DR.as_snapshot(snap_ns, "assembly")
+    except ValueError as e:
+        raised = str(e)
+    _expect(raised is not None and "level" in raised, raised)
+    # same level is fine
+    _expect(DR.as_snapshot(snap_ns, "namespace") is snap_ns, "same level passes through")
+
+
 def test_drift_as_snapshot_accepts_raw_graph():
     # a raw graph.json dict (not a pre-made snapshot) is converted on the fly
     raw = {"schema": "ownAudit/arch-graph/v1",

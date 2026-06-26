@@ -23,6 +23,14 @@ SCHEMA = "ownAudit/arch-drift/v1"
 RISK_RANK = {"info": 0, "low": 1, "medium": 2, "high": 3}
 
 
+def _fqn(g: Graph, nid: str) -> str:
+    """Fully-qualified type name (namespace.Name). Used as the cycle-member identity so two
+    distinct cycles that happen to share short names (Service/Repository in different
+    namespaces) don't collapse to the same key and mask a newly-introduced cycle."""
+    ns, name = g.namespace(nid), g.name(nid)
+    return f"{ns}.{name}" if ns else name
+
+
 def snapshot(g: Graph, key: str = "namespace") -> dict:
     """A compact, comparable, committable summary of a graph's architecture:
     per-component coupling metrics, the component-level dependency surface (incl. edges to
@@ -35,8 +43,8 @@ def snapshot(g: Graph, key: str = "namespace") -> dict:
         if a is not None and b is not None and a != b:
             edges.add((a, b))
     cycles = []
-    for comp in g.type_cycles():
-        cycles.append({"level": "type", "members": sorted(g.name(m) for m in comp)})
+    for comp in g.type_cycles():       # FQ names: identity, not just display (see _fqn)
+        cycles.append({"level": "type", "members": sorted(_fqn(g, m) for m in comp)})
     for comp in g.namespace_cycles():
         cycles.append({"level": "namespace", "members": sorted(m or "(none)" for m in comp)})
     for comp in g.assembly_cycles():
@@ -47,10 +55,16 @@ def snapshot(g: Graph, key: str = "namespace") -> dict:
 
 def as_snapshot(data, key: str = "namespace") -> dict:
     """Accept a saved drift snapshot, a raw graph.json dict, or a built Graph — return a
-    snapshot. Lets the CLI take either a committed baseline snapshot or a fresh graph."""
+    snapshot at component level `key`. Lets the CLI take either a committed baseline snapshot
+    or a fresh graph. A saved snapshot built at a DIFFERENT level is rejected (its components
+    and edges are keyed by the other level, so diffing would emit bogus new/removed items)."""
     if isinstance(data, Graph):
         return snapshot(data, key)
     if isinstance(data, dict) and data.get("schema") == SCHEMA:
+        saved = data.get("level", key)
+        if saved != key:
+            raise ValueError(f"baseline snapshot is at level {saved!r} but the diff is requested "
+                             f"at level {key!r}; re-create the snapshot at level {key!r}")
         return data
     return snapshot(Graph(data), key)
 
