@@ -151,6 +151,32 @@ def test_ai_revise_loop_converges():
         shutil.rmtree(d, ignore_errors=True)
 
 
+def test_ai_revise_accumulates_history():
+    # the stateless client only knows what we put in the prompt — so every prior rejected
+    # attempt must be threaded forward, else the model can re-propose the same failing fix.
+    d, _ = _tmp(SRC)
+    bad1 = "```csharp\n            int x = Compute();\n            x = 0; // v1\n```"
+    bad2 = "```csharp\n            int x = Compute();\n            x = 0; // v2\n```"
+    client = MockLlmClient([bad1, bad2, GOOD_REPLY])
+
+    def reaudit(wd):
+        body = open(os.path.join(wd, "Core", "Sample.cs"), encoding="utf-8").read()
+        return [FINDING] if "x = 0;" in body else []
+
+    try:
+        applier = AiFixApplier([FINDING], client, reaudit=reaudit, before=[FINDING],
+                               max_rounds=3, ctx=4)
+        res = run_fix(before=[FINDING], workdir=d, rule=FINDING.rule, applier=applier,
+                      reaudit=reaudit, tier_of=_review_tier)
+        assert res.status == OK, res.ledger()
+        third = client.calls[2][1]                          # round-3 prompt
+        assert "attempt 1" in third and "attempt 2" in third, third
+        assert "// v1" in third and "// v2" in third, third
+        assert f"the finding [{FINDING.rule}] is still reported" in third, third
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+
 def test_ai_loop_gives_up_after_max_rounds():
     d, _ = _tmp(SRC)
     bad = ("```csharp\n            int x = Compute();\n            x = 0; // nope\n```")
