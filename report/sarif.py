@@ -84,17 +84,23 @@ def _region(line) -> dict:
 
 
 def _evidence_steps(raw, default_path=""):
-    """Parse an optional `evidence`/`flow` list — each item a {path, line, label} dict —
-    into clean (path, line, label) triples, dropping anything unusable. A step is kept
-    only when it has BOTH a resolvable line (>= 1) AND a non-empty artifact path.
+    """Parse an optional `evidence`/`flow` list — each item a step dict — into clean
+    (path, line, label) triples, dropping anything unusable. A step is kept only when it
+    has BOTH a resolvable line (>= 1) AND a non-empty artifact path.
+
+    Each field is read case-insensitively: the normalized finding record uses lowercase
+    `path`/`line`/`label`, but the producer model in `src/OwnAudit.Core/Finding.cs`
+    (the `EvidenceSpan` record) names them `File`/`Line`/`Label`. Accepting both means a
+    span dumped straight from EvidenceSpan is read correctly rather than silently
+    dropped (which would make relatedLocations/codeFlows never emit).
 
     `default_path` is the parent finding's path: it resolves a step's same-file
-    convention (a missing/empty `path`, mirroring `EvidenceSpan.File == ""` in
-    Finding.cs, means "same file as the finding"). A step with no path and no fallback
-    is DROPPED rather than emitted with an empty `artifactLocation.uri` — an empty URI
-    makes the whole SARIF log unprocessable for GitHub code scanning, so one malformed
-    optional step must not be able to poison the export. Tolerant by design: these are
-    optional, forward-compatible additions to a finding record."""
+    convention (a missing/empty path, mirroring `EvidenceSpan.File == ""`, means "same
+    file as the finding"). A step with no path and no fallback is DROPPED rather than
+    emitted with an empty `artifactLocation.uri` — an empty URI makes the whole SARIF log
+    unprocessable for GitHub code scanning, so one malformed optional step must not be
+    able to poison the export. Tolerant by design: these are optional, forward-compatible
+    additions to a finding record."""
     out = []
     if not isinstance(raw, list):
         return out
@@ -102,15 +108,16 @@ def _evidence_steps(raw, default_path=""):
         if not isinstance(s, dict):
             continue
         try:
-            ln = int(s.get("line"))
+            ln = int(s.get("line", s.get("Line")))
         except (TypeError, ValueError):
             continue
         if ln < 1:
             continue
-        path = s.get("path") or default_path
+        path = s.get("path") or s.get("file") or s.get("File") or default_path
         if not path:
             continue
-        out.append((path, ln, s.get("label") or ""))
+        label = s.get("label") or s.get("Label") or ""
+        out.append((path, ln, label))
     return out
 
 
