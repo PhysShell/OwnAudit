@@ -75,13 +75,14 @@ def check_layering(g: Graph, rules: list) -> list:
 
 
 def _cycle_finding(g: Graph, rule_id, level, members) -> dict:
-    """Anchor a cycle finding at its lexically-first member, listing the loop."""
+    """Anchor a cycle finding at its lexically-first member, listing the SCC's members.
+
+    The members are rendered as an unordered set, NOT an arrow chain: an SCC tells us the
+    group is mutually reachable, but not the order of a traversable loop, so `a → b → c → a`
+    would invent edges that may not exist. The set is the honest statement."""
     names = sorted(g.name(m) if level == "type" else (m or "(none)") for m in members)
-    anchor = None
-    if level == "type":
-        anchor = g.node(sorted(members)[0])
-    msg = (f"{level} dependency cycle ({len(members)} members): "
-           + " → ".join(names) + f" → {names[0]}")
+    anchor = g.node(sorted(members)[0]) if level == "type" else None
+    msg = f"{level} dependency cycle ({len(members)} members): " + ", ".join(names)
     return _finding(rule_id, msg, anchor, g)
 
 

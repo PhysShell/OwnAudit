@@ -14,6 +14,11 @@ from __future__ import annotations
 import fnmatch
 
 
+# Graph schemas this engine understands. The loader fails fast on anything else so a
+# changed/old extractor surfaces at the boundary instead of as silent false findings.
+SUPPORTED_SCHEMAS = frozenset({"ownAudit/arch-graph/v1"})
+
+
 def match_any(name: str, patterns) -> bool:
     """True if `name` matches any glob pattern (case-sensitive, fnmatchcase). Used by the
     layering rules — `Sts.UI.*`, `*.Data.Sql*` etc. — so namespaces read like the source."""
@@ -77,9 +82,19 @@ class Graph:
     types are kept for context but never flagged."""
 
     def __init__(self, data: dict):
+        # Validate the contract before trusting the data — a drifted/old graph should stop
+        # here with a clear error, not produce confident garbage (docs/arch-graph.md).
         self.schema = data.get("schema", "")
-        self.nodes = {n["id"]: n for n in data.get("nodes", [])}
-        self.edges = list(data.get("edges", []))     # raw, as given
+        if self.schema not in SUPPORTED_SCHEMAS:
+            raise ValueError(f"unsupported graph schema {self.schema!r}; expected one of "
+                             f"{sorted(SUPPORTED_SCHEMAS)} (see docs/arch-graph.md)")
+        nodes, edges = data.get("nodes"), data.get("edges")
+        if not isinstance(nodes, list) or not isinstance(edges, list):
+            raise ValueError("graph.json must have list-valued 'nodes' and 'edges'")
+        if any(not isinstance(n, dict) or "id" not in n for n in nodes):
+            raise ValueError("every graph node must be an object with an 'id'")
+        self.nodes = {n["id"]: n for n in nodes}
+        self.edges = list(edges)                      # raw, as given
 
         # Collapse duplicate edges and drop self-loops once (the graph contract: a type
         # referenced by several members yields one edge). `_out` is the FULL outgoing
@@ -104,25 +119,32 @@ class Graph:
 
     @classmethod
     def load(cls, path: str) -> "Graph":
+        """Build a Graph from a graph.json file (schema: docs/arch-graph.md)."""
         import json
         with open(path, encoding="utf-8") as fh:
             return cls(json.load(fh))
 
     def _internal(self, nid: str) -> bool:
+        """Is this node defined in the audited solution (ours to flag)? A bare node with no
+        `internal` key defaults to True."""
         n = self.nodes.get(nid) or {}
         return bool(n.get("internal", True))      # default true: a bare node is ours
 
     def node(self, nid: str) -> dict:
+        """The raw node dict for an id, or {} if unknown."""
         return self.nodes.get(nid, {})
 
     # -- attribute accessors (graph.json node fields) -----------------------------
     def name(self, nid: str) -> str:
+        """Short type name (falls back to the id)."""
         return self.nodes.get(nid, {}).get("name", nid)
 
     def namespace(self, nid: str) -> str:
+        """Declaring namespace ("" if unknown)."""
         return self.nodes.get(nid, {}).get("namespace", "")
 
     def assembly(self, nid: str) -> str:
+        """Declaring assembly ("" if unknown)."""
         return self.nodes.get(nid, {}).get("assembly", "")
 
     def type_ids(self) -> list:

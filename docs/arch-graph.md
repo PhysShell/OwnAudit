@@ -6,7 +6,7 @@ the Windows stand** (where the STS solution actually builds). This keeps the hea
 resolution where the SDK lives and keeps the analysis build-free and CI-testable here — the
 same split the SARIF exporter and baseline differ already use against `findings.json`.
 
-```
+```text
    Windows stand (has .NET SDK + Roslyn)          Linux / CI (stdlib only)
    ┌─────────────────────────────────┐            ┌──────────────────────────────┐
    │ Roslyn extractor                │  graph.json│ arch/graph.py  (Graph, SCC)  │

@@ -45,9 +45,9 @@ def main(argv=None) -> int:
     ap.add_argument("--out-dir", default=os.path.join(ROOT, "arch", "out"))
     args = ap.parse_args(argv)
 
-    if not os.path.exists(args.graph):
-        print(f"error: no graph at {args.graph!r}; run the Roslyn extractor on the stand "
-              f"first (see docs/arch-graph.md).")
+    if not os.path.isfile(args.graph):       # isfile, not exists: a dir must fail here, not in load()
+        print(f"error: no graph file at {args.graph!r}; run the Roslyn extractor on the "
+              f"stand first (see docs/arch-graph.md).")
         raise SystemExit(2)
 
     graph = Graph.load(args.graph)

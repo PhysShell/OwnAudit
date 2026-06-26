@@ -237,12 +237,50 @@ def test_cli_writes_findings_and_report():
 
 
 def test_cli_missing_graph_exits_2():
+    # fresh dir + a child path we never create -> the SystemExit(2) path is always exercised
+    d = tempfile.mkdtemp(prefix="arch-")
     raised = None
     try:
-        cli.main(["--graph", os.path.join(tempfile.gettempdir(), "ownaudit-no-graph.json")])
+        cli.main(["--graph", os.path.join(d, "does-not-exist.json")])
     except SystemExit as e:
         raised = e.code
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
     _expect(raised == 2, raised)
+
+
+def test_cli_rejects_directory_graph():
+    # a directory passed as --graph must hit the same clean exit 2, not raise IsADirectoryError
+    d = tempfile.mkdtemp(prefix="arch-")
+    raised = None
+    try:
+        cli.main(["--graph", d])
+    except SystemExit as e:
+        raised = e.code
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+    _expect(raised == 2, raised)
+
+
+def test_bad_schema_rejected():
+    raised = None
+    try:
+        Graph({"schema": "ownAudit/arch-graph/v999", "nodes": [], "edges": []})
+    except ValueError as e:
+        raised = str(e)
+    _expect(raised is not None and "schema" in raised, raised)
+
+
+def test_malformed_graph_rejected():
+    # nodes/edges must be lists, and every node must carry an id
+    for bad in ({"schema": "ownAudit/arch-graph/v1", "nodes": {}, "edges": []},
+                {"schema": "ownAudit/arch-graph/v1", "nodes": [{"name": "no-id"}], "edges": []}):
+        raised = None
+        try:
+            Graph(bad)
+        except ValueError as e:
+            raised = e
+        _expect(raised is not None, f"expected ValueError for {bad}")
 
 
 # ---- bare-python runner ----------------------------------------------------
