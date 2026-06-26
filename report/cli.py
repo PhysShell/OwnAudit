@@ -14,7 +14,7 @@ import json
 import os
 import sys
 
-from .sarif import to_sarif, tier_of, _level, _LEVEL_RANK
+from .sarif import to_sarif, tier_of, _level, _LEVEL_RANK, GITHUB_MAX_RESULTS_PER_RUN
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -38,9 +38,14 @@ def _metrics(findings) -> dict:
 def _report_md(m: dict) -> str:
     def rows(pairs):
         return "\n".join(f"| {k} | {v:,} |" for k, v in pairs)
+    exp = m.get("export", {})
+    export_line = (f"_Exported to SARIF: {exp.get('sarif_results', 0):,} result(s) "
+                   f"(min_level={exp.get('min_level')}, cap={exp.get('max_results_per_run')}, "
+                   f"dropped={exp.get('dropped', 0):,})._\n\n") if exp else ""
     return (
         f"# Own.NET Audit summary\n\n"
-        f"**{m['total']:,} findings**\n\n"
+        f"**{m['total']:,} findings** (full audit corpus)\n\n"
+        f"{export_line}"
         f"## By severity (SARIF level)\n\n| level | count |\n|---|---|\n{rows(m['by_level'])}\n\n"
         f"## By tier\n\n| tier | count |\n|---|---|\n{rows(m['by_tier'])}\n\n"
         f"## By tool\n\n| tool | count |\n|---|---|\n{rows(m['by_tool'])}\n\n"
@@ -54,15 +59,23 @@ def main(argv=None) -> int:
     ap.add_argument("--out-dir", default=os.path.join(ROOT, "report", "out"))
     ap.add_argument("--min-level", choices=("note", "warning", "error"), default=None,
                     help="drop results below this SARIF level (GitHub-friendly export)")
-    ap.add_argument("--max-results", type=int, default=None,
-                    help="cap results per run (highest severity kept first)")
+    ap.add_argument("--max-results", type=int, default=GITHUB_MAX_RESULTS_PER_RUN,
+                    help=f"cap results per run, highest severity first (default: GitHub's "
+                         f"limit of {GITHUB_MAX_RESULTS_PER_RUN}; 0 = unlimited, not GitHub-safe)")
     args = ap.parse_args(argv)
 
     with open(args.findings, encoding="utf-8") as fh:
         findings = json.load(fh)["findings"]
 
-    sarif = to_sarif(findings, min_level=args.min_level, max_results_per_run=args.max_results)
+    cap = None if args.max_results == 0 else args.max_results
+    sarif = to_sarif(findings, min_level=args.min_level, max_results_per_run=cap)
+    emitted = sum(len(r["results"]) for r in sarif["runs"])
+    dropped = sum(r["properties"].get("dropped", 0) for r in sarif["runs"])
     metrics = _metrics(findings)
+    # metrics describe the full audit corpus; record what actually went to SARIF so the
+    # three artifacts never silently disagree about the export.
+    metrics["export"] = {"min_level": args.min_level, "max_results_per_run": cap,
+                         "sarif_results": emitted, "dropped": dropped}
     os.makedirs(args.out_dir, exist_ok=True)
     paths = {
         "ownnet-audit.sarif": json.dumps(sarif, indent=1),
@@ -73,9 +86,12 @@ def main(argv=None) -> int:
         with open(os.path.join(args.out_dir, name), "w", encoding="utf-8") as fh:
             fh.write(body)
 
-    emitted = sum(len(r["results"]) for r in sarif["runs"])
     print(f"wrote {args.out_dir}/  ({len(findings):,} findings -> {emitted:,} SARIF results "
-          f"across {len(sarif['runs'])} run(s); min_level={args.min_level})")
+          f"across {len(sarif['runs'])} run(s); min_level={args.min_level}, cap={cap})")
+    if dropped:
+        print(f"note: dropped {dropped:,} result(s) over the per-run cap to stay GitHub-uploadable; "
+              f"use --min-level to keep the highest-value ones, or --max-results 0 for the full set "
+              f"(not GitHub-safe).", file=sys.stderr)
     return 0
 
 

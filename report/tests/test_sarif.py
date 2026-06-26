@@ -7,14 +7,20 @@ correct ruleIndex, severity mapped by category, startLine clamped, fingerprints 
 and line-independent, suppressions passed through, and min_level/max_results actually
 filter. -O-safe (explicit raises, no bare assert).
 """
+import json
 import os
+import shutil
 import sys
+import tempfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(os.path.dirname(HERE))
 sys.path.insert(0, ROOT)
 
-from report.sarif import to_sarif, _fingerprint, FINGERPRINT_KEY, SARIF_VERSION   # noqa: E402
+from report import cli                                                            # noqa: E402
+from report.sarif import (                                                        # noqa: E402
+    to_sarif, _fingerprint, FINGERPRINT_KEY, SARIF_VERSION, GITHUB_MAX_RESULTS_PER_RUN,
+)
 
 
 def _expect(cond, msg):
@@ -125,6 +131,54 @@ def test_tier_in_properties():
     _expect(own["properties"]["tier"] == "T4", own["properties"])         # OWN -> T4
     codeql = _runs_by_tool(s)["CodeQL"]["results"][0]
     _expect(codeql["properties"]["tier"] == "T3", codeql["properties"])   # cs/* -> T3
+
+
+def test_to_sarif_rejects_bad_args():
+    raised = 0
+    try:
+        to_sarif([], min_level="warn")          # not a valid level
+    except ValueError:
+        raised += 1
+    try:
+        to_sarif([], max_results_per_run=-1)    # negative cap
+    except ValueError:
+        raised += 1
+    _expect(raised == 2, raised)
+
+
+def test_duplicate_findings_get_distinct_fingerprints():
+    # same rule+path+message at different lines must not collapse to one alert
+    dup = [_f("own-check", "OWN001", "Broker/A.xaml.cs", 72, "subscription-leak", "same msg"),
+           _f("own-check", "OWN001", "Broker/A.xaml.cs", 130, "subscription-leak", "same msg")]
+    s = to_sarif(dup)
+    fps = [r["partialFingerprints"][FINGERPRINT_KEY] for r in s["runs"][0]["results"]]
+    _expect(len(set(fps)) == 2, fps)                         # distinct per occurrence
+    _expect(fps[0] == _fingerprint(dup[0]), "first occurrence keeps the stable base")
+
+
+def test_default_cap_is_github_limit():
+    _expect(GITHUB_MAX_RESULTS_PER_RUN == 25000, GITHUB_MAX_RESULTS_PER_RUN)
+
+
+def test_cli_writes_artifacts_with_consistent_export_block():
+    d = tempfile.mkdtemp(prefix="report-")
+    try:
+        fp = os.path.join(d, "findings.json")
+        with open(fp, "w", encoding="utf-8") as fh:
+            json.dump({"findings": SAMPLE}, fh)
+        out = os.path.join(d, "out")
+        rc = cli.main(["--findings", fp, "--out-dir", out, "--min-level", "warning"])
+        _expect(rc == 0, rc)
+        m = json.load(open(os.path.join(out, "metrics.json"), encoding="utf-8"))
+        _expect(m["total"] == len(SAMPLE), m["total"])               # corpus total
+        s = json.load(open(os.path.join(out, "ownnet-audit.sarif"), encoding="utf-8"))
+        emitted = sum(len(r["results"]) for r in s["runs"])
+        # export block records exactly what went to SARIF, so artifacts can't disagree
+        _expect(m["export"]["min_level"] == "warning", m["export"])
+        _expect(m["export"]["sarif_results"] == emitted, (m["export"], emitted))
+        _expect(os.path.exists(os.path.join(out, "report.md")), "report.md written")
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
 
 
 # ---- bare-python runner ----------------------------------------------------

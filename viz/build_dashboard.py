@@ -75,7 +75,7 @@ def _own_shapes(findings) -> collections.Counter:
 
 
 def _modules() -> list:
-    """The module pain table parsed from health-report.md (severity × tool agreement)."""
+    """The module pain table parsed from health-report.md (severity x tool agreement)."""
     mods = []
     for line in open(os.path.join(STS, "health-report.md"), encoding="utf-8"):
         m = re.match(r"\|\s*`([^`]+)`\s*\|\s*([\d.]+)\s*\|\s*(\d+)\s*\|\s*(\d+)\s*\|\s*([^|]+)\|", line)
@@ -161,8 +161,8 @@ def collect() -> dict:
                 if cm else {"high": 0, "candidate": 0, "total": 0})
     by_source = collections.Counter(rule_src[r[2]] for r in rows)
 
-    snapshot = {"date": datetime.date.today().isoformat(), "total": len(findings),
-                "tiers": {t: tier_counts[t] for t in TIERS}}
+    snapshot = {"date": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds"),
+                "total": len(findings), "tiers": {t: tier_counts[t] for t in TIERS}}
     history = _update_history(snapshot)
 
     return {
@@ -175,7 +175,7 @@ def collect() -> dict:
                                        if sources[s]["codefix"]) / len(findings)),
         "tier_gates": {t: gate_for_tier(t) for t in TIERS},
         "dims": {"paths": paths.items, "rules": rules.items, "tools": tools.items,
-                 "cats": cats.items, "sources": sources, "modules": mod_names + ["(other)"],
+                 "cats": cats.items, "sources": sources, "modules": [*mod_names, "(other)"],
                  "tiers": TIERS},
         "rule_src": rule_src,
         "rows": rows,
@@ -184,8 +184,10 @@ def collect() -> dict:
 
 
 def _update_history(snapshot: dict) -> list:
-    """Append today's snapshot to viz/history.jsonl (replacing any same-date entry) and
-    return the full dated series — this is what powers the trend chart across runs."""
+    """Append this run's snapshot to viz/history.jsonl and return the full series — the
+    trend chart's source. Each snapshot is timestamped, so distinct audits (even on the
+    same day) are preserved as separate points; only a plain re-render with identical
+    counts is collapsed (idempotent rebuild), so the trend tracks real audit changes."""
     series = []
     if os.path.exists(HISTORY):
         with open(HISTORY, encoding="utf-8") as fh:
@@ -193,7 +195,10 @@ def _update_history(snapshot: dict) -> list:
                 line = line.strip()
                 if line:
                     series.append(json.loads(line))
-    series = [s for s in series if s.get("date") != snapshot["date"]] + [snapshot]
+    unchanged = (series and series[-1].get("total") == snapshot["total"]
+                 and series[-1].get("tiers") == snapshot["tiers"])
+    if not unchanged:
+        series.append(snapshot)
     series.sort(key=lambda s: s["date"])
     with open(HISTORY, "w", encoding="utf-8") as fh:
         for s in series:
@@ -293,7 +298,7 @@ HTML = r"""<!doctype html>
   <span id="fcount"></span>
 </div>
 <div class="grid">
-  <div class="card wide"><h2>Where it hurts most</h2><p>Modules sized by pain index (severity × cross-tool agreement), coloured by share of high-confidence findings. <b>Click a tile to drill into its findings ↓</b></p><div id="treemap" class="plot tall"></div></div>
+  <div class="card wide"><h2>Where it hurts most</h2><p>Modules sized by pain index (severity x cross-tool agreement), coloured by share of high-confidence findings. <b>Click a tile to drill into its findings ↓</b></p><div id="treemap" class="plot tall"></div></div>
   <div class="card"><h2>Fix tiers — how the backlog is remediated</h2><p>T1 auto · T2 review · T3 unfixable (detect-only) · T4 bespoke (OWN). Respects the filters.</p><div id="tiers" class="plot"></div></div>
   <div class="card"><h2>Findings by category</h2><p>What kind of problem.</p><div id="cat" class="plot"></div></div>
   <div class="card"><h2>By analyzer source — does it ship a fix?</h2><p>Green = an analyzer with a CodeFixProvider → wire, don't build.</p><div id="src" class="plot"></div></div>
@@ -309,6 +314,9 @@ const D = %DATA%;
 const D_ = D.dims;
 const P=0, LN=1, RU=2, TO=3, CA=4, TI=5, MO=6;            // row column indices
 const TIERMETA={T1:{g:'auto',c:'--c2'},T2:{g:'review',c:'--c1'},T3:{g:'unfixable',c:'--mute'},T4:{g:'bespoke',c:'--c3'}};
+// audit-derived strings (paths/rules/categories/tools/module names) are escaped before
+// any innerHTML so a crafted name can't inject HTML into the generated dashboard.
+function esc(v){return String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 
 // ---- themes -------------------------------------------------------------
 const THEMES = {
@@ -388,7 +396,7 @@ function renderModChip(){
   if(F.module===null) return;
   const b=document.createElement('button');
   b.className='chip on';
-  b.innerHTML=`module: ${D_.modules[F.module]} <span class="x">✕</span>`;
+  b.innerHTML=`module: ${esc(D_.modules[F.module])} <span class="x">✕</span>`;
   b.onclick=()=>{ F.module=null; renderModChip(); update(); };
   host.appendChild(b);
 }
@@ -457,10 +465,10 @@ function drawTable(rows){
     : (rows.length?`Each row is one finding.`:`No findings match the current filters.`);
   const rowsHtml=rows.slice(0,cap).map(r=>{
     const tier=D_.tiers[r[TI]];
-    return `<tr><td>${D_.paths[r[P]]}</td><td>${r[LN]}</td>`+
-      `<td><code>${D_.rules[r[RU]]}</code></td>`+
-      `<td><span class="tg" style="background:${cssv(TG_COL[tier])};color:#0b0f17">${tier}</span></td>`+
-      `<td>${D_.cats[r[CA]]}</td><td>${D_.tools[r[TO]]}</td></tr>`;
+    return `<tr><td>${esc(D_.paths[r[P]])}</td><td>${esc(r[LN])}</td>`+
+      `<td><code>${esc(D_.rules[r[RU]])}</code></td>`+
+      `<td><span class="tg" style="background:${cssv(TG_COL[tier])};color:#0b0f17">${esc(tier)}</span></td>`+
+      `<td>${esc(D_.cats[r[CA]])}</td><td>${esc(D_.tools[r[TO]])}</td></tr>`;
   }).join('');
   document.getElementById('tablewrap').innerHTML=
     `<table><thead><tr><th>File</th><th>Line</th><th>Rule</th><th>Tier</th><th>Category</th><th>Tool</th></tr></thead>`+

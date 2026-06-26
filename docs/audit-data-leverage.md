@@ -32,7 +32,7 @@
 - TOP-10 правил = **46.1%** всех находок; TOP-20 ≈ 55%. Уникальных правил — 360.
 - **Вывод: затюнить severity у ~15–20 правил → срезать половину бэклога.**
 
-```
+```text
  1. INPC020                       5607   7.7%   (INotifyPropertyChanged correctness)
  2. MA0006                        5198   7.2%   (Meziantou)
  3. MA0003                        3991   5.5%
@@ -46,7 +46,7 @@
 ```
 
 ### Категории (прокси true-but-wontfix)
-```
+```text
 general-quality    32801  45.2%   <- главный кандидат на wontfix / severity-тюнинг
 inpc-correctness   17122  23.6%
 architecture       15301  21.1%
@@ -58,7 +58,7 @@ region-escape          7   0.0%
 ```
 
 ### Тиры (из `fixarm.tiers.tier_of`)
-```
+```text
 T1 (auto)       3935   5.4%
 T2 (review)    58403  80.5%
 T3 (unfixable)  9851  13.6%

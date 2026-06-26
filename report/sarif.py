@@ -26,6 +26,9 @@ except Exception:                       # keep the exporter usable standalone
 SARIF_VERSION = "2.1.0"
 SCHEMA = "https://json.schemastore.org/sarif-2.1.0.json"
 FINGERPRINT_KEY = "ownAudit/v1"
+# GitHub code scanning rejects a SARIF run with more than this many results, so the
+# default export caps each run here to stay uploadable (see CLI --max-results).
+GITHUB_MAX_RESULTS_PER_RUN = 25000
 
 # tool id (in findings.json) -> (display name, info URL)
 _DRIVERS = {
@@ -75,6 +78,10 @@ def to_sarif(findings, min_level=None, max_results_per_run=None) -> dict:
     """Build a SARIF 2.1.0 log: one run per tool. `min_level` drops results below a
     severity ('note'|'warning'|'error'); `max_results_per_run` caps each run (highest
     severity kept first) and records how many were dropped in run.properties."""
+    if min_level is not None and min_level not in _LEVEL_RANK:
+        raise ValueError(f"invalid min_level {min_level!r}; expected one of {sorted(_LEVEL_RANK)}")
+    if max_results_per_run is not None and max_results_per_run < 0:
+        raise ValueError("max_results_per_run must be >= 0")
     floor = _LEVEL_RANK.get(min_level, -1)
     by_tool: dict[str, list] = {}
     for f in findings:
@@ -84,6 +91,7 @@ def to_sarif(findings, min_level=None, max_results_per_run=None) -> dict:
     for tool, fs in by_tool.items():
         name, uri = _DRIVERS.get(tool, (tool, ""))
         rule_index: dict[str, int] = {}
+        fp_seen: dict[str, int] = {}
         rules, results = [], []
         for f in fs:
             lvl = _level(f.get("category_name"))
@@ -99,13 +107,20 @@ def to_sarif(findings, min_level=None, max_results_per_run=None) -> dict:
                     "defaultConfiguration": {"level": _level(cat)},
                     "properties": {"tags": [t for t in (cat, tier_of(rid, tool)) if t]},
                 })
+            # stable base (line-independent), disambiguated per occurrence: identical
+            # rule+path+message hits in one file would otherwise collide, and SARIF
+            # consumers use partialFingerprints as result identity.
+            base = _fingerprint(f)
+            k = fp_seen.get(base, 0)
+            fp_seen[base] = k + 1
+            fp = base if k == 0 else f"{base}/{k}"
             res = {
                 "ruleId": rid, "ruleIndex": rule_index[rid], "level": lvl,
                 "message": {"text": f.get("message") or f"{rid}: {f.get('category_name') or ''}".strip()},
                 "locations": [{"physicalLocation": {
                     "artifactLocation": {"uri": f.get("path") or ""},
                     "region": _region(f.get("line"))}}],
-                "partialFingerprints": {FINGERPRINT_KEY: _fingerprint(f)},
+                "partialFingerprints": {FINGERPRINT_KEY: fp},
                 "properties": {"tier": tier_of(rid, tool), "category": f.get("category_name"),
                                "tool": tool, "resource": f.get("resource") or ""},
             }
