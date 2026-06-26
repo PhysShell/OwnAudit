@@ -1,0 +1,28 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:LeakyOracle.ViewModels"
+        x:Class="LeakyOracle.Views.MainWindow"
+        x:DataType="vm:WatchlistViewModel"
+        Title="Leaky Oracle" Width="420" Height="640">
+
+  <!--
+    XAML107 target — virtualization explicitly killed. A ListBox virtualizes by default
+    (VirtualizingStackPanel), but swapping the ItemsPanel for a plain StackPanel realizes a
+    container for EVERY row. With 5000 rows that is 5000 live containers regardless of how few are
+    on screen — the heap-confirmable "containers not recycled" smell (docs/wpf-audit-coverage.md,
+    "Virtualization"). The auditor flags the pattern statically; the heap walk confirms the count.
+  -->
+  <ListBox ItemsSource="{Binding Rows}">
+    <ListBox.ItemsPanel>
+      <ItemsPanelTemplate>
+        <StackPanel/>
+      </ItemsPanelTemplate>
+    </ListBox.ItemsPanel>
+    <ListBox.ItemTemplate>
+      <DataTemplate x:DataType="vm:QuoteRow">
+        <TextBlock Text="{Binding Status}"/>
+      </DataTemplate>
+    </ListBox.ItemTemplate>
+  </ListBox>
+
+</Window>
