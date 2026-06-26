@@ -8,11 +8,17 @@ real app.
 
 ## Files
 
-- **`graph.json`** — the faithful arch-graph of LeakyOracle: 8 internal types + the framework types
-  they touch, with the real dependency edges (`ownAudit/arch-graph/v1`, schema in
-  [`docs/arch-graph.md`](../../docs/arch-graph.md)). This *is* the contract: the слой-2 extractor must
-  emit this shape for the oracle. `test_oracle_arch.py` guards it against drift by checking every
-  internal node points at a file that still exists under `oracle/`.
+- **`graph.json`** — the arch-graph of LeakyOracle: 8 internal types + the framework types they touch
+  (`ownAudit/arch-graph/v1`, schema in [`docs/arch-graph.md`](../../docs/arch-graph.md)). **The
+  *internal* type graph is the contract** the слой-2 extractor must reproduce. External nodes list the
+  *meaningful* framework types those types reference; **pure-infrastructure BCL leaves
+  (`System.Int32`, `System.Console`, `System.GC`, attributes, arrays) are elided** as
+  analysis-irrelevant (external, never flaggable, never in a cycle, no effect on any rule), so a
+  faithful extractor emits a **superset** of external edges — hand-authoring can't be byte-exact on BCL
+  leaves and doesn't need to be. `System.String` *is* kept, because string duplication is one of the
+  oracle's own smells. `test_oracle_arch.py` guards the contract against drift by checking every
+  internal node points at a file that still exists under `oracle/` — it does not assert external
+  completeness.
 - **`rules.json`** — an **MVVM** layering profile for the oracle (the default `arch/rules.json` is
   STS-specific: `Sts.*` / SQL / WPF). Allowed direction: `Views → ViewModels → Services`; the reverse
   is forbidden. Demonstrates the rules engine is configurable per codebase, not STS-hardcoded.
@@ -46,6 +52,7 @@ PYTHONPATH=. python3 -m arch.cli --graph oracle/fixtures/graph.json --rules orac
 #   → architecture pass: 0 findings (clean)
 ```
 
-When слой 2 lands in Own.NET, its extractor run over LeakyOracle should reproduce `graph.json` (up to
-ids/loc), and this same `arch/` pass will then run on *extracted* data instead of hand-authored —
-the contract makes that swap mechanical.
+When слой 2 lands in Own.NET, its extractor run over LeakyOracle should reproduce the **internal**
+subgraph of `graph.json` (up to ids/loc; it may surface more framework-leaf edges), and this same
+`arch/` pass will then run on *extracted* data instead of hand-authored — the contract makes that swap
+mechanical.
