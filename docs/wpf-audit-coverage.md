@@ -73,11 +73,21 @@ tail is validated only on STS.
 
 ## Avalonia mappability — summary
 
-The oracle honestly exercises **~70–80%** of the surface: all event leaks, timers, fat-setter,
-virtualization (heap-confirmed), data duplication, string duplication, heavy templates (via the
-XAML analyzer), binding errors (Avalonia logs them). It can **not** exercise: Freezable,
-DevExpress controls, `CommandManager.RequerySuggested`, `DependencyPropertyDescriptor.AddValueChanged`.
-Those are the STS-only tail.
+What the oracle exercises splits by what's already built — to keep this honest against the gaps
+above:
+
+- **Today** (framework-agnostic core, on techniques we have — Roslyn graph + CLR heap): all event
+  leaks, timers, fat-setter, virtualization *heap-confirmed* (container count ≫ visible rows),
+  data duplication, string duplication.
+- **Once the two gap surfaces exist** (XAML analyzer + runtime-trace collector): heavy templates,
+  virtualization-off *patterns*, binding-path / `ElementName` complexity, and binding errors —
+  Avalonia's `.axaml` is the same XAML dialect and it logs binding errors too, so the oracle will
+  validate these the moment those surfaces land. (Planned, not current.)
+- **Never** on the oracle (WPF/vendor-only tail, STS only): Freezable, DevExpress controls,
+  `CommandManager.RequerySuggested`, `DependencyPropertyDescriptor.AddValueChanged`.
+
+So ~70–80% of the surface is oracle-reachable in total; the "today" slice is the
+framework-agnostic core, the rest unlocks with the XAML analyzer and the trace collector.
 
 Crucially, the framework-agnostic core — Roslyn graph, CLR heap — behaves identically, so phases
 3–5 are validated on *real* data the moment we run them against a leaking Avalonia app.
