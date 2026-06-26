@@ -1,0 +1,37 @@
+{
+  "_comment": "Golden heap-retention artifact for the LeakyOracle app — what a stand-side ClrMD/gcdump collector would emit after running `LeakyOracle --leak-scenario` (open+close 50 screens). Faithful to the headless leak proof: 50 of each leaky view-model survive GC (expected 0), plus the 250k QuoteRow they transitively retain. Fed to runtime/correlate.py with findings.json to exercise all three buckets (test_oracle_runtime.py). The слой-2 ClrMD collector in Own.NET must emit this shape; here it's hand-authored from the proven leak.",
+  "schema": "ownAudit/runtime/v1",
+  "scenario": "open+close 50 watchlist/ticker screens (LeakyOracle --leak-scenario)",
+  "iterations": 50,
+  "retained": [
+    {
+      "type": "LeakyOracle.ViewModels.WatchlistViewModel",
+      "count": 50,
+      "expected": 0,
+      "bytes": 11534336,
+      "roots": [
+        { "kind": "static-field", "holder": "Avalonia.Application", "member": "Current",
+          "via": "App._service (MarketDataService).QuoteReceived delegate -> this" }
+      ]
+    },
+    {
+      "type": "LeakyOracle.ViewModels.TickerViewModel",
+      "count": 50,
+      "expected": 0,
+      "roots": [
+        { "kind": "timer", "holder": "System.Threading.TimerQueue",
+          "via": "undisposed Timer callback -> this" }
+      ]
+    },
+    {
+      "type": "LeakyOracle.ViewModels.QuoteRow",
+      "count": 250000,
+      "expected": 0,
+      "bytes": 10485760,
+      "roots": [
+        { "kind": "static-field", "holder": "Avalonia.Application", "member": "Current",
+          "via": "retained transitively through the 50 leaked WatchlistViewModel.Rows" }
+      ]
+    }
+  ]
+}

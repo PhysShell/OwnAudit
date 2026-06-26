@@ -38,6 +38,7 @@ jobs:
           PYTHONPATH=.   python3 report/tests/test_baseline.py
           PYTHONPATH=.   python3 arch/tests/test_arch.py
           PYTHONPATH=.   python3 oracle/fixtures/test_oracle_arch.py
+          PYTHONPATH=.   python3 oracle/fixtures/test_oracle_runtime.py
           PYTHONPATH=.   python3 runtime/tests/test_runtime.py
 
       - name: re-run under -O (assert-stripping safety)
@@ -50,6 +51,7 @@ jobs:
           PYTHONPATH=.   python3 -O report/tests/test_baseline.py
           PYTHONPATH=.   python3 -O arch/tests/test_arch.py
           PYTHONPATH=.   python3 -O oracle/fixtures/test_oracle_arch.py
+          PYTHONPATH=.   python3 -O oracle/fixtures/test_oracle_runtime.py
           PYTHONPATH=.   python3 -O runtime/tests/test_runtime.py
 
   audit-report:

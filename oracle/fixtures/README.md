@@ -43,13 +43,37 @@ back to a view (`WatchlistViewModel → MainWindow`) — lights up three distinc
 The test keeps the degraded graph in-memory (clean graph + one documented edge) so there's a single
 source of truth and the regression can't silently drift from the contract.
 
+## Runtime correlation (phase 5)
+
+The same idea for the runtime side: pin the `runtime.json` contract the слой-2 ClrMD/gcdump collector
+must emit for the oracle, and exercise `runtime/correlate.py` on it now.
+
+- **`findings.json`** — the static leak SUSPECTS own-check would emit for the oracle's two intentional
+  lifetime leaks (OWN001 subscription on `WatchlistViewModel`, OWN-TIMER on `TickerViewModel`).
+  `resource` is a *description*, so correlation keys on the source-file stem (the owning class).
+- **`runtime.json`** — the heap evidence, faithful to the headless leak proof: 50 of each leaky
+  view-model survive GC (`expected` 0), plus the 250 000 `QuoteRow` they transitively retain.
+- **`test_oracle_runtime.py`** — runs `correlate.py` and asserts the three-way split:
+
+| bucket | result |
+|---|---|
+| **confirmed** | `WatchlistViewModel` ×50 + `TickerViewModel` ×50 — both **high**, each naming the leaked CLR type and the static rule it corroborates |
+| **static-only** | _(none)_ — both suspects were retained |
+| **runtime-only** | `QuoteRow` ×250 000 — a static blind spot (the rows are retained *through* the leaked VMs; the static pass flags the VM, not the pile) |
+
+The `high` gate fails on the two confirmed leaks — the highest-signal finding the auditor produces.
+A drift guard ties every retained type to a real `oracle/LeakyOracle/ViewModels/*.cs`.
+
 ## Run
 
 ```bash
 PYTHONPATH=. python3 oracle/fixtures/test_oracle_arch.py
-# or the pass directly:
+PYTHONPATH=. python3 oracle/fixtures/test_oracle_runtime.py
+# or the passes directly:
 PYTHONPATH=. python3 -m arch.cli --graph oracle/fixtures/graph.json --rules oracle/fixtures/rules.json
 #   → architecture pass: 0 findings (clean)
+PYTHONPATH=. python3 -m runtime.cli --findings oracle/fixtures/findings.json --runtime oracle/fixtures/runtime.json
+#   → 2 high confirmed · 0 static-only · 1 runtime-only
 ```
 
 When слой 2 lands in Own.NET, its extractor run over LeakyOracle should reproduce the **internal**

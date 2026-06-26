@@ -23,11 +23,12 @@ and deliberately absent here (`docs/wpf-audit-coverage.md`, "Avalonia mappabilit
 | Smell | Where | Rule it exercises |
 |---|---|---|
 | **Subscription leak** — `+=` to an app-scoped service, never `-=` | `ViewModels/WatchlistViewModel.cs` | OWN001 (event lifetime) + phase-5 heap confirm |
+| **Timer leak** — undisposed recurring `System.Threading.Timer` (rooted by the TimerQueue) | `ViewModels/TickerViewModel.cs` | OWN-TIMER (timer no Stop/Dispose) + phase-5 heap confirm |
 | **Duplicated strings** — `new string(...)` per row, identical content | `ViewModels/WatchlistViewModel.cs` | string-canonicalization (`docs/string-canonicalization.md`) |
 | **Virtualization killed** — `ListBox` `ItemsPanel` swapped to a plain `StackPanel` | `Views/MainWindow.axaml` | XAML107 (`VirtualizationExplicitlyDisabled`) + heap confirm |
 
-`ViewModels/FixedWatchlistViewModel.cs` is the corrected counterpart (detaches on `Dispose`) — the
-control case that keeps the leak proof honest and gives the fix-arm a before/after target.
+`ViewModels/Fixed*.cs` are the corrected counterparts (detach on `Dispose` / dispose the timer) — the
+control cases that keep the leak proof honest and give the fix-arm a before/after target.
 
 ## Build & run
 
@@ -48,14 +49,16 @@ dotnet run -c Release
 ### What the leak proof shows
 
 ```
-screens opened+closed   : 50
-leaky  still alive (GC) :  50  (expect 50 — rooted by MarketDataService.QuoteReceived)
-fixed  still alive (GC) :   0  (expect 0 — detached on Dispose)
-verdict                 : LEAK confirmed and isolated to the un-detached subscription
+screens opened+closed        : 50
+subscription leaky alive (GC):  50  (expect 50 — rooted by MarketDataService.QuoteReceived)
+subscription fixed alive (GC):   0  (expect 0 — detached on Dispose)
+timer        leaky alive (GC):  50  (expect 50 — rooted by the TimerQueue)
+timer        fixed alive (GC):   0  (expect 0 — Timer disposed)
+verdict                      : BOTH leaks confirmed, each isolated to its un-released resource
 ORACLE OK: leaks as designed — a valid target for the heap/lifetime audit.
 ```
 
-Both view-models go through the **same** WeakReference harness: the leaky one survives a full GC
-(rooted by the service event), the fixed one is collected. Checking both proves the harness isn't
-rigged — a correct app collects, the oracle does not. If it ever stops leaking, the proof fails loudly
-(exit 1): the oracle is broken, not the auditor.
+Each leak's leaky and fixed view-models go through the **same** WeakReference harness: the leaky ones
+survive a full GC (rooted by the service event / the TimerQueue), the fixed ones are collected.
+Checking the fixed batches proves the harness isn't rigged — a correct app collects, the oracle does
+not. If it ever stops leaking, the proof fails loudly (exit 1): the oracle is broken, not the auditor.

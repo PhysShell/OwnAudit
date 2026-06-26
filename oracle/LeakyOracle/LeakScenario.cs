@@ -7,15 +7,17 @@ namespace LeakyOracle;
 
 /// <summary>
 /// A headless, self-validating proof that the oracle leaks — no display, so it runs in CI. It mimics
-/// the scenario the runtime audit drives ("open and close a screen N times") for BOTH view-models:
+/// the scenario the runtime audit drives ("open and close a screen N times") for TWO independent leak
+/// kinds, each with its corrected counterpart run through the SAME WeakReference harness:
 ///
-///  • the leaky <see cref="WatchlistViewModel"/> (subscribes, never detaches) must ALL survive GC;
-///  • the corrected <see cref="FixedWatchlistViewModel"/> (detaches on Dispose) must ALL be collected.
+///  • subscription leak — leaky <see cref="WatchlistViewModel"/> (subscribes, never detaches) must ALL
+///    survive GC; <see cref="FixedWatchlistViewModel"/> (detaches on Dispose) must ALL be collected;
+///  • timer leak — leaky <see cref="TickerViewModel"/> (undisposed Timer) must ALL survive GC;
+///    <see cref="FixedTickerViewModel"/> (disposes the Timer) must ALL be collected.
 ///
-/// Checking both with the same WeakReference harness proves the harness isn't rigged: if it were,
-/// the fixed batch would look alive too. Exit code 0 means the oracle leaked exactly where it should
-/// and nowhere it shouldn't — this is a TARGET, not a test of our auditor; if it stops behaving we
-/// fail loudly because the oracle (not the auditor) is broken.
+/// Checking the fixed batches too proves the harness isn't rigged: if it were, they'd look alive too.
+/// Exit 0 means the oracle leaked exactly where it should and nowhere it shouldn't — this is a TARGET,
+/// not a test of our auditor; if it stops behaving we fail loudly because the oracle is broken.
 /// </summary>
 public static class LeakScenario
 {
@@ -23,21 +25,21 @@ public static class LeakScenario
     {
         var service = new MarketDataService();
 
-        var leakedAlive = OpenAndDrop(screens, () => new WatchlistViewModel(service));
-        var fixedAlive = OpenAndDrop(screens, () =>
-        {
-            var vm = new FixedWatchlistViewModel(service);
-            return vm;
-        }, dispose: vm => ((FixedWatchlistViewModel)vm).Dispose());
+        var subLeaked = OpenAndDrop(screens, () => new WatchlistViewModel(service));
+        var subFixed = OpenAndDrop(screens, () => new FixedWatchlistViewModel(service),
+                                   dispose: vm => ((FixedWatchlistViewModel)vm).Dispose());
+        var timerLeaked = OpenAndDrop(screens, () => new TickerViewModel());
+        var timerFixed = OpenAndDrop(screens, () => new FixedTickerViewModel(),
+                                     dispose: vm => ((FixedTickerViewModel)vm).Dispose());
 
-        var leaksWhereItShould = leakedAlive == screens;
-        var cleanWhereItShould = fixedAlive == 0;
-        var ok = leaksWhereItShould && cleanWhereItShould;
+        var ok = subLeaked == screens && subFixed == 0 && timerLeaked == screens && timerFixed == 0;
 
-        Console.WriteLine($"screens opened+closed   : {screens}");
-        Console.WriteLine($"leaky  still alive (GC) : {leakedAlive,3}  (expect {screens} — rooted by MarketDataService.QuoteReceived)");
-        Console.WriteLine($"fixed  still alive (GC) : {fixedAlive,3}  (expect 0 — detached on Dispose)");
-        Console.WriteLine($"verdict                 : {(ok ? "LEAK confirmed and isolated to the un-detached subscription" : "UNEXPECTED")}");
+        Console.WriteLine($"screens opened+closed        : {screens}");
+        Console.WriteLine($"subscription leaky alive (GC): {subLeaked,3}  (expect {screens} — rooted by MarketDataService.QuoteReceived)");
+        Console.WriteLine($"subscription fixed alive (GC): {subFixed,3}  (expect 0 — detached on Dispose)");
+        Console.WriteLine($"timer        leaky alive (GC): {timerLeaked,3}  (expect {screens} — rooted by the TimerQueue)");
+        Console.WriteLine($"timer        fixed alive (GC): {timerFixed,3}  (expect 0 — Timer disposed)");
+        Console.WriteLine($"verdict                      : {(ok ? "BOTH leaks confirmed, each isolated to its un-released resource" : "UNEXPECTED")}");
         Console.WriteLine(ok
             ? "ORACLE OK: leaks as designed — a valid target for the heap/lifetime audit."
             : "ORACLE BROKEN: leak signature is wrong; fix the oracle, not the auditor.");
