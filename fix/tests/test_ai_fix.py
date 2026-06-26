@@ -173,6 +173,9 @@ def test_ai_revise_accumulates_history():
         assert "attempt 1" in third and "attempt 2" in third, third
         assert "// v1" in third and "// v2" in third, third
         assert f"the finding [{FINDING.rule}] is still reported" in third, third
+        # history stores only the rejected REPLACEMENT window, never the whole spliced
+        # file — else two rejected rounds bloat the prompt with unrelated lines (Codex P2).
+        assert "namespace Sts.Core" not in third, third
     finally:
         shutil.rmtree(d, ignore_errors=True)
 

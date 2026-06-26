@@ -187,7 +187,8 @@ class AiFixApplier:
                 return cand                # verified this round
             reason = (f"it introduced new findings: {_fmt_findings(introduced)}"
                       if introduced else f"the finding [{f.rule}] is still reported")
-            history.append(("".join(cand), reason))         # accumulate — episodic memory
+            window = cand[a:len(cand) - (len(cur) - b)]      # just the rejected replacement,
+            history.append(("".join(window), reason))        # NOT the whole spliced file
         skipped.append((f, "ai-gave-up"))
         return None
 
