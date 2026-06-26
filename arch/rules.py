@@ -17,6 +17,7 @@ import json
 import os
 
 from .graph import Graph, match_any
+from .metrics import component_metrics
 
 # category lands these on the SARIF "warning" rung (report/sarif.py _LEVEL_BY_CATEGORY).
 CATEGORY = "architecture"
@@ -30,14 +31,16 @@ def load_rules(path: str | None = None) -> dict:
         return json.load(fh)
 
 
-def _finding(rule, message, node, g: Graph) -> dict:
-    """A finding in findings.json shape, anchored at a type node's source location."""
+def _finding(rule, message, node=None, g: Graph = None, *, resource=None) -> dict:
+    """A finding in findings.json shape. Anchored at a type node's source location when `node`
+    is given; component-level findings (cycles/coupling with no single file) pass an explicit
+    `resource` (the namespace/assembly) and carry the detail in the message."""
     loc = (node or {}).get("loc") or {}
     return {
         "tool": TOOL,
         "rule": rule,
         "category_name": CATEGORY,
-        "resource": (node or {}).get("name", ""),
+        "resource": resource if resource is not None else (node or {}).get("name", ""),
         "path": loc.get("file", ""),
         "line": loc.get("line", 0),
         "message": message,
@@ -82,8 +85,11 @@ def _cycle_finding(g: Graph, rule_id, level, members) -> dict:
     would invent edges that may not exist. The set is the honest statement."""
     names = sorted(g.name(m) if level == "type" else (m or "(none)") for m in members)
     anchor = g.node(sorted(members)[0]) if level == "type" else None
+    # ns/asm cycles have no single file: surface the first member as the resource so the
+    # report/SARIF row isn't blank (the full member set is in the message).
+    resource = None if level == "type" else names[0]
     msg = f"{level} dependency cycle ({len(members)} members): " + ", ".join(names)
-    return _finding(rule_id, msg, anchor, g)
+    return _finding(rule_id, msg, anchor, g, resource=resource)
 
 
 def check_cycles(g: Graph, cfg: dict) -> list:
@@ -129,6 +135,50 @@ def check_god_class(g: Graph, cfg: dict) -> list:
     return out
 
 
+def check_coupling(g: Graph, cfg: dict) -> list:
+    """Coupling/stability smells from Martin's metrics (arch/metrics.py), at the namespace or
+    assembly level. Two sub-rules, each opt-in via config:
+
+      * SDP — Stable Dependencies Principle: a stable component depending on a *less* stable
+        one (I(from) + min_gap < I(to)). Dependencies should run toward stability, not away.
+      * unstable hub — a component that is both widely used (high Ca) and widely depending
+        (high Ce): a change there ripples both ways.
+
+    Component-level, so findings carry the namespace/assembly as `resource` (no single file)."""
+    if not cfg:
+        return []
+    key = cfg.get("level", "namespace")
+    metrics = component_metrics(g, key)
+    out = []
+
+    sdp = cfg.get("sdp")
+    if sdp:
+        rid = sdp.get("id", "ARCH-SDP")
+        gap, min_ce = sdp.get("min_gap", 0.3), sdp.get("min_ce", 3)
+        adj, _ = g.component_graph(key)
+        for p, deps in adj.items():
+            mp = metrics.get(p)
+            if not mp or mp["ce"] < min_ce:                 # ignore trivially-coupled components
+                continue
+            for q in deps:
+                mq = metrics.get(q)
+                if mq and mp["instability"] + gap < mq["instability"]:
+                    out.append(_finding(
+                        rid, f"Stable Dependencies violation: {key} {p} (I={mp['instability']}) "
+                             f"depends on less-stable {q} (I={mq['instability']})", resource=p))
+
+    hub = cfg.get("unstable_hub")
+    if hub:
+        rid = hub.get("id", "ARCH-UNSTABLE-HUB")
+        min_ca, min_ce = hub.get("min_ca", 6), hub.get("min_ce", 6)
+        for c, m in metrics.items():
+            if m["ca"] >= min_ca and m["ce"] >= min_ce:
+                out.append(_finding(
+                    rid, f"unstable hub: {key} {c} is both widely used (Ca={m['ca']}) and widely "
+                         f"depending (Ce={m['ce']}); I={m['instability']}", resource=c))
+    return out
+
+
 def run(g: Graph, rules: dict | None = None) -> list:
     """All rules over the graph → a flat findings list (findings.json shape)."""
     rules = rules or load_rules()
@@ -136,4 +186,5 @@ def run(g: Graph, rules: dict | None = None) -> list:
     findings += check_layering(g, rules.get("layers", []))
     findings += check_cycles(g, rules.get("cycles", {}))
     findings += check_god_class(g, rules.get("god_class", {}))
+    findings += check_coupling(g, rules.get("coupling", {}))
     return findings

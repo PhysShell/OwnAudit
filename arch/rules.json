@@ -26,5 +26,11 @@
     "fields": 25,
     "loc": 1000,
     "deps_out": 30
+  },
+  "coupling": {
+    "_comment": "Martin's package metrics (Ca/Ce/Instability) per namespace. abstractness/distance light up automatically once graph nodes carry an is_abstract flag.",
+    "level": "namespace",
+    "sdp": { "id": "ARCH-SDP", "min_gap": 0.3, "min_ce": 4 },
+    "unstable_hub": { "id": "ARCH-UNSTABLE-HUB", "min_ca": 8, "min_ce": 8 }
   }
 }
