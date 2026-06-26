@@ -32,5 +32,13 @@
     "level": "namespace",
     "sdp": { "id": "ARCH-SDP", "min_gap": 0.3, "min_ce": 4 },
     "unstable_hub": { "id": "ARCH-UNSTABLE-HUB", "min_ca": 8, "min_ce": 8 }
+  },
+  "drift": {
+    "_comment": "Phase 4 — Architecture Drift Report (arch.drift_cli). Risk thresholds for diffing two graph snapshots; a new dependency into a sensitive_targets layer is High.",
+    "level": "namespace",
+    "ce_jump": 5,
+    "ce_pct": 0.25,
+    "inst_swing": 0.2,
+    "sensitive_targets": ["*.Data.Sql*", "*.DataAccess.*", "System.Data.SqlClient*", "Microsoft.Data.SqlClient*", "System.Windows*", "DevExpress.Xpf.*"]
   }
 }

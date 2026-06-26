@@ -18,8 +18,10 @@ ROOT = os.path.dirname(os.path.dirname(HERE))
 sys.path.insert(0, ROOT)
 
 from arch import cli                                                       # noqa: E402
+from arch import drift_cli                                                # noqa: E402
 from arch.graph import Graph, _scc, match_any                             # noqa: E402
 from arch.metrics import component_metrics                                # noqa: E402
+from arch import drift as DR                                              # noqa: E402
 from arch import rules as R                                               # noqa: E402
 
 
@@ -347,6 +349,168 @@ def test_unstable_hub_flagged():
 
 def test_coupling_disabled_without_config():
     _expect(R.check_coupling(_sdp_graph(), {}) == [], "no config -> no findings")
+
+
+# ---- architecture drift (phase 4) ------------------------------------------
+
+DRIFT_CFG = {"level": "namespace", "ce_jump": 5, "ce_pct": 0.25, "inst_swing": 0.2,
+             "sensitive_targets": ["System.Data.SqlClient*", "*.Data.Sql*"]}
+
+
+def _base_graph():
+    # clean: UI -> Domain -> Data, no cycles, no SQL leak
+    return _g([_t("T:V", "Sts.UI"), _t("T:D", "Sts.Domain"), _t("T:R", "Sts.Data")],
+              [("T:V", "T:D"), ("T:D", "T:R")])
+
+
+def test_drift_identical_is_empty():
+    g = _base_graph()
+    d = DR.diff(DR.snapshot(g), DR.snapshot(g), DRIFT_CFG)
+    _expect(d["items"] == [] and d["new_cycles"] == 0 and d["new_edges"] == 0, d)
+
+
+def test_drift_new_cycle_is_high():
+    # same namespace -> a mutual dep is exactly ONE (type) cycle, not also a namespace cycle
+    base = DR.snapshot(_g([_t("T:A", "Sts.Core", name="A"), _t("T:B", "Sts.Core", name="B")],
+                          [("T:A", "T:B")]))
+    cur = DR.snapshot(_g([_t("T:A", "Sts.Core", name="A"), _t("T:B", "Sts.Core", name="B")],
+                         [("T:A", "T:B"), ("T:B", "T:A")]))
+    d = DR.diff(base, cur, DRIFT_CFG)
+    high = [i for i in d["items"] if i["risk"] == "high" and i["kind"] == "new_cycle"]
+    _expect(len(high) == 1 and d["new_cycles"] == 1, d["items"])
+
+
+def test_drift_new_sql_dependency_is_high():
+    base = DR.snapshot(_base_graph())
+    ext = {"id": "T:Sql", "name": "SqlConnection", "namespace": "System.Data.SqlClient",
+           "assembly": "System.Data", "internal": False}
+    cur = DR.snapshot(Graph({"schema": "ownAudit/arch-graph/v1",
+                             "nodes": [_t("T:V", "Sts.UI"), _t("T:D", "Sts.Domain"),
+                                       _t("T:R", "Sts.Data"), ext],
+                             "edges": [{"from": "T:V", "to": "T:D"}, {"from": "T:D", "to": "T:R"},
+                                       {"from": "T:V", "to": "T:Sql"}]}))
+    d = DR.diff(base, cur, DRIFT_CFG)
+    sql = [i for i in d["items"] if i["kind"] == "new_dependency" and i["risk"] == "high"]
+    _expect(len(sql) == 1 and "System.Data.SqlClient" in sql[0]["detail"], d["items"])
+
+
+def test_drift_plain_new_dependency_is_medium():
+    base = DR.snapshot(_base_graph())
+    cur = DR.snapshot(_g([_t("T:V", "Sts.UI"), _t("T:D", "Sts.Domain"), _t("T:R", "Sts.Data"),
+                          _t("T:L", "Sts.Logging")],
+                         [("T:V", "T:D"), ("T:D", "T:R"), ("T:D", "T:L")]))
+    d = DR.diff(base, cur, DRIFT_CFG)
+    med = [i for i in d["items"] if i["kind"] == "new_dependency" and i["risk"] == "medium"]
+    _expect(any("Sts.Logging" in i["detail"] for i in med), d["items"])
+
+
+def test_drift_coupling_increase_flagged():
+    base = DR.snapshot(_g([_t("T:H", "Sts.Hub"), _t("T:A", "Sts.A")], [("T:H", "T:A")]))
+    # Hub now depends on 7 more components -> Ce jumps well past ce_jump
+    nodes = [_t("T:H", "Sts.Hub"), _t("T:A", "Sts.A")] + [_t(f"T:N{i}", f"Sts.N{i}") for i in range(7)]
+    edges = [("T:H", "T:A")] + [("T:H", f"T:N{i}") for i in range(7)]
+    cur = DR.snapshot(_g(nodes, edges))
+    d = DR.diff(base, cur, DRIFT_CFG)
+    ci = [i for i in d["items"] if i["kind"] == "coupling_increase" and "Sts.Hub" in i["detail"]]
+    _expect(len(ci) == 1 and ci[0]["risk"] in ("medium", "high"), d["items"])
+
+
+def test_drift_resolved_cycle_is_info_not_blocking():
+    # baseline HAS a (type) cycle, current fixed it -> info, never blocks the gate
+    base = DR.snapshot(_g([_t("T:A", "Sts.Core", name="A"), _t("T:B", "Sts.Core", name="B")],
+                          [("T:A", "T:B"), ("T:B", "T:A")]))
+    cur = DR.snapshot(_g([_t("T:A", "Sts.Core", name="A"), _t("T:B", "Sts.Core", name="B")],
+                         [("T:A", "T:B")]))
+    d = DR.diff(base, cur, DRIFT_CFG)
+    _expect(d["resolved_cycles"] == 1, d)
+    passed, blocking = DR.gate(d, "high")
+    _expect(passed and not blocking, blocking)
+
+
+def test_drift_gate_blocks_high_only():
+    base = DR.snapshot(_base_graph())
+    cur = DR.snapshot(_g([_t("T:V", "Sts.UI"), _t("T:D", "Sts.Domain", name="D"),
+                          _t("T:R", "Sts.Data", name="R")],
+                         [("T:V", "T:D"), ("T:D", "T:R"), ("T:R", "T:D")]))   # new cycle = high
+    d = DR.diff(base, cur, DRIFT_CFG)
+    _expect(not DR.gate(d, "high")[0], "high blocks")
+    # a medium-only drift (plain new dep) passes a high gate
+    cur2 = DR.snapshot(_g([_t("T:V", "Sts.UI"), _t("T:D", "Sts.Domain"), _t("T:R", "Sts.Data"),
+                           _t("T:L", "Sts.Log")], [("T:V", "T:D"), ("T:D", "T:R"), ("T:D", "T:L")]))
+    d2 = DR.diff(base, cur2, DRIFT_CFG)
+    _expect(DR.gate(d2, "high")[0] and not DR.gate(d2, "medium")[0], d2["items"])
+
+
+def test_drift_cycle_key_uses_full_identity():
+    # two cycles sharing the SAME short names (Service/Repository) in DIFFERENT namespaces
+    # must be distinct — short-name keys would collapse them and mask the new one.
+    def cyc(ns_list):
+        nodes, edges = [], []
+        for ns in ns_list:
+            nodes += [_t(f"T:{ns}.Service", ns, name="Service"),
+                      _t(f"T:{ns}.Repo", ns, name="Repository")]
+            edges += [(f"T:{ns}.Service", f"T:{ns}.Repo"), (f"T:{ns}.Repo", f"T:{ns}.Service")]
+        return DR.snapshot(_g(nodes, edges))
+    base = cyc(["Sts.A"])
+    cur = cyc(["Sts.A", "Sts.B"])            # adds an identically-named cycle in Sts.B
+    d = DR.diff(base, cur, DRIFT_CFG)
+    new_type = [i for i in d["items"] if i["kind"] == "new_cycle" and "type" in i["detail"]]
+    _expect(len(new_type) == 1, d["items"])
+
+
+def test_drift_level_mismatch_rejected():
+    snap_ns = DR.snapshot(_base_graph(), "namespace")
+    raised = None
+    try:
+        DR.as_snapshot(snap_ns, "assembly")
+    except ValueError as e:
+        raised = str(e)
+    _expect(raised is not None and "level" in raised, raised)
+    # same level is fine
+    _expect(DR.as_snapshot(snap_ns, "namespace") is snap_ns, "same level passes through")
+
+
+def test_drift_as_snapshot_accepts_raw_graph():
+    # a raw graph.json dict (not a pre-made snapshot) is converted on the fly
+    raw = {"schema": "ownAudit/arch-graph/v1",
+           "nodes": [_t("T:D", "Sts.Domain"), _t("T:R", "Sts.Data")],
+           "edges": [{"from": "T:D", "to": "T:R"}]}
+    snap = DR.as_snapshot(raw)
+    _expect(snap["schema"] == DR.SCHEMA and "Sts.Domain" in snap["components"], snap)
+
+
+def _write_graph(path, nodes, edges):
+    with open(path, "w", encoding="utf-8") as fh:
+        json.dump({"schema": "ownAudit/arch-graph/v1", "nodes": nodes,
+                   "edges": [{"from": a, "to": b} for a, b in edges]}, fh)
+
+
+def test_drift_cli_snapshot_then_gate():
+    d = tempfile.mkdtemp(prefix="drift-")
+    try:
+        base_g = os.path.join(d, "base.json")
+        _write_graph(base_g, [_t("T:V", "Sts.UI"), _t("T:D", "Sts.Domain"), _t("T:R", "Sts.Data")],
+                     [("T:V", "T:D"), ("T:D", "T:R")])
+        snap = os.path.join(d, "snap.json")
+        out = os.path.join(d, "out")
+        _expect(drift_cli.main(["--graph", base_g, "--save-snapshot", "--snapshot", snap]) == 0, "save")
+        _expect(os.path.exists(snap), "snapshot written")
+        # same graph vs snapshot -> clean, exit 0 even with a high gate
+        _expect(drift_cli.main(["--graph", base_g, "--baseline", snap, "--out-dir", out,
+                                "--gate-level", "high"]) == 0, "clean")
+        # introduce a new cycle -> high -> exit 2
+        cur_g = os.path.join(d, "cur.json")
+        _write_graph(cur_g, [_t("T:V", "Sts.UI"), _t("T:D", "Sts.Domain"), _t("T:R", "Sts.Data")],
+                     [("T:V", "T:D"), ("T:D", "T:R"), ("T:R", "T:D")])
+        rc = drift_cli.main(["--graph", cur_g, "--baseline", snap, "--out-dir", out, "--gate-level", "high"])
+        _expect(rc == 2, rc)
+        j = json.load(open(os.path.join(out, "drift.json"), encoding="utf-8"))
+        _expect(j["new_cycles"] >= 1, j)         # R<->D is a type cycle (and a namespace cycle)
+        _expect(os.path.exists(os.path.join(out, "drift.md")), "drift.md written")
+        # ...but without a gate level it's report-only -> exit 0
+        _expect(drift_cli.main(["--graph", cur_g, "--baseline", snap, "--out-dir", out]) == 0, "report-only")
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
 
 
 # ---- bare-python runner ----------------------------------------------------
