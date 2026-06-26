@@ -62,7 +62,8 @@ The governing principle is the phase-5 one, extended from leaks to perf/correctn
    `ElementName`/`RelativeSource` complexity, **virtualization-disabled patterns**, nested
    `ScrollViewer`, heavy `DataTemplate`, Freezable-in-resources. We have a Roslyn (C#) extractor
    but nothing reads XAML. Biggest gap — and technically cheap: XAML is XML, rules are tree
-   patterns. Avalonia `.axaml` is the same dialect, so it maps.
+   patterns. Avalonia `.axaml` is the same dialect, so it maps. Phased plan + per-rule catalogue
+   (build-free / hybrid / runtime, with Avalonia-mappability): [`xaml-analyzer-design.md`](xaml-analyzer-design.md).
 2. **Runtime-trace collector.** Beyond the heap snapshot there's a second runtime signal class —
    the WPF binding-error trace (`System.Windows.Data Error: 40 …`) and UI-thread notification
    counters. The heap collector doesn't see these; a small ETW/trace listener (or, on Avalonia,
