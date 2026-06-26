@@ -31,7 +31,7 @@ def _report_md(findings: list, graph: Graph) -> str:
     return (
         f"# Own.NET Audit — architecture pass\n\n"
         f"Graph: **{len(graph.type_ids()):,}** internal types, "
-        f"**{len(graph.edges):,}** dependency edges.\n\n"
+        f"**{len(graph.unique_edges()):,}** dependency edges.\n\n"
         f"## By rule\n\n| rule | count |\n|---|---|\n{rows}\n"
         f"{sample_block}")
 

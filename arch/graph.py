@@ -79,13 +79,28 @@ class Graph:
     def __init__(self, data: dict):
         self.schema = data.get("schema", "")
         self.nodes = {n["id"]: n for n in data.get("nodes", [])}
-        self.edges = list(data.get("edges", []))
-        # internal-only adjacency keyed by node id (every internal node present, even leaves)
-        self._adj: dict = {nid: set() for nid, n in self.nodes.items() if self._internal(nid)}
+        self.edges = list(data.get("edges", []))     # raw, as given
+
+        # Collapse duplicate edges and drop self-loops once (the graph contract: a type
+        # referenced by several members yields one edge). `_out` is the FULL outgoing
+        # adjacency from each source to ANY target, internal or external — what god-class
+        # fan-out and layering consume. `_adj` is the internal→internal subset that cycle
+        # detection runs on (external targets can't be part of a cycle we own).
+        self._out: dict = {}
+        self._unique_edges: list = []
+        seen = set()
         for e in self.edges:
             a, b = e.get("from"), e.get("to")
-            if a in self._adj and b in self._adj and a != b:
-                self._adj[a].add(b)
+            if a is None or b is None or a == b or (a, b) in seen:
+                continue
+            seen.add((a, b))
+            self._unique_edges.append(e)
+            self._out.setdefault(a, set()).add(b)
+
+        self._adj: dict = {nid: set() for nid in self.nodes if self._internal(nid)}
+        for a, targets in self._out.items():
+            if a in self._adj:
+                self._adj[a].update(b for b in targets if b in self._adj)
 
     @classmethod
     def load(cls, path: str) -> "Graph":
@@ -115,7 +130,18 @@ class Graph:
         return [nid for nid in self.nodes if self._internal(nid)]
 
     def deps_out(self, nid: str) -> set:
+        """Internal dependency targets (what cycle detection sees). For total coupling
+        fan-out including framework/third-party targets, use fan_out()."""
         return self._adj.get(nid, set())
+
+    def fan_out(self, nid: str) -> int:
+        """Distinct outgoing dependencies, internal AND external, self excluded — the real
+        coupling number. A type leaning on 30+ framework types still trips god-class here."""
+        return len(self._out.get(nid, ()))
+
+    def unique_edges(self) -> list:
+        """Edges with duplicates collapsed and self-loops dropped (the graph contract)."""
+        return self._unique_edges
 
     # -- cycle detection ----------------------------------------------------------
     def _cycles(self, adj: dict) -> list:

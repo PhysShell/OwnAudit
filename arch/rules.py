@@ -61,7 +61,7 @@ def check_layering(g: Graph, rules: list) -> list:
     for rule in rules or []:
         rid = rule["id"]
         frm, to, msg = rule.get("from", []), rule.get("to", []), rule.get("message", "")
-        for e in g.edges:
+        for e in g.unique_edges():
             a, b = e.get("from"), e.get("to")
             if a not in g.nodes or not g._internal(a):
                 continue
@@ -116,7 +116,7 @@ def check_god_class(g: Graph, cfg: dict) -> list:
     for nid in g.type_ids():
         n = g.node(nid)
         metrics = dict(n.get("metrics") or {})
-        metrics["deps_out"] = len(g.deps_out(nid))
+        metrics["deps_out"] = g.fan_out(nid)        # internal + external fan-out (deduped)
         signals = []
         for key, label in _GOD_AXES:
             threshold = cfg.get(key)

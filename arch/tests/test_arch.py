@@ -130,6 +130,14 @@ def test_layering_clean_direction_not_flagged():
     _expect(R.check_layering(g, LAYERS) == [], "clean direction")
 
 
+def test_layering_dedupes_duplicate_edges():
+    # the same UI->SQL dependency seen via several members yields ONE finding, not three
+    g = _g([_t("T:V", "Sts.UI.Views", name="OrdersView"),
+            _t("T:Repo", "Sts.Data.SqlRepo", name="OrderRepo")],
+           [("T:V", "T:Repo"), ("T:V", "T:Repo"), ("T:V", "T:Repo")])
+    _expect(len(R.check_layering(g, LAYERS)) == 1, "duplicate edges must collapse")
+
+
 # ---- god class -------------------------------------------------------------
 
 GOD = {"id": "ARCH-GOD-CLASS", "min_signals": 2,
@@ -158,6 +166,24 @@ def test_god_class_deps_out_from_graph():
     g = _g(nodes, edges)
     f = R.check_god_class(g, GOD)
     _expect(len(f) == 1 and "outgoing deps 31" in f[0]["message"], f)
+
+
+def test_god_class_fan_out_counts_external_deps():
+    # a hub leaning on 31 EXTERNAL framework types must still trip the fan-out signal
+    # (regression: deps_out used to read internal-only adjacency and miss this).
+    edges = [("T:Hub", f"T:ext{i}") for i in range(31)]
+    nodes = [_t("T:Hub", "Sts.A", name="Hub", metrics={"methods": 50})]
+    nodes += [_t(f"T:ext{i}", "System.Windows", internal=False) for i in range(31)]
+    g = _g(nodes, edges)
+    _expect(g.fan_out("T:Hub") == 31 and len(g.deps_out("T:Hub")) == 0, "external fan-out")
+    f = R.check_god_class(g, GOD)
+    _expect(len(f) == 1 and "outgoing deps 31" in f[0]["message"], f)
+
+
+def test_fan_out_dedupes_repeated_edges():
+    g = _g([_t("T:A", "Sts.A"), _t("T:B", "Sts.B")],
+           [("T:A", "T:B"), ("T:A", "T:B")])
+    _expect(g.fan_out("T:A") == 1 and len(g.unique_edges()) == 1, "dedup fan-out")
 
 
 # ---- helpers / shape -------------------------------------------------------
