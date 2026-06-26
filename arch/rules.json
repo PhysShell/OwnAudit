@@ -1,0 +1,30 @@
+{
+  "_comment": "Architecture rules for the STS solution. JSON (not YAML) on purpose: CI runs on a bare setup-python with no pip, so no PyYAML. Patterns are case-sensitive fnmatch globs matched against a node's namespace, fully-qualified name, assembly, or short name.",
+  "layers": [
+    {
+      "id": "ARCH-UI-SQL",
+      "message": "UI layer reaches the data/SQL layer directly (route through a service/repository)",
+      "from": ["Sts.UI.*", "*.Views.*", "*.ViewModels.*", "*.Wpf.*"],
+      "to": ["*.Data.Sql*", "*.DataAccess.*", "System.Data.SqlClient*", "Microsoft.Data.SqlClient*", "*.Dapper*"]
+    },
+    {
+      "id": "ARCH-DOMAIN-WPF",
+      "message": "domain/core layer depends on the WPF/presentation framework",
+      "from": ["Sts.Domain.*", "Sts.Core.*", "*.Domain.*"],
+      "to": ["System.Windows.*", "DevExpress.Xpf.*", "PresentationFramework*", "*.Wpf.*"]
+    }
+  ],
+  "cycles": {
+    "type": true,
+    "namespace": true,
+    "assembly": true
+  },
+  "god_class": {
+    "id": "ARCH-GOD-CLASS",
+    "min_signals": 2,
+    "methods": 40,
+    "fields": 25,
+    "loc": 1000,
+    "deps_out": 30
+  }
+}

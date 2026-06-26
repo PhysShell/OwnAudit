@@ -104,25 +104,43 @@ runtime-корреляция — это буквально исходная **«
 - *Строится и тестируется в CI* (`report/tests/test_baseline.py`, 7/7). Baseline —
   пользовательский артефакт (создаётся на стенде, в `.gitignore`).
 
-### Фаза 3 — Architecture-pass над Roslyn (недели) — **дифференциатор**
-Тонкий проход: Type→dependency граф (проекция символов Roslyn) + YAML-правила слоёв +
+### Фаза 3 — Architecture-pass над Roslyn (недели) — **дифференциатор** ✅ движок готов
+Тонкий проход: Type→dependency граф (проекция символов Roslyn) + правила слоёв +
 детект циклов. Это единственная реально новая мышца.
-```yaml
-rules:
-  - id: UI001
-    title: UI layer must not access SQL directly
-    where: { typeNamespace: "*.UI.*|*.Presentation.*|*.ViewModels.*" }
-    forbiddenDependencies:
-      - "System.Data.SqlClient.SqlConnection"
-      - "Microsoft.Data.SqlClient.SqlConnection"
-      - "System.Data.DataTable"
-    severity: error
+
+**Сплит — как и везде в проекте: тяжёлый .NET на стенде, разбор на Python в CI.**
+Roslyn-экстрактор (на стенде, где STS компилируется) выдаёт `graph.json` (контракт —
+`docs/arch-graph.md`); Python-движок (`arch/`, stdlib-only, тестируется в CI) его читает
+и выдаёт находки **в той же схеме `findings.json`** (tool `own-arch`, category
+`architecture`), так что они идут в SARIF/diff/дашборд без изменений.
+
+Три вида правил (`arch/rules.json`):
+- **layering** — запрещённое направление (`ARCH-UI-SQL`: UI→SQL, `ARCH-DOMAIN-WPF`:
+  Domain→WPF). Источник обязан быть internal (наш — нам и чинить); цель может быть и
+  внешним фреймворком. Паттерны — case-sensitive fnmatch по namespace/FQN/assembly/имени.
+- **cycles** — `ARCH-CYCLE-TYPE|NS|ASM`: Тарьян SCC (итеративный — namespace-граф STS
+  достаточно глубок, чтобы уронить рекурсию), SCC размером >1 = цикл; NS/ASM сворачиванием
+  type-графа по `namespace`/`assembly`.
+- **god_class** — составной сигнал `ARCH-GOD-CLASS`: тип, пересёкший ≥ `min_signals` порогов
+  из {methods, fields, loc, deps_out} одновременно. `deps_out` берётся из рёбер графа, не из
+  метрик, — чтобы его нельзя было занизить устаревшей метрикой.
+
+```jsonc
+// arch/rules.json — JSON, не YAML: CI поднимается на голом setup-python без pip (нет PyYAML)
+{ "layers": [ { "id": "ARCH-UI-SQL", "from": ["Sts.UI.*", "*.ViewModels.*"],
+               "to": ["*.Data.Sql*", "System.Data.SqlClient*"], "message": "UI → SQL" } ],
+  "cycles": { "type": true, "namespace": true, "assembly": true },
+  "god_class": { "id": "ARCH-GOD-CLASS", "min_signals": 2,
+                 "methods": 40, "fields": 25, "loc": 1000, "deps_out": 30 } }
 ```
-Query-слой: **уровень 1 (YAML) + уровень 2 (C#-плагин `IAuditRule`)**. Свой DSL
-(уровень 3, CQLinq/Cypher-подобный) — *отложить*, пока не ясно, какие запросы реально
-нужны.
-- *Граф строится там, где компилируется STS (стенд/Windows-CI с .NET); артефакт
-  `graph.json` уезжает в дашборд и rules-движок.*
+- `python3 -m arch.cli --graph sts_audit/graph.json` → `arch/out/arch-findings.json` +
+  `arch-report.md`. Detect-only (exit 0); гейтить — через `report.diff_cli`.
+- *Строится и тестируется в CI* (`arch/tests/test_arch.py`, 19/19, и под `-O`).
+- Query-слой: **уровень 1 (JSON-правила) готов + уровень 2 (C#-плагин `IAuditRule`)** —
+  отложен на сторону экстрактора. Свой DSL (уровень 3, CQLinq/Cypher-подобный) — *отложить*,
+  пока не ясно, какие запросы реально нужны.
+- *Граф строится там, где компилируется STS (стенд/Windows с .NET); экстрактор — sketch в
+  `docs/arch-graph.md`, в этот repo не коммитится (нужен .NET SDK).*
 
 ### Фаза 4 — Architecture Drift Report на PR (killer feature №1)
 Поверх фаз 2+3:

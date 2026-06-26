@@ -36,6 +36,7 @@ jobs:
           PYTHONPATH=fix python3 fix/tests/test_orchestrate.py
           PYTHONPATH=.   python3 report/tests/test_sarif.py
           PYTHONPATH=.   python3 report/tests/test_baseline.py
+          PYTHONPATH=.   python3 arch/tests/test_arch.py
 
       - name: re-run under -O (assert-stripping safety)
         run: |
@@ -45,6 +46,7 @@ jobs:
           PYTHONPATH=fix python3 -O fix/tests/test_orchestrate.py
           PYTHONPATH=.   python3 -O report/tests/test_sarif.py
           PYTHONPATH=.   python3 -O report/tests/test_baseline.py
+          PYTHONPATH=.   python3 -O arch/tests/test_arch.py
 
   audit-report:
     name: SARIF export + dashboard smoke
