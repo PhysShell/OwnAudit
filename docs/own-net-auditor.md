@@ -243,6 +243,22 @@ dotnet-gcdump) гоняет сценарий N× на стенде и выдаё
 Часть уже покрыта own-check (subscription/region-escape) и WpfAnalyzers (3 902
 wpf-freezable) — пак расширяет, не дублирует.
 
+**Карта покрытия — `docs/wpf-audit-coverage.md`:** каждый смелл × техника детекта
+(static-C# / static-XAML / runtime-heap / runtime-trace) × статус (have / small-rule /
+gap) × маппинг на Avalonia-оракул. Два недоспеценных слоя зафиксированы там же:
+**XAML-анализатор** (binding-path, virtualization-off, nested ScrollViewer, heavy
+DataTemplate, ElementName/RelativeSource) и **runtime-trace коллектор** (binding-error
+log, notification storms). Freezable — чисто-WPF, на оракуле не воспроизводится.
+
+**Data-duplication / строки — `docs/string-canonicalization.md`:** дублированный
+`System.String` как доминирующий случай оси data-duplication, под net472. Тот же каркас,
+что и везде: **анализатор** (heap-отчёт wasted bytes + Roslyn birth-sites — кладётся в
+фазу 5) → **точечный мутатор** (AdaptiveStringCanonicalizer + Cecil/ReJIT/Harmony только
+на approved hot sites, только новые строки) → пере-замер. Переписывание всего heap по
+ссылкам **отвергнуто** (ломает `ReferenceEquals`/`lock(string)`/identity-кэши/unsafe —
+ровно поэтому GC-string-dedup так и не въехал в dotnet/runtime). Анализатор —
+framework-агностичен, тестируется на оракуле здесь.
+
 ## 5. Что брать готовое
 
 | Слой | Инструмент |
