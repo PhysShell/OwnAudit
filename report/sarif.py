@@ -7,6 +7,12 @@ GitHub correlates an alert across edits), tier+category in properties, and suppr
 passthrough. Severity is GitHub-friendly: real leaks → error, correctness/arch → warning,
 style → note, with `min_level` / `max_results_per_run` so you export by severity instead
 of dumping 9000 alerts on a reviewer.
+
+A finding may also carry a *reachability slice* (P-015): optional `evidence` (unordered
+secondary anchors — acquire site, missing-release point, consuming ctor) becomes SARIF
+`relatedLocations`, and an ordered `flow` (e.g. a DI captive's singleton → transient →
+scoped retention path) becomes a `codeFlows` slice. Both are optional and
+forward-compatible: a finding without them exports exactly as before.
 """
 from __future__ import annotations
 
@@ -77,6 +83,54 @@ def _region(line) -> dict:
     return {"startLine": ln if ln >= 1 else 1}     # SARIF requires startLine >= 1
 
 
+def _evidence_steps(raw):
+    """Parse an optional `evidence`/`flow` list — each item a {path, line, label} dict —
+    into clean (path, line, label) triples, dropping malformed entries and steps without
+    a resolvable line. Tolerant by design: these are optional, forward-compatible
+    additions to a finding record, so a producer that omits or half-fills them must not
+    break the export."""
+    out = []
+    if not isinstance(raw, list):
+        return out
+    for s in raw:
+        if not isinstance(s, dict):
+            continue
+        try:
+            ln = int(s.get("line"))
+        except (TypeError, ValueError):
+            continue
+        if ln < 1:
+            continue
+        out.append((s.get("path") or "", ln, s.get("label") or ""))
+    return out
+
+
+def _related_locations(raw):
+    """SARIF `relatedLocations` from a finding's optional `evidence` — the unordered
+    secondary anchors (acquire site, missing-release point, consuming ctor) a consumer
+    renders as clickable, labelled links beside the primary."""
+    return [
+        {"physicalLocation": {"artifactLocation": {"uri": p or ""},
+                              "region": {"startLine": ln}},
+         "message": {"text": label}}
+        for (p, ln, label) in _evidence_steps(raw)
+    ]
+
+
+def _code_flows(raw):
+    """SARIF `codeFlows` (a one-element list) from a finding's optional `flow` — the
+    ORDERED reachability slice (e.g. a DI captive's singleton → transient → scoped
+    retention path). Empty when no step has a resolvable line, so the caller splices it
+    only when truthy."""
+    locs = [
+        {"location": {"physicalLocation": {"artifactLocation": {"uri": p or ""},
+                                           "region": {"startLine": ln}},
+                      "message": {"text": label}}}
+        for (p, ln, label) in _evidence_steps(raw)
+    ]
+    return [{"threadFlows": [{"locations": locs}]}] if locs else []
+
+
 def to_sarif(findings, min_level=None, max_results_per_run=None) -> dict:
     """Build a SARIF 2.1.0 log: one run per tool. `min_level` drops results below a
     severity ('note'|'warning'|'error'); `max_results_per_run` caps each run (highest
@@ -127,6 +181,14 @@ def to_sarif(findings, min_level=None, max_results_per_run=None) -> dict:
                 "properties": {"tier": tier_of(rid, tool), "category": f.get("category_name"),
                                "tool": tool, "resource": f.get("resource") or ""},
             }
+            # P-015 reachability slice — optional, forward-compatible: only present when the
+            # producer attached structured evidence/flow to the finding record.
+            related = _related_locations(f.get("evidence"))
+            if related:
+                res["relatedLocations"] = related
+            flows = _code_flows(f.get("flow"))
+            if flows:
+                res["codeFlows"] = flows
             if f.get("suppressed"):
                 res["suppressions"] = [{"kind": "inSource",
                                         "justification": f.get("suppress_reason") or ""}]
