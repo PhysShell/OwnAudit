@@ -1,0 +1,25 @@
+{
+  "_comment": "Static leak SUSPECTS for the LeakyOracle app — the findings.json a static pass (own-check) would emit for the oracle's two intentional lifetime leaks. Fed to runtime/correlate.py together with runtime.json to confirm them against heap evidence (test_oracle_runtime.py). `resource` is a DESCRIPTION (has spaces) not a type, so correlate keys on the source-file stem (the owning class) — WatchlistViewModel / TickerViewModel.",
+  "findings": [
+    {
+      "tool": "own-check",
+      "rule": "OWN001",
+      "category_name": "subscription-leak",
+      "resource": "QuoteReceived subscription",
+      "path": "oracle/LeakyOracle/ViewModels/WatchlistViewModel.cs",
+      "line": 35,
+      "message": "subscribes to MarketDataService.QuoteReceived with no matching unsubscribe",
+      "suppressed": false
+    },
+    {
+      "tool": "own-check",
+      "rule": "OWN-TIMER",
+      "category_name": "idisposable-leak",
+      "resource": "Timer never disposed",
+      "path": "oracle/LeakyOracle/ViewModels/TickerViewModel.cs",
+      "line": 24,
+      "message": "System.Threading.Timer created but never disposed (Stop/Dispose missing)",
+      "suppressed": false
+    }
+  ]
+}
