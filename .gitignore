@@ -25,3 +25,7 @@ viz/plotly.min.js
 viz/sts-dashboard.html
 viz/preview.png
 viz/theme-*.png
+
+# Own.NET Auditor — generated report artifacts
+report/out/
+report/out-*/
