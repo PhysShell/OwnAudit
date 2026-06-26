@@ -123,6 +123,16 @@ def test_cli_save_then_gate():
         shutil.rmtree(d, ignore_errors=True)
 
 
+def test_cli_missing_current_fails_cleanly():
+    # a missing --current is a clean exit 2, not an unhandled traceback
+    raised = None
+    try:
+        diff_cli.main(["--current", "/no/such/findings.json", "--baseline", "/tmp/x.json"])
+    except SystemExit as e:
+        raised = e.code
+    _expect(raised == 2, raised)
+
+
 # ---- bare-python runner ----------------------------------------------------
 
 def _main() -> int:

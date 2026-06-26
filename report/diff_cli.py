@@ -24,8 +24,14 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 def _load_findings(path) -> list:
-    with open(path, encoding="utf-8") as fh:
-        return json.load(fh)["findings"]
+    """Load the findings list, failing cleanly (exit 2) on a missing or malformed file —
+    symmetric with the missing-baseline path, so CI gets a message, not a traceback."""
+    try:
+        with open(path, encoding="utf-8") as fh:
+            return json.load(fh)["findings"]
+    except (OSError, ValueError, KeyError) as e:
+        print(f"error: cannot read findings from {path!r}: {e}", file=sys.stderr)
+        raise SystemExit(2)
 
 
 def _diff_md(d: dict, passed: bool, blocking: list, gate_level: str) -> str:
