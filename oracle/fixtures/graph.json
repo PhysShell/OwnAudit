@@ -9,6 +9,8 @@
     { "id": "T:LeakyOracle.ViewModels.QuoteRow", "kind": "type", "name": "QuoteRow", "namespace": "LeakyOracle.ViewModels", "assembly": "LeakyOracle", "internal": true, "loc": { "file": "oracle/LeakyOracle/ViewModels/QuoteRow.cs", "line": 6 }, "metrics": { "methods": 0, "fields": 1, "loc": 8 } },
     { "id": "T:LeakyOracle.ViewModels.WatchlistViewModel", "kind": "type", "name": "WatchlistViewModel", "namespace": "LeakyOracle.ViewModels", "assembly": "LeakyOracle", "internal": true, "loc": { "file": "oracle/LeakyOracle/ViewModels/WatchlistViewModel.cs", "line": 19 }, "metrics": { "methods": 2, "fields": 3, "loc": 45 } },
     { "id": "T:LeakyOracle.ViewModels.FixedWatchlistViewModel", "kind": "type", "name": "FixedWatchlistViewModel", "namespace": "LeakyOracle.ViewModels", "assembly": "LeakyOracle", "internal": true, "loc": { "file": "oracle/LeakyOracle/ViewModels/FixedWatchlistViewModel.cs", "line": 16 }, "metrics": { "methods": 3, "fields": 3, "loc": 40 } },
+    { "id": "T:LeakyOracle.ViewModels.TickerViewModel", "kind": "type", "name": "TickerViewModel", "namespace": "LeakyOracle.ViewModels", "assembly": "LeakyOracle", "internal": true, "loc": { "file": "oracle/LeakyOracle/ViewModels/TickerViewModel.cs", "line": 18 }, "metrics": { "methods": 2, "fields": 2, "loc": 20 } },
+    { "id": "T:LeakyOracle.ViewModels.FixedTickerViewModel", "kind": "type", "name": "FixedTickerViewModel", "namespace": "LeakyOracle.ViewModels", "assembly": "LeakyOracle", "internal": true, "loc": { "file": "oracle/LeakyOracle/ViewModels/FixedTickerViewModel.cs", "line": 12 }, "metrics": { "methods": 3, "fields": 2, "loc": 22 } },
     { "id": "T:LeakyOracle.Views.MainWindow", "kind": "type", "name": "MainWindow", "namespace": "LeakyOracle.Views", "assembly": "LeakyOracle", "internal": true, "loc": { "file": "oracle/LeakyOracle/Views/MainWindow.axaml.cs", "line": 5 }, "metrics": { "methods": 1, "fields": 0, "loc": 8 } },
 
     { "id": "T:Avalonia.Application", "kind": "type", "name": "Application", "namespace": "Avalonia", "assembly": "Avalonia.Base", "internal": false },
@@ -21,7 +23,8 @@
     { "id": "T:System.Collections.Generic.List`1", "kind": "type", "name": "List", "namespace": "System.Collections.Generic", "assembly": "System.Private.CoreLib", "internal": false },
     { "id": "T:System.Func`1", "kind": "type", "name": "Func", "namespace": "System", "assembly": "System.Private.CoreLib", "internal": false },
     { "id": "T:System.Action`1", "kind": "type", "name": "Action", "namespace": "System", "assembly": "System.Private.CoreLib", "internal": false },
-    { "id": "T:System.String", "kind": "type", "name": "String", "namespace": "System", "assembly": "System.Private.CoreLib", "internal": false }
+    { "id": "T:System.String", "kind": "type", "name": "String", "namespace": "System", "assembly": "System.Private.CoreLib", "internal": false },
+    { "id": "T:System.Threading.Timer", "kind": "type", "name": "Timer", "namespace": "System.Threading", "assembly": "System.Private.CoreLib", "internal": false }
   ],
   "edges": [
     { "from": "T:LeakyOracle.Program", "to": "T:LeakyOracle.App", "kind": "depends" },
@@ -62,6 +65,12 @@
     { "from": "T:LeakyOracle.ViewModels.QuoteRow", "to": "T:System.String", "kind": "depends" },
     { "from": "T:LeakyOracle.ViewModels.WatchlistViewModel", "to": "T:System.String", "kind": "depends" },
     { "from": "T:LeakyOracle.ViewModels.FixedWatchlistViewModel", "to": "T:System.String", "kind": "depends" },
-    { "from": "T:LeakyOracle.LeakScenario", "to": "T:System.String", "kind": "depends" }
+    { "from": "T:LeakyOracle.LeakScenario", "to": "T:System.String", "kind": "depends" },
+
+    { "from": "T:LeakyOracle.LeakScenario", "to": "T:LeakyOracle.ViewModels.TickerViewModel", "kind": "depends" },
+    { "from": "T:LeakyOracle.LeakScenario", "to": "T:LeakyOracle.ViewModels.FixedTickerViewModel", "kind": "depends" },
+    { "from": "T:LeakyOracle.ViewModels.TickerViewModel", "to": "T:System.Threading.Timer", "kind": "depends" },
+    { "from": "T:LeakyOracle.ViewModels.FixedTickerViewModel", "to": "T:System.Threading.Timer", "kind": "depends" },
+    { "from": "T:LeakyOracle.ViewModels.FixedTickerViewModel", "to": "T:System.IDisposable", "kind": "depends" }
   ]
 }

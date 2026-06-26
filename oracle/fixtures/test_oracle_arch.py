@@ -11,6 +11,7 @@ Two directions, both on oracle-shaped (real, not toy) data:
 This pins the graph.json contract the слой-2 Roslyn extractor must emit for the oracle, and
 anchors arch/ against a realistic regression. -O-safe (explicit raises).
 """
+import glob
 import json
 import os
 import sys
@@ -18,6 +19,7 @@ import sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(os.path.dirname(HERE))
 sys.path.insert(0, ROOT)
+APP_DIR = os.path.join(ROOT, "oracle", "LeakyOracle")
 
 from arch.graph import Graph                                              # noqa: E402
 from arch import rules as R                                              # noqa: E402
@@ -45,16 +47,33 @@ def test_clean_oracle_graph_has_no_arch_findings():
                             f"{[f['rule'] for f in findings]}")
 
 
-def test_graph_matches_the_real_oracle_types():
-    # guard the contract: every internal node must point at a file that exists under oracle/,
-    # so this golden can't silently drift from the app it claims to describe.
+def _source_type_stems():
+    # the oracle is one public type per .cs file; strip .axaml.cs / .cs to the type name.
+    stems = set()
+    for cs in glob.glob(os.path.join(APP_DIR, "**", "*.cs"), recursive=True):
+        if f"{os.sep}obj{os.sep}" in cs or f"{os.sep}bin{os.sep}" in cs:
+            continue
+        base = os.path.basename(cs)
+        stems.add(base[:-len(".axaml.cs")] if base.endswith(".axaml.cs") else base[:-len(".cs")])
+    return stems
+
+
+def test_graph_internal_nodes_track_the_oracle_sources_exactly():
+    # Strong drift guard, both directions: the internal node set must equal the set of oracle
+    # source types. A new view-model with no graph node (or a node for a deleted type) fails here
+    # — not just "every node points at a real file", which a stale-but-incomplete graph passes.
     g = Graph(json.load(open(GRAPH, encoding="utf-8")))
-    internal = g.type_ids()
-    _expect(len(internal) == 8, f"expected 8 internal oracle types, got {len(internal)}")
-    for nid in internal:
+    node_names = {g.name(nid) for nid in g.type_ids()}
+    sources = _source_type_stems()
+    _expect(node_names == sources,
+            f"graph internal types and oracle sources diverged:\n"
+            f"  in graph not in src: {sorted(node_names - sources)}\n"
+            f"  in src not in graph: {sorted(sources - node_names)}")
+    # and every internal node still anchors at a real file
+    for nid in g.type_ids():
         path = g.node(nid).get("loc", {}).get("file", "")
         _expect(os.path.isfile(os.path.join(ROOT, path)),
-                f"node {nid} points at missing file {path!r} — graph drifted from the app")
+                f"node {nid} points at missing file {path!r}")
 
 
 def test_planted_mvvm_inversion_lights_up_layering_and_both_cycles():
