@@ -540,7 +540,10 @@ def _plotly_tag() -> str:
     if os.path.exists(vendored):
         with open(vendored, encoding="utf-8") as fh:
             return "<script>" + fh.read() + "</script>"
-    return '<script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>'
+    # SRI-pinned so the remote bundle can't be swapped silently (hash of plotly-2.35.2.min.js).
+    return ('<script src="https://cdn.plot.ly/plotly-2.35.2.min.js" '
+            'integrity="sha384-cCVCZkAjYNxaYKbM8lsArLznDF/SvMFr1jcZrvOpSTCa0W40ZAdLzHCEulnUa5i7" '
+            'crossorigin="anonymous" charset="utf-8"></script>')
 
 
 def _json_for_script(data: dict) -> str:
