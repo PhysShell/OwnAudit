@@ -67,7 +67,9 @@ def collect(graph_path, drift_path, findings_path, runtime_path) -> dict:
                                   + len(g.assembly_cycles()))
 
     drift = _safe_json(drift_path)
-    if isinstance(drift, dict) and "items" in drift:
+    if drift is not None:               # present -> must be well-formed, else fail (not empty-state)
+        if not isinstance(drift, dict) or not isinstance(drift.get("items"), list):
+            raise ValueError(f"{drift_path} must be a drift.json object with list-valued 'items'")
         buckets = collections.Counter(i.get("risk") for i in drift["items"])
         data["drift"] = {
             "counts": [buckets.get(r, 0) for r in RISK_ORDER],
@@ -78,10 +80,17 @@ def collect(graph_path, drift_path, findings_path, runtime_path) -> dict:
 
     static = _safe_json(findings_path)
     dump = _safe_json(runtime_path)
-    if isinstance(dump, dict):
-        # findings.json is normally {"findings": [...]} but accept a top-level list too
-        static_findings = (static.get("findings", []) if isinstance(static, dict)
-                           else static if isinstance(static, list) else None)
+    if dump is not None:                # present runtime.json -> must be a JSON object
+        if not isinstance(dump, dict):
+            raise ValueError(f"{runtime_path} must be a runtime.json object")
+        # findings.json is normally {"findings": [...]} but accept a top-level list too; a
+        # present-but-wrong shape fails loudly, a missing file (static is None) just skips.
+        if isinstance(static, dict):
+            if not isinstance(static.get("findings"), list):
+                raise ValueError(f"{findings_path} must contain a list-valued 'findings'")
+            static_findings = static["findings"]
+        else:
+            static_findings = static if isinstance(static, list) else None
         if static_findings is not None:
             res = rt.correlate(static_findings, dump, rt.load_config())
             leaks = res["confirmed"] + res["runtime_only"]
@@ -259,7 +268,11 @@ def _plotly_tag() -> str:
             return "<script>" + fh.read() + "</script>"
     print("warning: viz/plotly.min.js is not vendored — the dashboard will load Plotly from the "
           "CDN (needs network); vendor it for a fully-offline file.", file=sys.stderr)
-    return '<script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>'
+    # SRI-pinned so the remote bundle can't be swapped silently (hash of plotly-2.35.2.min.js,
+    # byte-identical to the vendored copy).
+    return ('<script src="https://cdn.plot.ly/plotly-2.35.2.min.js" '
+            'integrity="sha384-cCVCZkAjYNxaYKbM8lsArLznDF/SvMFr1jcZrvOpSTCa0W40ZAdLzHCEulnUa5i7" '
+            'crossorigin="anonymous" charset="utf-8"></script>')
 
 
 def _json_for_script(data: dict) -> str:
