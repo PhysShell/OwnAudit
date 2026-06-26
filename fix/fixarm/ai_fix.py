@@ -183,10 +183,15 @@ class AiFixApplier:
                 with open(path, "w", encoding="utf-8") as fh:
                     fh.write("".join(cur))
             introduced = diff_findings(self.before, after, self.line_tol)[1]
-            if not _still_present(after, f, self.line_tol) and not introduced:
+            still_present = _still_present(after, f, self.line_tol)
+            if not still_present and not introduced:
                 return cand                # verified this round
-            reason = (f"it introduced new findings: {_fmt_findings(introduced)}"
-                      if introduced else f"the finding [{f.rule}] is still reported")
+            reasons = []                   # both causes can hold at once — feed back both
+            if still_present:
+                reasons.append(f"the finding [{f.rule}] is still reported")
+            if introduced:
+                reasons.append(f"it introduced new findings: {_fmt_findings(introduced)}")
+            reason = "; ".join(reasons)
             window = cand[a:len(cand) - (len(cur) - b)]      # just the rejected replacement,
             history.append(("".join(window), reason))        # NOT the whole spliced file
         skipped.append((f, "ai-gave-up"))
