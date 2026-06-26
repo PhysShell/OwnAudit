@@ -56,6 +56,11 @@ A node with no `internal` key is treated as internal (ours).
 - `loc` — where to anchor a finding. Optional for external nodes.
 - `metrics` — optional; feeds the god-class composite. `deps_out` is **not** read from here —
   the engine computes fan-out from the edges so it can't be gamed by a stale metric.
+- `is_abstract` — **optional**, forward-compatible. A `bool`: is this type abstract or an
+  interface? When present, the coupling metrics (`arch/metrics.py`) light up **Abstractness A**
+  and **Distance from the main sequence D = |A + I − 1|** per component automatically; when
+  absent they stay `null` and nothing else changes. Cheap to add in the extractor
+  (`symbol.IsAbstract || symbol.TypeKind == TypeKind.Interface`).
 
 **Edges.** A directed `from → to` "type `from` depends on type `to`" (field/property type, base
 type, method parameter/return, instantiation, attribute, generic arg…). `kind` is currently
@@ -69,6 +74,7 @@ collapsed/ignored by the loader.
 | `ARCH-CYCLE-{TYPE,NS,ASM}` | edges | Tarjan SCC (iterative — STS namespace graphs are deep); an SCC of size >1 is a cycle. NS/ASM by rolling the type graph up on `namespace`/`assembly`. |
 | `ARCH-UI-SQL`, `ARCH-DOMAIN-WPF` | edges + `namespace`/`assembly`/`name` | forbidden direction; **source must be internal**, target may be external. Patterns are case-sensitive fnmatch globs (`arch/rules.json`). |
 | `ARCH-GOD-CLASS` | `metrics` + edges | composite: crosses ≥ `min_signals` of {methods, fields, loc, deps_out} thresholds at once. |
+| `ARCH-SDP`, `ARCH-UNSTABLE-HUB` | edges + `namespace`/`assembly` | Martin coupling metrics (Ca/Ce/Instability) per component; SDP flags a stable component depending on a less stable one, unstable-hub flags high-Ca-and-high-Ce. `is_abstract` adds A/D when present. |
 
 ## Roslyn extractor — sketch (stand-side, not in this repo)
 

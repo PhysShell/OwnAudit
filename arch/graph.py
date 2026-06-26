@@ -192,6 +192,11 @@ class Graph:
                     adj[ga].add(gb)
         return adj, members
 
+    def component_graph(self, key: str) -> tuple:
+        """Public: internal dependency adjacency collapsed by a node attribute
+        (`namespace`/`assembly`) -> (adj, members). What the coupling metrics + SDP read."""
+        return self._level_graph(key)
+
     def namespace_cycles(self) -> list:
         adj, _ = self._level_graph("namespace")
         return self._cycles(adj)

@@ -19,6 +19,7 @@ sys.path.insert(0, ROOT)
 
 from arch import cli                                                       # noqa: E402
 from arch.graph import Graph, _scc, match_any                             # noqa: E402
+from arch.metrics import component_metrics                                # noqa: E402
 from arch import rules as R                                               # noqa: E402
 
 
@@ -281,6 +282,71 @@ def test_malformed_graph_rejected():
         except ValueError as e:
             raised = e
         _expect(raised is not None, f"expected ValueError for {bad}")
+
+
+# ---- coupling / stability metrics ------------------------------------------
+
+def test_instability_pure_source_and_sink():
+    # A(ns P) -> B(ns Q): P only depends (I=1), Q only depended-upon (I=0)
+    g = _g([_t("T:A", "P"), _t("T:B", "Q")], [("T:A", "T:B")])
+    m = component_metrics(g, "namespace")
+    _expect(m["P"]["instability"] == 1.0 and m["P"]["ce"] == 1 and m["P"]["ca"] == 0, m["P"])
+    _expect(m["Q"]["instability"] == 0.0 and m["Q"]["ca"] == 1 and m["Q"]["ce"] == 0, m["Q"])
+
+
+def test_metrics_ignore_external_edges():
+    ext = {"id": "T:Ext", "name": "Ext", "namespace": "System", "assembly": "S", "internal": False}
+    g = Graph({"schema": "ownAudit/arch-graph/v1", "nodes": [_t("T:A", "P"), ext],
+               "edges": [{"from": "T:A", "to": "T:Ext"}]})
+    m = component_metrics(g, "namespace")
+    _expect(m["P"]["ce"] == 0, m["P"])           # external dep doesn't count toward Ce
+    _expect("System" not in m, list(m))          # external component not tracked
+
+
+def test_abstractness_dormant_without_flag_then_lights_up():
+    g = _g([_t("T:A", "P"), _t("T:B", "P")], [])
+    _expect(component_metrics(g, "namespace")["P"]["abstractness"] is None, "dormant")
+    # add the flag -> A and D populate with no code change
+    g2 = _g([dict(_t("T:A", "P"), is_abstract=True), dict(_t("T:B", "P"), is_abstract=False)], [])
+    mp = component_metrics(g2, "namespace")["P"]
+    _expect(mp["abstractness"] == 0.5 and mp["distance"] is not None, mp)
+
+
+def _sdp_graph():
+    # stable comp S (3 depend on it, it depends on 1) vs unstable comp U (depends on 3)
+    nodes = [_t("T:S0", "Sts.S"), _t("T:U0", "Sts.U")]
+    nodes += [_t(f"T:A{i}", "Sts.App") for i in range(3)]
+    nodes += [_t(f"T:L{i}", "Sts.Lib") for i in range(3)]
+    edges = [(f"T:A{i}", "T:S0") for i in range(3)]
+    edges += [("T:S0", "T:U0")]                             # stable S -> unstable U: violation
+    edges += [("T:U0", f"T:L{i}") for i in range(3)]
+    return _g(nodes, edges)
+
+
+def test_sdp_flags_stable_depending_on_unstable():
+    cfg = {"level": "namespace", "sdp": {"id": "ARCH-SDP", "min_gap": 0.3, "min_ce": 1}}
+    sdp = [x for x in R.check_coupling(_sdp_graph(), cfg) if x["rule"] == "ARCH-SDP"]
+    _expect(len(sdp) == 1 and sdp[0]["resource"] == "Sts.S", sdp)
+
+
+def test_sdp_silent_on_clean_layering():
+    # downward deps only: high-I depends on low-I -> SDP satisfied -> nothing
+    g = _g([_t("T:V", "UI"), _t("T:D", "Data")], [("T:V", "T:D")])
+    cfg = {"level": "namespace", "sdp": {"id": "ARCH-SDP", "min_gap": 0.3, "min_ce": 1}}
+    _expect([x for x in R.check_coupling(g, cfg) if x["rule"] == "ARCH-SDP"] == [], "clean")
+
+
+def test_unstable_hub_flagged():
+    nodes = [_t("T:H", "Sts.Hub"), _t("T:X0", "Sts.X"), _t("T:X1", "Sts.X"),
+             _t("T:Y0", "Sts.Y"), _t("T:Y1", "Sts.Y")]
+    edges = [("T:X0", "T:H"), ("T:X1", "T:H"), ("T:H", "T:Y0"), ("T:H", "T:Y1")]
+    cfg = {"level": "namespace", "unstable_hub": {"id": "ARCH-UNSTABLE-HUB", "min_ca": 2, "min_ce": 2}}
+    f = [x for x in R.check_coupling(_g(nodes, edges), cfg) if x["rule"] == "ARCH-UNSTABLE-HUB"]
+    _expect(len(f) == 1 and f[0]["resource"] == "Sts.Hub", f)
+
+
+def test_coupling_disabled_without_config():
+    _expect(R.check_coupling(_sdp_graph(), {}) == [], "no config -> no findings")
 
 
 # ---- bare-python runner ----------------------------------------------------
