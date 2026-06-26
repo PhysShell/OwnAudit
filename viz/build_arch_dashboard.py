@@ -1,6 +1,7 @@
 """Architecture / drift / runtime dashboard (Own.NET Auditor phases 3-5).
 
-A standalone, self-contained HTML view over the *new* engines — separate from
+A standalone single-file HTML view over the *new* engines (data + styles inlined; Plotly
+inlined when viz/plotly.min.js is vendored, else loaded from the CDN) — separate from
 viz/build_dashboard.py (which visualizes the 72k raw audit findings) so neither has to
 refactor the other. It computes straight from the stand artifacts via the engine modules:
 
@@ -34,11 +35,16 @@ CONF_ORDER = ("high", "medium")
 
 
 def _safe_json(path):
+    """Load JSON, distinguishing a MISSING artifact (-> None, a legit empty-state) from a
+    PRESENT but malformed one (-> raise). A stale/corrupt artifact should fail loudly, not be
+    silently rendered as 'not collected yet'."""
     try:
         with open(path, encoding="utf-8") as fh:
             return json.load(fh)
-    except (OSError, ValueError):
+    except FileNotFoundError:
         return None
+    except json.JSONDecodeError as e:
+        raise ValueError(f"invalid JSON in {path}: {e}") from e
 
 
 def collect(graph_path, drift_path, findings_path, runtime_path) -> dict:
@@ -49,20 +55,16 @@ def collect(graph_path, drift_path, findings_path, runtime_path) -> dict:
 
     graph_raw = _safe_json(graph_path)
     if graph_raw is not None:
-        try:
-            g = Graph(graph_raw)
-        except ValueError:
-            g = None
-        if g is not None:
-            m = component_metrics(g, "namespace")
-            data["metrics"] = [dict(ns=ns, **rec) for ns, rec in sorted(m.items())]
-            data["has_abstractness"] = any(r["abstractness"] is not None for r in m.values())
-            findings = arch_rules.run(g, arch_rules.load_rules())
-            data["arch_by_rule"] = collections.Counter(f["rule"] for f in findings).most_common()
-            data["meta"]["types"] = len(g.type_ids())
-            data["meta"]["edges"] = len(g.unique_edges())
-            data["meta"]["cycles"] = (len(g.type_cycles()) + len(g.namespace_cycles())
-                                      + len(g.assembly_cycles()))
+        g = Graph(graph_raw)            # a present-but-invalid/stale graph raises here, not None
+        m = component_metrics(g, "namespace")
+        data["metrics"] = [dict(ns=ns, **rec) for ns, rec in sorted(m.items())]
+        data["has_abstractness"] = any(r["abstractness"] is not None for r in m.values())
+        findings = arch_rules.run(g, arch_rules.load_rules())
+        data["arch_by_rule"] = collections.Counter(f["rule"] for f in findings).most_common()
+        data["meta"]["types"] = len(g.type_ids())
+        data["meta"]["edges"] = len(g.unique_edges())
+        data["meta"]["cycles"] = (len(g.type_cycles()) + len(g.namespace_cycles())
+                                  + len(g.assembly_cycles()))
 
     drift = _safe_json(drift_path)
     if isinstance(drift, dict) and "items" in drift:
@@ -76,17 +78,21 @@ def collect(graph_path, drift_path, findings_path, runtime_path) -> dict:
 
     static = _safe_json(findings_path)
     dump = _safe_json(runtime_path)
-    if isinstance(static, dict) and isinstance(dump, dict):
-        res = rt.correlate(static.get("findings", []), dump, rt.load_config())
-        leaks = res["confirmed"] + res["runtime_only"]
-        data["runtime"] = {
-            "confirmed": len(res["confirmed"]), "static_only": len(res["static_only"]),
-            "runtime_only": len(res["runtime_only"]), "scenario": dump.get("scenario", ""),
-            "leaks": [{"resource": f.get("resource"), "confidence": f.get("confidence"),
-                       "retained": f.get("retained"), "expected": f.get("expected"),
-                       "category": f.get("category_name"), "message": f.get("message")}
-                      for f in leaks[:80]]}
-        data["meta"]["confirmed"] = len(res["confirmed"])
+    if isinstance(dump, dict):
+        # findings.json is normally {"findings": [...]} but accept a top-level list too
+        static_findings = (static.get("findings", []) if isinstance(static, dict)
+                           else static if isinstance(static, list) else None)
+        if static_findings is not None:
+            res = rt.correlate(static_findings, dump, rt.load_config())
+            leaks = res["confirmed"] + res["runtime_only"]
+            data["runtime"] = {
+                "confirmed": len(res["confirmed"]), "static_only": len(res["static_only"]),
+                "runtime_only": len(res["runtime_only"]), "scenario": dump.get("scenario", ""),
+                "leaks": [{"resource": f.get("resource"), "confidence": f.get("confidence"),
+                           "retained": f.get("retained"), "expected": f.get("expected"),
+                           "category": f.get("category_name"), "message": f.get("message")}
+                          for f in leaks[:80]]}
+            data["meta"]["confirmed"] = len(res["confirmed"])
     return data
 
 
@@ -125,7 +131,7 @@ code{background:rgba(120,140,180,.14);padding:1px 5px;border-radius:5px}
 footer{color:var(--mut);padding:0 30px 30px;font-size:12px}
 </style></head><body>
 <header><h1>Own.NET Auditor — architecture · drift · runtime</h1>
-<p class="sub">Phases 3–5 over the stand artifacts. Sections light up as <code>graph.json</code>, <code>drift.json</code> and <code>runtime.json</code> become available.</p></header>
+<p class="sub">Phases 3&ndash;5 over the stand artifacts. Sections light up as <code>graph.json</code>, <code>drift.json</code> and <code>runtime.json</code> become available.</p></header>
 <div class="kpis" id="kpis"></div>
 <div class="grid">
   <div class="card wide"><h2>Coupling map — Martin's instability vs abstractness</h2>
@@ -133,7 +139,7 @@ footer{color:var(--mut);padding:0 30px 30px;font-size:12px}
     <div id="coupling" class="plot tall"></div></div>
   <div class="card"><h2>Architecture findings by rule</h2><p>layering / cycles / god-class / coupling, from <code>arch.rules</code>.</p><div id="archrules" class="plot"></div></div>
   <div class="card"><h2>Drift risk</h2><p>Change vs the baseline snapshot, bucketed by risk.</p><div id="driftbar" class="plot"></div></div>
-  <div class="card"><h2>Runtime correlation</h2><p>static × heap retention: confirmed leaks vs suspected FPs vs blind spots.</p><div id="rtdonut" class="plot"></div></div>
+  <div class="card"><h2>Runtime correlation</h2><p>static &times; heap retention: confirmed leaks vs suspected FPs vs blind spots.</p><div id="rtdonut" class="plot"></div></div>
   <div class="card"><h2>Confirmed &amp; unpredicted leaks</h2><p id="rt-p">Runtime-confirmed leaks and the retentions static analysis missed.</p><div id="rttable" class="scroll"></div></div>
   <div class="card wide"><h2>Architecture drift — what moved</h2><p>Risk-tagged structural changes vs baseline.</p><div id="drifttable" class="scroll"></div></div>
   <div class="card wide"><h2>Per-namespace coupling metrics</h2><p>Ca (afferent) · Ce (efferent) · Instability · Abstractness · Distance.</p><div id="metrictable" class="scroll"></div></div>
@@ -233,7 +239,7 @@ document.getElementById('kpis').innerHTML=kpis.filter(k=>k[0]!=null).map(k=>
 (function(){
   const host=document.getElementById('metrictable');
   if(!D.metrics.length){host.outerHTML='<div class="empty">No graph.json yet.</div>';return;}
-  const f=v=>v==null?'–':v;
+  const f=v=>v==null?'-':v;
   host.innerHTML='<table><thead><tr><th>namespace</th><th>types</th><th>Ca</th><th>Ce</th><th>I</th><th>A</th><th>D</th></tr></thead><tbody>'+
     D.metrics.slice().sort((a,b)=>b.ce-a.ce).map(r=>`<tr><td>${esc(r.ns)}</td><td>${r.types}</td>`+
       `<td>${r.ca}</td><td>${r.ce}</td><td>${r.instability}</td><td>${f(r.abstractness)}</td><td>${f(r.distance)}</td></tr>`).join('')+
@@ -243,10 +249,16 @@ document.getElementById('kpis').innerHTML=kpis.filter(k=>k[0]!=null).map(k=>
 
 
 def _plotly_tag() -> str:
+    """Inline the vendored Plotly for a fully-offline file when viz/plotly.min.js is present
+    (curl it into viz/ once); otherwise fall back to the CDN — the same contract as
+    viz/build_dashboard.py. Warn loudly on fallback so a "self-contained" file that actually
+    needs the network doesn't ship silently."""
     vendored = os.path.join(ROOT, "viz", "plotly.min.js")
     if os.path.exists(vendored):
         with open(vendored, encoding="utf-8") as fh:
             return "<script>" + fh.read() + "</script>"
+    print("warning: viz/plotly.min.js is not vendored — the dashboard will load Plotly from the "
+          "CDN (needs network); vendor it for a fully-offline file.", file=sys.stderr)
     return '<script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>'
 
 
