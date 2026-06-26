@@ -1,0 +1,24 @@
+{
+  "_comment": "Architecture rules for the LeakyOracle app — an MVVM layering profile (the default arch/rules.json is STS-specific: Sts.* / SQL / WPF). Shows the rules engine is configurable per codebase, not STS-hardcoded. Allowed direction: Views -> ViewModels -> Services; the reverse is forbidden. Cycle/god-class/coupling thresholds mirror the defaults.",
+  "layers": [
+    {
+      "id": "ARCH-MVVM-VM-VIEW",
+      "message": "view-model depends on a view (MVVM inversion — the view should depend on the VM, not the reverse)",
+      "from": ["*.ViewModels", "*.ViewModels.*"],
+      "to": ["*.Views", "*.Views.*"]
+    },
+    {
+      "id": "ARCH-MVVM-SVC-UI",
+      "message": "service layer depends on the UI (views/view-models) — services must not know about the presentation",
+      "from": ["*.Services", "*.Services.*"],
+      "to": ["*.Views", "*.Views.*", "*.ViewModels", "*.ViewModels.*"]
+    }
+  ],
+  "cycles": { "type": true, "namespace": true, "assembly": true },
+  "god_class": { "id": "ARCH-GOD-CLASS", "min_signals": 2, "methods": 40, "fields": 25, "loc": 1000, "deps_out": 30 },
+  "coupling": {
+    "level": "namespace",
+    "sdp": { "id": "ARCH-SDP", "min_gap": 0.3, "min_ce": 4 },
+    "unstable_hub": { "id": "ARCH-UNSTABLE-HUB", "min_ca": 8, "min_ce": 8 }
+  }
+}
