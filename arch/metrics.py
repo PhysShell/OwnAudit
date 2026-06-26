@@ -21,7 +21,7 @@ import collections
 def _component_of(g, key: str) -> dict:
     """Internal node id -> its component (namespace/assembly). External nodes are excluded —
     coupling/stability is about the components we own; framework coupling is a layering concern."""
-    return {nid: (g.node(nid).get(key) or "(none)") for nid in g.nodes if g._internal(nid)}
+    return {nid: (g.node(nid).get(key) or "(none)") for nid in g.type_ids()}
 
 
 def component_metrics(g, key: str = "namespace") -> dict:
@@ -34,8 +34,10 @@ def component_metrics(g, key: str = "namespace") -> dict:
     comp_of = _component_of(g, key)
     comps = set(comp_of.values())
 
-    ce_targets = collections.defaultdict(set)   # comp -> external classes it depends on
-    ca_sources = collections.defaultdict(set)   # comp -> external classes depending on it
+    # "outside this component", NOT "external" — these are internal classes in OTHER
+    # components (in this codebase "external" means framework/third-party, internal:false).
+    ce_targets = collections.defaultdict(set)   # comp -> classes outside it that it depends on
+    ca_sources = collections.defaultdict(set)   # comp -> classes outside it that depend on it
     for e in g.unique_edges():
         a, b = e.get("from"), e.get("to")
         if a not in comp_of or b not in comp_of:    # both endpoints must be internal (ours)
