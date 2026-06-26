@@ -1,0 +1,82 @@
+name: CI
+
+# OwnAudit is pure-Python tooling (the .NET/WPF audit of STS runs on a Windows
+# stand, not here), so CI runs the build-free test suites + a smoke of the SARIF
+# export and dashboard build. No analyzers, no .NET — fast and deterministic.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: test suites (bare python3)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.12"
+
+      - name: fix-arm + report suites
+        run: |
+          set -euo pipefail
+          PYTHONPATH=fix python3 fix/tests/test_ai_fix.py
+          PYTHONPATH=fix python3 fix/tests/test_own_fix.py
+          PYTHONPATH=fix python3 fix/tests/test_orchestrate.py
+          PYTHONPATH=.   python3 report/tests/test_sarif.py
+          PYTHONPATH=.   python3 report/tests/test_baseline.py
+
+      - name: re-run under -O (assert-stripping safety)
+        run: |
+          set -euo pipefail
+          PYTHONPATH=fix python3 -O fix/tests/test_ai_fix.py
+          PYTHONPATH=fix python3 -O fix/tests/test_own_fix.py
+          PYTHONPATH=fix python3 -O fix/tests/test_orchestrate.py
+          PYTHONPATH=.   python3 -O report/tests/test_sarif.py
+          PYTHONPATH=.   python3 -O report/tests/test_baseline.py
+
+  audit-report:
+    name: SARIF export + dashboard smoke
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.12"
+
+      # GitHub-friendly SARIF (warning+), plus metrics.json / report.md.
+      - name: Export audit artifacts
+        run: PYTHONPATH=. python3 -m report.cli --min-level warning
+
+      # Catches Python/JS-template regressions in the dashboard (no unit tests there).
+      - name: Build dashboard (smoke)
+        run: python3 viz/build_dashboard.py
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ownnet-audit
+          path: report/out/
+          if-no-files-found: error
+
+      # To surface findings in the Security tab when running against the STS repo
+      # itself, drop the cap (export the full set) and upload to code scanning:
+      #   permissions: { security-events: write }
+      #   - run: PYTHONPATH=. python3 -m report.cli --max-results 0
+      #   - uses: github/codeql-action/upload-sarif@v3
+      #     with: { sarif_file: report/out/ownnet-audit.sarif }
+      # (Skipped here: findings.json paths point at the external STS tree, not OwnAudit.)
