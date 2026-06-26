@@ -31,7 +31,7 @@ def _load_findings(path) -> list:
             return json.load(fh)["findings"]
     except (OSError, ValueError, KeyError) as e:
         print(f"error: cannot read findings from {path!r}: {e}", file=sys.stderr)
-        raise SystemExit(2)
+        raise SystemExit(2) from None
 
 
 def _diff_md(d: dict, passed: bool, blocking: list, gate_level: str) -> str:

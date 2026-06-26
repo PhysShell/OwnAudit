@@ -125,9 +125,11 @@ def test_cli_save_then_gate():
 
 def test_cli_missing_current_fails_cleanly():
     # a missing --current is a clean exit 2, not an unhandled traceback
+    missing = os.path.join(tempfile.gettempdir(), "ownaudit-no-such-findings.json")
+    base = os.path.join(tempfile.gettempdir(), "ownaudit-no-such-baseline.json")
     raised = None
     try:
-        diff_cli.main(["--current", "/no/such/findings.json", "--baseline", "/tmp/x.json"])
+        diff_cli.main(["--current", missing, "--baseline", base])
     except SystemExit as e:
         raised = e.code
     _expect(raised == 2, raised)
