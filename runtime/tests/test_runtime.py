@@ -98,6 +98,36 @@ def test_runtime_only_blind_spot():
     _expect(ro[0]["category_name"] == "runtime-only-leak" and ro[0]["rule"] == "RUNTIME-UNPREDICTED", ro)
 
 
+def test_matches_owner_type_from_path_not_resource():
+    # real own-check shape: resource is a DESCRIPTION, the leaked type is the code-behind class.
+    static = [{"tool": "own-check", "rule": "OWN001", "category_name": "subscription-leak",
+               "resource": "subscription token", "path": "Broker/AmountWindow.xaml.cs", "line": 72,
+               "message": "event 'fGoods.PropertyChanged' subscribed but never unsubscribed"}]
+    dump = _dump(_retained("Sts.Broker.AmountWindow", 64, expected=0,
+                           event_holder="Sts.Broker.GoodsStore"))
+    res = C.correlate(static, dump, CFG)
+    _expect(len(res["confirmed"]) == 1 and not res["runtime_only"], res)
+    f = res["confirmed"][0]
+    _expect(f["resource"] == "Sts.Broker.AmountWindow" and f["confidence"] == "high", f)
+    _expect(f["static_resource"] == "subscription token" and f["path"].endswith("AmountWindow.xaml.cs"), f)
+
+
+def test_null_resource_uses_path_stem():
+    # resource null (the common case) -> match purely on the file stem
+    static = [{"tool": "own-check", "rule": "OWN014", "category_name": "subscription-leak",
+               "resource": None, "path": "UI/SettingsView.xaml.cs", "line": 5, "message": "leak"}]
+    res = C.correlate(static, _dump(_retained("App.UI.SettingsView", 30)), CFG)
+    _expect(len(res["confirmed"]) == 1 and res["confirmed"][0]["resource"] == "App.UI.SettingsView", res)
+
+
+def test_runtime_only_confidence_respects_high_count():
+    # excess 4: medium under high_count=10, high under a lowered high_count=3
+    base = _dump(_retained("BlindVm", 5, expected=1))
+    _expect(C.correlate([], base, CFG)["runtime_only"][0]["confidence"] == "medium", "medium")
+    cfg_low = dict(CFG, high_count=3)
+    _expect(C.correlate([], base, cfg_low)["runtime_only"][0]["confidence"] == "high", "high")
+
+
 def test_non_leak_category_ignored():
     static = [_sf("StyleThing", cat="general-quality", rule="RCS1037")]
     res = C.correlate(static, _dump(_retained("StyleThing", 99)), CFG)
