@@ -160,6 +160,16 @@ def test_default_cap_is_github_limit():
     _expect(GITHUB_MAX_RESULTS_PER_RUN == 25000, GITHUB_MAX_RESULTS_PER_RUN)
 
 
+def test_cli_rejects_negative_max_results():
+    # a bad CLI value is an argparse usage error (SystemExit), not a traceback
+    raised = False
+    try:
+        cli.main(["--findings", "/dev/null", "--max-results", "-1"])
+    except SystemExit:
+        raised = True
+    _expect(raised, "negative --max-results should exit via argparse")
+
+
 def test_cli_writes_artifacts_with_consistent_export_block():
     d = tempfile.mkdtemp(prefix="report-")
     try:

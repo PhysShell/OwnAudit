@@ -19,6 +19,7 @@ file stays a few MB.
 """
 import collections
 import datetime
+import hashlib
 import json
 import os
 import re
@@ -119,7 +120,10 @@ class _Intern:
 
 
 def collect() -> dict:
-    findings = json.load(open(os.path.join(STS, "findings.json"), encoding="utf-8"))["findings"]
+    raw = open(os.path.join(STS, "findings.json"), encoding="utf-8").read()
+    # content digest = the audit run's identity for the trend series (below).
+    digest = hashlib.sha1(raw.encode("utf-8")).hexdigest()[:16]
+    findings = json.loads(raw)["findings"]
 
     # stable dimension orders: most-frequent first reads best in the chips/legends.
     cat = collections.Counter(x.get("category_name") for x in findings)
@@ -162,7 +166,8 @@ def collect() -> dict:
     by_source = collections.Counter(rule_src[r[2]] for r in rows)
 
     snapshot = {"date": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds"),
-                "total": len(findings), "tiers": {t: tier_counts[t] for t in TIERS}}
+                "digest": digest, "total": len(findings),
+                "tiers": {t: tier_counts[t] for t in TIERS}}
     history = _update_history(snapshot)
 
     return {
@@ -185,9 +190,10 @@ def collect() -> dict:
 
 def _update_history(snapshot: dict) -> list:
     """Append this run's snapshot to viz/history.jsonl and return the full series — the
-    trend chart's source. Each snapshot is timestamped, so distinct audits (even on the
-    same day) are preserved as separate points; only a plain re-render with identical
-    counts is collapsed (idempotent rebuild), so the trend tracks real audit changes."""
+    trend chart's source. A run's identity is the `findings.json` content digest: any new
+    audit (changed findings) is appended as its own point, even if it shares a date or the
+    same aggregate counts as a prior run; only a plain re-render of the *same* findings
+    (identical digest) is collapsed, so rebuilding the dashboard stays idempotent."""
     series = []
     if os.path.exists(HISTORY):
         with open(HISTORY, encoding="utf-8") as fh:
@@ -195,9 +201,7 @@ def _update_history(snapshot: dict) -> list:
                 line = line.strip()
                 if line:
                     series.append(json.loads(line))
-    unchanged = (series and series[-1].get("total") == snapshot["total"]
-                 and series[-1].get("tiers") == snapshot["tiers"])
-    if not unchanged:
+    if not (series and series[-1].get("digest") == snapshot["digest"]):
         series.append(snapshot)
     series.sort(key=lambda s: s["date"])
     with open(HISTORY, "w", encoding="utf-8") as fh:
@@ -538,10 +542,18 @@ def _plotly_tag() -> str:
     return '<script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>'
 
 
+def _json_for_script(data: dict) -> str:
+    """Serialize for embedding inside a <script> block: escape <, >, & to their \\uXXXX
+    forms so no audit-derived value (a path/rule/module containing </script>, <!--, etc.)
+    can break out of the script context. The result is still valid JSON to JSON.parse."""
+    return (json.dumps(data).replace("&", "\\u0026")
+            .replace("<", "\\u003c").replace(">", "\\u003e"))
+
+
 def main():
     data = collect()
     out = HTML.replace("%PLOTLY%", _plotly_tag()) \
-              .replace("%DATA%", json.dumps(data).replace("</", "<\\/")) \
+              .replace("%DATA%", _json_for_script(data)) \
               .replace("%CLUSTERS%", f"{data['clusters']['total']:,} clusters")
     dst = os.path.join(ROOT, "viz", "sts-dashboard.html")
     with open(dst, "w", encoding="utf-8") as fh:

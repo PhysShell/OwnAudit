@@ -53,13 +53,21 @@ def _report_md(m: dict) -> str:
         f"## Top rules\n\n| rule | count |\n|---|---|\n{rows(m['top_rules'])}\n")
 
 
+def _non_negative_int(value: str) -> int:
+    """argparse type: reject a negative --max-results as a usage error, not a traceback."""
+    iv = int(value)
+    if iv < 0:
+        raise argparse.ArgumentTypeError("--max-results must be >= 0 (0 = unlimited)")
+    return iv
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(prog="report", description="Own.NET Auditor — SARIF/metrics export")
     ap.add_argument("--findings", default=os.path.join(ROOT, "sts_audit", "findings.json"))
     ap.add_argument("--out-dir", default=os.path.join(ROOT, "report", "out"))
     ap.add_argument("--min-level", choices=("note", "warning", "error"), default=None,
                     help="drop results below this SARIF level (GitHub-friendly export)")
-    ap.add_argument("--max-results", type=int, default=GITHUB_MAX_RESULTS_PER_RUN,
+    ap.add_argument("--max-results", type=_non_negative_int, default=GITHUB_MAX_RESULTS_PER_RUN,
                     help=f"cap results per run, highest severity first (default: GitHub's "
                          f"limit of {GITHUB_MAX_RESULTS_PER_RUN}; 0 = unlimited, not GitHub-safe)")
     args = ap.parse_args(argv)
