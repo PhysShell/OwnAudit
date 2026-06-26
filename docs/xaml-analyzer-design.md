@@ -12,14 +12,39 @@ rule count.
 
 ---
 
+## Which repo builds this (read first)
+
+This is a **design note that lives in OwnAudit, but the analyzer it describes belongs in
+`Own.NET/audit/`, not in this repo.** Per `README.md` / `PLAN.md`, the audit is **canonical in
+Own.NET** ("*Don't reimplement it here*"): the build-free static runners live in
+`Own.NET/audit/static` (next to own-check and CodeQL), and the interprocedural lifetime engine the
+hybrid rules feed (CFG lowering, dataflow, OWN001 acquire/release, OWN014 region-escape) lives in
+Own.NET too — `OwnAudit/src/OwnAudit.Core` is a thin lift-out skeleton, **not** that engine.
+
+So the implementation homes are:
+
+- **Phase 1 (markup-only)** → a build-free XAML runner in **`Own.NET/audit/static`**, alongside the
+  other build-free static runners. It emits the canonical finding record into the same `audit/`
+  aggregate pipeline.
+- **Phase 2 (hybrid, Roslyn-linked)** → **Own.NET's interprocedural core**, because it needs the
+  Roslyn semantic model and the acquire/release engine that physically live there.
+- **Phase 3 (runtime correlation)** → wherever the runtime correlation lands at lift-out time; today
+  the suspect/confirm split is prototyped in `OwnAudit/runtime/correlate.py`, canonical runtime in
+  `Own.NET/audit/runtime`.
+
+OwnAudit's role here is the **design note + (post-lift-out) the consuming/orchestration side**, not a
+parallel XAML checker. Everything below describes the analyzer's shape; "the same pipeline" means
+**Own.NET's `audit/` pipeline**, not a new one in this repo.
+
 ## The one architectural decision
 
 **XAML is another fact source feeding the existing engine — not a parallel linter.**
 
-We already have one fact source (the Roslyn graph) that feeds `arch/` (layering, cycles, coupling),
-`report/sarif.py`, the baseline/ratchet, and `runtime/correlate.py`. XAML becomes a *second* fact
-source emitting the **same `findings.json` shape** into the **same pipeline**. No new mechanism: a
-XAML finding rides the existing fingerprint → SARIF → baseline → ratchet → drift path for free.
+`audit/` already has one such fact source (the Roslyn/own-check static layer) whose findings flow
+through normalize → score → SARIF → baseline → report, and a lifetime engine behind OWN001/OWN014.
+XAML becomes a *second* fact source emitting the **same finding record** into that **same `audit/`
+pipeline**. No new mechanism: a XAML finding rides the existing fingerprint → SARIF → baseline →
+ratchet → drift path for free.
 
 ```
   .cs  ──(Roslyn extractor)──┐
@@ -48,8 +73,11 @@ we should not re-implement their correctness rules.
 ## Phase 1 — markup-only static pass (build-free, runs in CI)
 
 Pure XML: parse `.xaml`/`.axaml`, resolve resource scopes, build a merged-dictionary graph.
-**No .NET, no stand** — runs on Linux in CI like the rest of the Python side. This is the cheapest
-deliverable in the whole project and closes ~half the ⚠️ rows in the coverage matrix.
+**No .NET build, no stand** — a build-free runner in `Own.NET/audit/static` that runs on Linux in CI
+like the other build-free runners there. This is the cheapest deliverable of the analyzer and closes
+~half the ⚠️ rows in the coverage matrix. (The `xml.etree` notes below are the reference approach if
+the runner is Python; the contract — line-preserving parse, canonical finding record — holds either
+way.)
 
 **Line preservation is a hard requirement, not a detail.** A plain `xml.etree.ElementTree.parse`
 discards source positions, but our finding contract requires a real `line` and `report/sarif.py`
@@ -131,14 +159,17 @@ framework-agnostic markup rules; the WPF tail waits for STS.
 
 ## Roadmap summary
 
-1. **Phase 1** — `xaml/` module, `xml.etree`, emits `findings.json`-shape, runs in CI. Start with the
-   rules that already have ⚠️ rows in the coverage matrix: **XAML107** (virtualization-off),
-   **XAML108** (per-keystroke binding), **XAML109** (template complexity). Build-free, no stand.
-2. **Phase 2** — link XAML facts to the Roslyn graph; the hybrid converter/handler/items-source rules.
-   This is where the interprocedural core earns its keep.
-3. **Phase 3** — fold XAML candidates into `correlate.py` alongside the runtime-trace collector;
-   one merged finding model, static suspicion upgraded by scenario evidence.
+1. **Phase 1** — a build-free XAML runner in **`Own.NET/audit/static`** (line-preserving parse, emits
+   the canonical finding record, runs in CI). Start with the rules that already have ⚠️ rows in the
+   coverage matrix: **XAML107** (virtualization-off), **XAML108** (per-keystroke binding),
+   **XAML109** (template complexity). No .NET build, no stand.
+2. **Phase 2** — link XAML facts to the Roslyn semantic model in **Own.NET's interprocedural core**;
+   the hybrid converter/handler/items-source rules. This is where that core earns its keep.
+3. **Phase 3** — fold XAML candidates into the runtime correlation (`audit/runtime`; prototyped in
+   `OwnAudit/runtime/correlate.py`) alongside the runtime-trace collector; one merged finding model,
+   static suspicion upgraded by scenario evidence.
 
-The throughline: **XAML is a first-class fact source for the same resource + lifetime core**, so each
-phase reuses machinery we already shipped (findings contract, fingerprint/baseline/ratchet, the
-acquire/release engine, `correlate.py`) instead of growing a parallel checker.
+The throughline: **XAML is a first-class fact source for the same resource + lifetime core in
+Own.NET**, so each phase reuses machinery `audit/` already has (finding contract,
+fingerprint/baseline/ratchet, the acquire/release engine, the runtime correlation) instead of growing
+a parallel checker — in either repo.
