@@ -1,0 +1,59 @@
+{
+  "_comment": "Golden arch-graph for the LeakyOracle app (oracle/LeakyOracle) — the contract the слой-2 Roslyn extractor must emit for it. Hand-authored faithfully from the real types/edges (8 internal types + the framework types they touch) so arch/ can be exercised on a real, well-layered MVVM app instead of a synthetic toy. The app's smells are lifetime/heap (OWN001, string-dup, XAML107), NOT architecture, so this clean graph yields ZERO arch findings by design — see graph.degraded.json for the regression variant.",
+  "schema": "ownAudit/arch-graph/v1",
+  "nodes": [
+    { "id": "T:LeakyOracle.Program", "kind": "type", "name": "Program", "namespace": "LeakyOracle", "assembly": "LeakyOracle", "internal": true, "loc": { "file": "oracle/LeakyOracle/Program.cs", "line": 7 }, "metrics": { "methods": 2, "fields": 0, "loc": 25 } },
+    { "id": "T:LeakyOracle.App", "kind": "type", "name": "App", "namespace": "LeakyOracle", "assembly": "LeakyOracle", "internal": true, "loc": { "file": "oracle/LeakyOracle/App.axaml.cs", "line": 10 }, "metrics": { "methods": 2, "fields": 1, "loc": 33 } },
+    { "id": "T:LeakyOracle.LeakScenario", "kind": "type", "name": "LeakScenario", "namespace": "LeakyOracle", "assembly": "LeakyOracle", "internal": true, "loc": { "file": "oracle/LeakyOracle/LeakScenario.cs", "line": 18 }, "metrics": { "methods": 3, "fields": 0, "loc": 60 } },
+    { "id": "T:LeakyOracle.Services.MarketDataService", "kind": "type", "name": "MarketDataService", "namespace": "LeakyOracle.Services", "assembly": "LeakyOracle", "internal": true, "loc": { "file": "oracle/LeakyOracle/Services/MarketDataService.cs", "line": 13 }, "metrics": { "methods": 1, "fields": 0, "loc": 12 } },
+    { "id": "T:LeakyOracle.ViewModels.QuoteRow", "kind": "type", "name": "QuoteRow", "namespace": "LeakyOracle.ViewModels", "assembly": "LeakyOracle", "internal": true, "loc": { "file": "oracle/LeakyOracle/ViewModels/QuoteRow.cs", "line": 6 }, "metrics": { "methods": 0, "fields": 1, "loc": 8 } },
+    { "id": "T:LeakyOracle.ViewModels.WatchlistViewModel", "kind": "type", "name": "WatchlistViewModel", "namespace": "LeakyOracle.ViewModels", "assembly": "LeakyOracle", "internal": true, "loc": { "file": "oracle/LeakyOracle/ViewModels/WatchlistViewModel.cs", "line": 19 }, "metrics": { "methods": 2, "fields": 3, "loc": 45 } },
+    { "id": "T:LeakyOracle.ViewModels.FixedWatchlistViewModel", "kind": "type", "name": "FixedWatchlistViewModel", "namespace": "LeakyOracle.ViewModels", "assembly": "LeakyOracle", "internal": true, "loc": { "file": "oracle/LeakyOracle/ViewModels/FixedWatchlistViewModel.cs", "line": 16 }, "metrics": { "methods": 3, "fields": 3, "loc": 40 } },
+    { "id": "T:LeakyOracle.Views.MainWindow", "kind": "type", "name": "MainWindow", "namespace": "LeakyOracle.Views", "assembly": "LeakyOracle", "internal": true, "loc": { "file": "oracle/LeakyOracle/Views/MainWindow.axaml.cs", "line": 5 }, "metrics": { "methods": 1, "fields": 0, "loc": 8 } },
+
+    { "id": "T:Avalonia.Application", "kind": "type", "name": "Application", "namespace": "Avalonia", "assembly": "Avalonia.Base", "internal": false },
+    { "id": "T:Avalonia.AppBuilder", "kind": "type", "name": "AppBuilder", "namespace": "Avalonia", "assembly": "Avalonia.Controls", "internal": false },
+    { "id": "T:Avalonia.Controls.Window", "kind": "type", "name": "Window", "namespace": "Avalonia.Controls", "assembly": "Avalonia.Controls", "internal": false },
+    { "id": "T:Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime", "kind": "type", "name": "IClassicDesktopStyleApplicationLifetime", "namespace": "Avalonia.Controls.ApplicationLifetimes", "assembly": "Avalonia.Controls", "internal": false },
+    { "id": "T:System.EventHandler`1", "kind": "type", "name": "EventHandler", "namespace": "System", "assembly": "System.Private.CoreLib", "internal": false },
+    { "id": "T:System.IDisposable", "kind": "type", "name": "IDisposable", "namespace": "System", "assembly": "System.Private.CoreLib", "internal": false },
+    { "id": "T:System.WeakReference", "kind": "type", "name": "WeakReference", "namespace": "System", "assembly": "System.Private.CoreLib", "internal": false },
+    { "id": "T:System.Collections.Generic.List`1", "kind": "type", "name": "List", "namespace": "System.Collections.Generic", "assembly": "System.Private.CoreLib", "internal": false },
+    { "id": "T:System.Func`1", "kind": "type", "name": "Func", "namespace": "System", "assembly": "System.Private.CoreLib", "internal": false },
+    { "id": "T:System.Action`1", "kind": "type", "name": "Action", "namespace": "System", "assembly": "System.Private.CoreLib", "internal": false }
+  ],
+  "edges": [
+    { "from": "T:LeakyOracle.Program", "to": "T:LeakyOracle.App", "kind": "depends" },
+    { "from": "T:LeakyOracle.Program", "to": "T:LeakyOracle.LeakScenario", "kind": "depends" },
+    { "from": "T:LeakyOracle.Program", "to": "T:Avalonia.AppBuilder", "kind": "depends" },
+
+    { "from": "T:LeakyOracle.App", "to": "T:LeakyOracle.Services.MarketDataService", "kind": "depends" },
+    { "from": "T:LeakyOracle.App", "to": "T:LeakyOracle.ViewModels.WatchlistViewModel", "kind": "depends" },
+    { "from": "T:LeakyOracle.App", "to": "T:LeakyOracle.Views.MainWindow", "kind": "depends" },
+    { "from": "T:LeakyOracle.App", "to": "T:Avalonia.Application", "kind": "depends" },
+    { "from": "T:LeakyOracle.App", "to": "T:Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime", "kind": "depends" },
+
+    { "from": "T:LeakyOracle.ViewModels.WatchlistViewModel", "to": "T:LeakyOracle.Services.MarketDataService", "kind": "depends" },
+    { "from": "T:LeakyOracle.ViewModels.WatchlistViewModel", "to": "T:LeakyOracle.ViewModels.QuoteRow", "kind": "depends" },
+    { "from": "T:LeakyOracle.ViewModels.WatchlistViewModel", "to": "T:System.Collections.Generic.List`1", "kind": "depends" },
+
+    { "from": "T:LeakyOracle.ViewModels.FixedWatchlistViewModel", "to": "T:LeakyOracle.Services.MarketDataService", "kind": "depends" },
+    { "from": "T:LeakyOracle.ViewModels.FixedWatchlistViewModel", "to": "T:LeakyOracle.ViewModels.QuoteRow", "kind": "depends" },
+    { "from": "T:LeakyOracle.ViewModels.FixedWatchlistViewModel", "to": "T:System.IDisposable", "kind": "depends" },
+    { "from": "T:LeakyOracle.ViewModels.FixedWatchlistViewModel", "to": "T:System.Collections.Generic.List`1", "kind": "depends" },
+
+    { "from": "T:LeakyOracle.Views.MainWindow", "to": "T:LeakyOracle.ViewModels.WatchlistViewModel", "kind": "depends" },
+    { "from": "T:LeakyOracle.Views.MainWindow", "to": "T:LeakyOracle.ViewModels.QuoteRow", "kind": "depends" },
+    { "from": "T:LeakyOracle.Views.MainWindow", "to": "T:Avalonia.Controls.Window", "kind": "depends" },
+
+    { "from": "T:LeakyOracle.Services.MarketDataService", "to": "T:System.EventHandler`1", "kind": "depends" },
+
+    { "from": "T:LeakyOracle.LeakScenario", "to": "T:LeakyOracle.Services.MarketDataService", "kind": "depends" },
+    { "from": "T:LeakyOracle.LeakScenario", "to": "T:LeakyOracle.ViewModels.WatchlistViewModel", "kind": "depends" },
+    { "from": "T:LeakyOracle.LeakScenario", "to": "T:LeakyOracle.ViewModels.FixedWatchlistViewModel", "kind": "depends" },
+    { "from": "T:LeakyOracle.LeakScenario", "to": "T:System.WeakReference", "kind": "depends" },
+    { "from": "T:LeakyOracle.LeakScenario", "to": "T:System.Collections.Generic.List`1", "kind": "depends" },
+    { "from": "T:LeakyOracle.LeakScenario", "to": "T:System.Func`1", "kind": "depends" },
+    { "from": "T:LeakyOracle.LeakScenario", "to": "T:System.Action`1", "kind": "depends" }
+  ]
+}
