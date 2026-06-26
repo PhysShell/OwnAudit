@@ -29,3 +29,6 @@ viz/theme-*.png
 # Own.NET Auditor — generated report artifacts
 report/out/
 report/out-*/
+
+# Own.NET Auditor — user-managed baseline (large; created on the stand)
+sts_audit/baseline.json

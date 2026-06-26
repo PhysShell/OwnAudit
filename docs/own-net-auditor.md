@@ -90,11 +90,19 @@ runtime-корреляция — это буквально исходная **«
 Артефакты: `ownnet-audit.sarif`, `report.md`, `metrics.json`.
 - *Строится в CI.* Тестируется на фикстурах, как fix-arm.
 
-### Фаза 2 — Baseline + diff (дни)
-Переиспользовать `diff_findings` из fix-arm. Гейт: **валим только за новый мусор**, не
-за GodService 2014 года. `baseline.json` + `current.json` → delta-report (new/fixed/
-debt-delta). Завязать на `history.jsonl`.
-- *Строится в CI.*
+### Фаза 2 — Baseline + diff ✅ реализовано (`report/baseline.py`, `report/diff_cli.py`)
+Гейт: **валим только за новый мусор**, не за GodService 2014 года. `baseline.json` +
+`current.json` → delta-report (new/fixed/net debt-delta) + exit-код для CI.
+- Идентичность находки — тот же стабильный fingerprint, что у SARIF-экспортёра (rule +
+  path + нормализованное сообщение, per-occurrence), поэтому гейт и code-scanning алерты
+  сходятся в том, что считать «той же находкой». Это устойчиво к сдвигу строк и к
+  изменению идентификаторов/чисел в сообщении. (Не `diff_findings` из fix-arm — тот для
+  before/after одного фикса на одном дереве, а не для сравнения двух прогонов корпуса.)
+- `python3 -m report.diff_cli --save-baseline` — снять baseline (компактный: fingerprint
+  + rule/path/cat/tool, без длинных сообщений); затем `--baseline … [--gate-level
+  note|warning|error] [--report-only]` — гейт. Exit 0 = чисто, 2 = есть новый долг ≥ уровня.
+- *Строится и тестируется в CI* (`report/tests/test_baseline.py`, 7/7). Baseline —
+  пользовательский артефакт (создаётся на стенде, в `.gitignore`).
 
 ### Фаза 3 — Architecture-pass над Roslyn (недели) — **дифференциатор**
 Тонкий проход: Type→dependency граф (проекция символов Roslyn) + YAML-правила слоёв +
