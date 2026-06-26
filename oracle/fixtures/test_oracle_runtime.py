@@ -27,6 +27,14 @@ FINDINGS = os.path.join(HERE, "findings.json")
 RUNTIME = os.path.join(HERE, "runtime.json")
 VM_DIR = os.path.join(ROOT, "oracle", "LeakyOracle", "ViewModels")
 
+# Pinned config so this golden depends only on its own fixtures — unrelated tuning in the shared
+# runtime/config.json must not silently shift the oracle's confirmed/runtime-only split or downgrade
+# the expected `high` confidence. (Mirrors the default config; same convention as test_runtime.py.)
+ORACLE_CFG = {
+    "leak_categories": ["subscription-leak", "idisposable-leak", "region-escape"],
+    "default_expected": 1, "min_count": 2, "high_count": 10,
+}
+
 
 def _expect(cond, msg):
     if not cond:
@@ -36,7 +44,7 @@ def _expect(cond, msg):
 def _correlate():
     findings = json.load(open(FINDINGS, encoding="utf-8"))["findings"]
     dump = json.load(open(RUNTIME, encoding="utf-8"))
-    return C.correlate(findings, dump, C.load_config()), dump
+    return C.correlate(findings, dump, ORACLE_CFG), dump
 
 
 def test_both_oracle_leaks_are_confirmed_high():

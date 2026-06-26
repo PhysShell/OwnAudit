@@ -7,7 +7,7 @@
       "category_name": "subscription-leak",
       "resource": "QuoteReceived subscription",
       "path": "oracle/LeakyOracle/ViewModels/WatchlistViewModel.cs",
-      "line": 35,
+      "line": 32,
       "message": "subscribes to MarketDataService.QuoteReceived with no matching unsubscribe",
       "suppressed": false
     },
@@ -17,7 +17,7 @@
       "category_name": "idisposable-leak",
       "resource": "Timer never disposed",
       "path": "oracle/LeakyOracle/ViewModels/TickerViewModel.cs",
-      "line": 24,
+      "line": 27,
       "message": "System.Threading.Timer created but never disposed (Stop/Dispose missing)",
       "suppressed": false
     }
