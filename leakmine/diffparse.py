@@ -93,19 +93,54 @@ def parse_patch(text: str) -> list[FileDiff]:
     old_no = new_no = 0
 
     for raw in text.splitlines():
+        # Inside an unfinished hunk, EVERY line is body content — even one that literally
+        # starts with "--- " / "+++ " / "@@" (e.g. removing a "-- sql comment", or a
+        # diff-of-a-diff). The hunk's declared lengths tell us when the body ends, so we
+        # never confuse content with the next file's headers.
+        if hunk is not None and (
+            (old_no - hunk.old_start) < hunk.old_len
+            or (new_no - hunk.new_start) < hunk.new_len
+        ):
+            tag = raw[:1]
+            body = raw[1:]
+            if tag == "+":
+                hunk.added_lines.add(new_no)
+                hunk.added_text.append(body)
+                new_no += 1
+            elif tag == "-":
+                hunk.removed_lines.add(old_no)
+                hunk.removed_text.append(body)
+                old_no += 1
+            elif tag == "\\":
+                continue  # "\ No newline at end of file" — does not consume a line
+            else:         # ' ' context (and, defensively, a blank context line)
+                old_no += 1
+                new_no += 1
+            continue
+
         m = _DIFF_GIT_RE.match(raw)
         if m:
             cur = FileDiff(old_path=m.group(1), new_path=m.group(2))
             files.append(cur)
             hunk = None
             continue
-        if cur is None:
-            # patch without a `diff --git` header — synthesize a file on first `---`.
-            if raw.startswith("--- "):
+
+        if raw.startswith("--- "):
+            # A new file boundary: a fresh `diff --git` left `cur` with no hunks (this
+            # `--- ` just restates its old path), but a *bare* multi-file patch reuses no
+            # header — so once the current file already has hunks, start a new FileDiff
+            # instead of overwriting the previous one.
+            mo = _OLD_FILE_RE.match(raw)
+            if cur is None or cur.hunks:
                 cur = FileDiff(old_path="", new_path="")
                 files.append(cur)
-            else:
-                continue
+            if mo:
+                cur.old_path = mo.group(1)
+            hunk = None
+            continue
+
+        if cur is None:
+            continue  # preamble before any file segment
 
         if raw.startswith("new file mode"):
             cur.is_new = True
@@ -115,11 +150,6 @@ def parse_patch(text: str) -> list[FileDiff]:
             continue
         if raw.startswith("rename from") or raw.startswith("rename to"):
             cur.is_rename = True
-            continue
-        if raw.startswith("--- "):
-            mo = _OLD_FILE_RE.match(raw)
-            if mo:
-                cur.old_path = mo.group(1)
             continue
         if raw.startswith("+++ "):
             mn = _NEW_FILE_RE.match(raw)
@@ -140,25 +170,7 @@ def parse_patch(text: str) -> list[FileDiff]:
             new_no = hunk.new_start
             continue
 
-        if hunk is None:
-            continue
-
-        # body lines: ' ' context, '+' add, '-' remove, '\' no-newline marker.
-        tag = raw[:1]
-        body = raw[1:]
-        if tag == "+":
-            hunk.added_lines.add(new_no)
-            hunk.added_text.append(body)
-            new_no += 1
-        elif tag == "-":
-            hunk.removed_lines.add(old_no)
-            hunk.removed_text.append(body)
-            old_no += 1
-        elif tag == "\\":
-            continue  # "\ No newline at end of file"
-        else:
-            old_no += 1
-            new_no += 1
+        # anything else outside a hunk (index lines, prose) is ignored.
 
     return files
 

@@ -30,7 +30,7 @@ def _expect(cond, msg):
 REACT_PATCH = """diff --git a/src/Widget.tsx b/src/Widget.tsx
 --- a/src/Widget.tsx
 +++ b/src/Widget.tsx
-@@ -10,7 +10,11 @@ export function Widget() {
+@@ -10,5 +10,9 @@ export function Widget() {
    useEffect(() => {
      const onResize = () => setW(window.innerWidth);
      window.addEventListener('resize', onResize);
@@ -57,6 +57,27 @@ def test_diffparse():
     _expect(fd.touches_old_line(11, window=2), "window admits near line")
 
 
+def test_diffparse_body_lines_with_header_prefixes():
+    # a removed SQL comment renders as "--- ..." at column 0; inside the hunk budget it
+    # must be body content, not misread as a file header.
+    patch = ("diff --git a/q.sql b/q.sql\n--- a/q.sql\n+++ b/q.sql\n"
+             "@@ -1,2 +1,2 @@\n--- old comment\n+-- new comment\n SELECT 1;\n")
+    fds = diffparse.parse_patch(patch)
+    _expect(len(fds) == 1, f"one file, got {len(fds)}")
+    _expect("-- old comment" in fds[0].removed_text(), "removed comment captured as body")
+    _expect("-- new comment" in fds[0].added_text(), "added comment captured as body")
+
+
+def test_diffparse_bare_multifile():
+    # bare patch (no `diff --git`): the second file's "--- " must start a NEW FileDiff,
+    # not overwrite the first.
+    patch = ("--- a/one.py\n+++ b/one.py\n@@ -1,1 +1,1 @@\n-a\n+b\n"
+             "--- a/two.py\n+++ b/two.py\n@@ -1,1 +1,1 @@\n-c\n+d\n")
+    fds = diffparse.parse_patch(patch)
+    _expect(len(fds) == 2, f"two files, got {len(fds)}")
+    _expect({f.path for f in fds} == {"one.py", "two.py"}, f"paths {[f.path for f in fds]}")
+
+
 # ---- signals ---------------------------------------------------------------------
 
 def test_signals_react():
@@ -77,7 +98,7 @@ def test_signals_docs_penalty():
 
 def test_signals_dotnet_event():
     patch = ("diff --git a/A.xaml.cs b/A.xaml.cs\n--- a/A.xaml.cs\n+++ b/A.xaml.cs\n"
-             "@@ -5,6 +5,8 @@\n   void Wire() {\n-    svc.Tick += OnTick;\n"
+             "@@ -5,3 +5,4 @@\n   void Wire() {\n-    svc.Tick += OnTick;\n"
              "+    svc.Tick += OnTick;\n+    Unloaded += (s,e) => svc.Tick -= OnTick;\n   }\n")
     cls = signals.classify("dotnet_wpf", title="Fix event handler leak", body="", patch=patch)
     _expect(cls.category == signals.SUBSCRIPTION, f"category {cls.category}")
@@ -87,7 +108,7 @@ def test_signals_dotnet_event():
 def test_signals_java_executor_single_form():
     # a fix that adds ONLY .shutdown() (not both forms) must still clear the threshold.
     patch = ("diff --git a/Svc.java b/Svc.java\n--- a/Svc.java\n+++ b/Svc.java\n"
-             "@@ -5,3 +5,5 @@\n   void stop() {\n+    pool.shutdown();\n   }\n")
+             "@@ -5,2 +5,3 @@\n   void stop() {\n+    pool.shutdown();\n   }\n")
     cls = signals.classify("java_spring", title="fix ExecutorService memory leak", body="", patch=patch)
     _expect(cls.category == signals.TASK, f"category {cls.category}")
     _expect(cls.is_candidate, f"single-form shutdown is a candidate, score={cls.score}")
@@ -130,7 +151,7 @@ rename from src/Old.tsx
 rename to src/New.tsx
 --- a/src/Old.tsx
 +++ b/src/New.tsx
-@@ -10,7 +10,8 @@ export function Widget() {
+@@ -10,3 +10,4 @@ export function Widget() {
      window.addEventListener('resize', onResize);
 -  }, []);
 +  }, []);  // touched, but the leak is NOT actually fixed
@@ -206,6 +227,42 @@ def test_judge_unique_catch_and_miss():
     _expect(v.own_resolution == "interproc", f"resolution {v.own_resolution}")
 
 
+def test_judge_tool_catch_does_not_define_real_fix():
+    # a borderline patch (candidate but score < 10) that a tool confirm-catches must NOT be
+    # promoted to a "real fix" — ground truth is the patch signal, not the tool's catch.
+    patch = ("diff --git a/a.tsx b/a.tsx\n--- a/a.tsx\n+++ b/a.tsx\n"
+             "@@ -1,3 +1,3 @@\n function setup() {\n-  window.addEventListener('x', f);\n"
+             "+  window.removeEventListener('x', f);\n }\n")
+    cand = confirm.Candidate(
+        id="b1", ecosystem="react_ts", title="improve effect cleanup", body="", patch=patch,
+        before={"ownaudit": [_finding("ownaudit", "OWN-X", "a.tsx", 2)]},
+        after={"ownaudit": []},
+    )
+    v = confirm.judge(cand, ownaudit_tool="ownaudit")
+    _expect("ownaudit" in v.caught_by, "catch still recorded")
+    _expect(not v.is_real_fix, "tool catch must not define a real fix")
+    _expect("borderline-send-to-review" in v.notes, "routed to review instead")
+
+
+def test_fp_after_matches_rule_and_file():
+    patch = ("diff --git a/a.cs b/a.cs\n--- a/a.cs\n+++ b/a.cs\n"
+             "@@ -5,2 +5,3 @@\n void M() {\n+  DoThing();\n }\n")
+    # same (rule, file) survives on a touched file -> precision smell.
+    same = confirm.Candidate(
+        id="f1", ecosystem="dotnet_wpf", title="t", body="", patch=patch,
+        before={"ownaudit": [_finding("ownaudit", "R1", "a.cs", 5)]},
+        after={"ownaudit": [_finding("ownaudit", "R1", "a.cs", 5)]},
+    )
+    _expect(confirm._fp_after(same, "ownaudit"), "surviving same rule+file is a smell")
+    # a DIFFERENT rule on the same file must not count.
+    diff = confirm.Candidate(
+        id="f2", ecosystem="dotnet_wpf", title="t", body="", patch=patch,
+        before={"ownaudit": [_finding("ownaudit", "R1", "a.cs", 5)]},
+        after={"ownaudit": [_finding("ownaudit", "R2", "a.cs", 9)]},
+    )
+    _expect(not confirm._fp_after(diff, "ownaudit"), "unrelated rule must not inflate fp_after")
+
+
 def test_judge_unique_miss():
     # a real fix (strong patch signal) that NO tool caught -> the precious blind-spot bucket.
     cand = confirm.Candidate(
@@ -267,6 +324,17 @@ def test_sweep_over_vetted():
     _expect(names & {"acme-dashboard", "ctrl-plane"}, "an app-shaped repo got in")
 
 
+def test_sweep_underfill_is_intentional():
+    # an all-vetted pool can't fill n without breaching the cap: underfill is intentional,
+    # NOT a backfill with the very libs the cap excludes.
+    pkgs = [sweep.Package(f"lib{i}", "nuget", downloads=10**8, stars=8000, maintainers=9,
+                          open_issues=5, age_days=3000, has_ci=True, shape="library")
+            for i in range(10)]
+    chosen = sweep.select_targets(pkgs, n=5, max_vetted_fraction=0.4)
+    _expect(len(chosen) == 2, f"hard cap -> 2 of 5 (intentional underfill), got {len(chosen)}")
+    _expect(all(c.vetted >= 0.6 for c in chosen), "the two admitted are the vetted libs")
+
+
 # ---- collect (deterministic query/SQL gen) ---------------------------------------
 
 def test_queries_and_sql():
@@ -277,6 +345,7 @@ def test_queries_and_sql():
     sql = collect.gharchive_sql("dotnet_wpf", date_from="20240101", date_to="20241231")
     _expect("_TABLE_SUFFIX BETWEEN '20240101' AND '20241231'" in sql, "partition-scoped")
     _expect("PullRequestEvent" in sql and "memory leak" in sql, "PR + keyword filter")
+    _expect("pull_request.title" in sql and "pull_request.body" in sql, "title AND body matched")
 
 
 def test_fetch_search_with_fake_http():
@@ -302,6 +371,28 @@ def test_schema_store():
     _expect(schema.count(conn, "candidates") == 1, "candidate stored")
     _expect(schema.count(conn, "labels") == 1, "label stored")
     _expect(schema.count(conn, "verdicts") == 1, "verdict stored")
+
+
+def test_schema_verdict_idempotent():
+    # re-confirming the same candidate upserts, so resume never double-counts verdicts.
+    conn = schema.connect(":memory:")
+    schema.insert_candidate(conn, {"id": "c1", "ecosystem": "react_ts", "title": "t", "merged": 1})
+    v = confirm.Verdict("c1", "react_ts", "subscription-leak", 12, True, caught_by=["ownaudit"])
+    schema.insert_verdict(conn, v)
+    schema.insert_verdict(conn, v)  # second confirm of the same candidate
+    _expect(schema.count(conn, "verdicts") == 1, "verdict upserts, not duplicated")
+
+
+def test_schema_foreign_keys_enforced():
+    # FK enforcement is ON: a verdict for an unknown candidate must be rejected.
+    conn = schema.connect(":memory:")
+    v = confirm.Verdict("ghost", "react_ts", "subscription-leak", 12, True)
+    try:
+        schema.insert_verdict(conn, v)
+        raised = False
+    except Exception:
+        raised = True
+    _expect(raised, "orphan verdict rejected by foreign-key constraint")
 
 
 def main():

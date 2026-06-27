@@ -49,8 +49,12 @@ def gharchive_sql(
     between a few cents and a blown free tier.
     """
     eco = sig.ECOSYSTEMS[eco_key]
+    # match the keyword in EITHER the PR title or body — a generic title with the leak
+    # described in the body must still enter the corpus (COALESCE guards a null body).
     kw = " OR ".join(
-        f"LOWER(JSON_EXTRACT_SCALAR(payload, '$.pull_request.title')) LIKE '%{k}%'"
+        "(LOWER(JSON_EXTRACT_SCALAR(payload, '$.pull_request.title')) LIKE '%{k}%' OR "
+        "LOWER(COALESCE(JSON_EXTRACT_SCALAR(payload, '$.pull_request.body'), '')) "
+        "LIKE '%{k}%')".format(k=k)
         for k in eco.keywords
     )
     exts = " OR ".join(f"f LIKE '%{e}'" for e in eco.file_ext)

@@ -82,11 +82,18 @@ def select_targets(
     max_vetted_fraction: float = 0.3,
     vetted_threshold: float = 0.6,
 ) -> list[Scored]:
-    """Pick N sweep targets that don't drown in over-vetted libraries.
+    """Pick up to N sweep targets that don't drown in over-vetted libraries.
 
     Sort by selection weight, then admit greedily while keeping the share of
     `vetted >= vetted_threshold` packages under `max_vetted_fraction`. The cap is the whole
     point: it forces application-shaped, less-curated repos into the sample where leaks live.
+
+    The cap is HARD: if a package set is dominated by polished libraries, this intentionally
+    returns FEWER than `n` rather than backfilling with the very over-vetted libs the cap
+    exists to exclude — backfilling would reintroduce the floor effect we're avoiding.
+    Underfill is not silent: the caller sees `len(result) < n` and can widen the candidate
+    pool (more registries / a longer download tail) instead. Inspect `Scored.vetted` /
+    `.reason` to see why anything was held back.
     """
     scored = sorted((over_vetted_score(p) for p in packages), key=lambda s: -s.weight)
     chosen: list[Scored] = []

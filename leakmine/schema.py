@@ -52,7 +52,8 @@ CREATE TABLE IF NOT EXISTS tool_runs (
 );
 
 CREATE TABLE IF NOT EXISTS verdicts (
-  candidate_id      TEXT REFERENCES candidates(id),
+  -- one final verdict per candidate; resume/re-confirm must upsert, not append.
+  candidate_id      TEXT PRIMARY KEY REFERENCES candidates(id),
   is_real_fix       INTEGER,
   category          TEXT,
   unique_to_own     INTEGER,
@@ -66,6 +67,9 @@ CREATE TABLE IF NOT EXISTS verdicts (
 
 def connect(path: str = ":memory:") -> sqlite3.Connection:
     conn = sqlite3.connect(path)
+    # SQLite leaves FK enforcement OFF by default, so the REFERENCES clauses are inert
+    # until enabled — and it must be enabled per connection, before any DML.
+    conn.execute("PRAGMA foreign_keys = ON")
     conn.executescript(DDL)
     return conn
 
@@ -90,8 +94,9 @@ def insert_label(conn: sqlite3.Connection, candidate_id: str, label: str, score:
 
 
 def insert_verdict(conn: sqlite3.Connection, v) -> None:
+    # upsert: re-confirming a candidate replaces its verdict rather than duplicating it.
     conn.execute(
-        "INSERT INTO verdicts "
+        "INSERT OR REPLACE INTO verdicts "
         "(candidate_id,is_real_fix,category,unique_to_own,caught_by,missed_by,own_resolution,notes) "
         "VALUES (?,?,?,?,?,?,?,?)",
         (v.candidate_id, int(v.is_real_fix), v.category, int(v.unique_to_ownaudit),

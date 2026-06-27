@@ -65,10 +65,15 @@ def _confirmed_catches(cand: Candidate, tool: str, window: int) -> list[szz.Find
 
 
 def _fp_after(cand: Candidate, tool: str) -> bool:
-    """Same (rule, file) still present after the fix touched that file → precision smell."""
-    after = cand.after.get(tool, [])
-    touched = {fd.path for fd in diffparse.parse_patch(cand.patch)}
-    return any(f.file in touched for f in after)
+    """Same (rule, file) present BOTH before and after, on a file the fix touched →
+    precision smell (a likely false positive, or an incomplete fix). Matching the full
+    (rule, file) pair — not just "any finding on a touched file" — keeps an unrelated rule
+    on the same file from inflating fp_after."""
+    before_pairs = {(f.rule, f.file) for f in cand.before.get(tool, [])}
+    after_pairs = {(f.rule, f.file) for f in cand.after.get(tool, [])}
+    touched = {p for fd in diffparse.parse_patch(cand.patch)
+               for p in (fd.old_path, fd.new_path, fd.path) if p}
+    return any(pair in after_pairs and pair[1] in touched for pair in before_pairs)
 
 
 def judge(
@@ -92,7 +97,11 @@ def judge(
                 order = {"syntactic": 0, "semantic": 1, "interproc": 2, "": -1}
                 own_res = max((c.resolution for c in catches), key=lambda r: order.get(r, -1))
 
-    is_real = cls.is_likely_fix or bool(caught_by)
+    # Ground truth = the PATCH signal, never a tool catch. Deriving "real fix" from
+    # caught_by would be circular — it biases the corpus toward what the tools already
+    # find and inflates their apparent recall. Borderline patches (candidate but not
+    # likely_fix) are routed to review below, not auto-promoted by a catch.
+    is_real = cls.is_likely_fix
     missed_by = [t for t in all_tools if t not in caught_by] if is_real else []
     unique = (ownaudit_tool in caught_by) and not any(b in caught_by for b in baseline_tools)
     fp_after = [t for t in all_tools if _fp_after(cand, t)]
