@@ -33,5 +33,6 @@ console crash on the Russian-locale Windows target.
 | runtime LeakHarness / DuplicateDetector / storm profiler | `Own.NET/audit/runtime` | **canonical** |
 | boundary + STS runner + artifacts + lift-out home | `OwnAudit/` (this repo) | active |
 | fix arm — wire mass appliers + safety wrapper + OWN fixer | `OwnAudit/` ([docs/fix-arm.md](docs/fix-arm.md)) | design |
+| LeakFixMine — mine real leak-fixes, SZZ-prove them, score OwnAudit vs baselines | `leakmine/` ([docs/leakfix-mine.md](docs/leakfix-mine.md)) | active |
 
-See [PLAN.md](PLAN.md) and the [Fix arm design](docs/fix-arm.md).
+See [PLAN.md](PLAN.md), the [Fix arm design](docs/fix-arm.md), and [LeakFixMine](docs/leakfix-mine.md).
