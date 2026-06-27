@@ -84,6 +84,15 @@ def test_signals_dotnet_event():
     _expect(cls.is_candidate, f"candidate, score={cls.score}")
 
 
+def test_signals_java_executor_single_form():
+    # a fix that adds ONLY .shutdown() (not both forms) must still clear the threshold.
+    patch = ("diff --git a/Svc.java b/Svc.java\n--- a/Svc.java\n+++ b/Svc.java\n"
+             "@@ -5,3 +5,5 @@\n   void stop() {\n+    pool.shutdown();\n   }\n")
+    cls = signals.classify("java_spring", title="fix ExecutorService memory leak", body="", patch=patch)
+    _expect(cls.category == signals.TASK, f"category {cls.category}")
+    _expect(cls.is_candidate, f"single-form shutdown is a candidate, score={cls.score}")
+
+
 # ---- szz attribution + correspondence --------------------------------------------
 
 def _finding(tool, rule, file, line, **kw):
@@ -114,6 +123,31 @@ def test_correspondence_confirmed_vs_lucky():
     _expect(corr2.detected_before and corr2.gone_after, "before/after set")
     _expect(not corr2.causal, "not on fixed lines")
     _expect(not corr2.confirmed_catch, "gone-but-not-causal is NOT a confirmed catch")
+
+
+RENAME_PATCH = """diff --git a/src/Old.tsx b/src/New.tsx
+rename from src/Old.tsx
+rename to src/New.tsx
+--- a/src/Old.tsx
++++ b/src/New.tsx
+@@ -10,7 +10,8 @@ export function Widget() {
+     window.addEventListener('resize', onResize);
+-  }, []);
++  }, []);  // touched, but the leak is NOT actually fixed
++  // (rule still fires on the new path below)
+ }
+"""
+
+
+def test_correspondence_rename_not_confirmed():
+    # fix renames Old.tsx -> New.tsx and edits the line, but the SAME rule still fires on
+    # the renamed file. That is a file-move, not a fix: it must NOT count as confirmed.
+    before = [_finding("ownaudit", "OWN-EFFECT", "src/Old.tsx", 11)]
+    after = [_finding("ownaudit", "OWN-EFFECT", "src/New.tsx", 11)]  # persists under new path
+    corr = szz.correspond(before, after, RENAME_PATCH, before[0], window=2)
+    _expect(corr.detected_before, "flagged before")
+    _expect(not corr.gone_after, "rule still fires on the renamed path -> not gone")
+    _expect(not corr.confirmed_catch, "rename+persisting finding is NOT a confirmed catch")
 
 
 # ---- lead-time over a real temp git repo -----------------------------------------
@@ -149,7 +183,8 @@ def test_lead_time():
 
         lt = szz.lead_time(repo, leak_sha, "svc.cs", 2)
         _expect(lt.found, "fix located in history")
-        _expect(lt.commits_between == 3, f"3 commits between leak and fix, got {lt.commits_between}")
+        # 2 intervening commits (noise0, noise1); the fix commit itself is excluded.
+        _expect(lt.commits_between == 2, f"2 intervening commits, got {lt.commits_between}")
         _expect(lt.fix_date.startswith("2024-04-01"), f"fix date {lt.fix_date}")
 
 

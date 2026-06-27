@@ -135,12 +135,18 @@ def correspond(
 ) -> Correspondence:
     """Cross a target finding against before/after tool runs and the fix patch."""
     before_keys = {f.key() for f in before}
-    after_keys = {f.key() for f in after}
     detected = target.key() in before_keys
     # "gone" is matched on (tool, rule, file) since the line number legitimately shifts
     # across the fix; exact-line matching would falsely report every finding as "gone".
     after_loose = {(f.tool, f.rule, f.file) for f in after}
-    gone = (target.tool, target.rule, target.file) not in after_loose
+    # A rename moves the after-finding onto the NEW path, so checking only the old path
+    # would call a rename "gone" even when the same rule still fires on the renamed file —
+    # exactly the file-move case this guard exists to exclude. Follow the rename(s).
+    post_paths = {target.file}
+    for fd in diffparse.parse_patch(patch):
+        if fd.old_path == target.file and fd.new_path not in ("", "/dev/null"):
+            post_paths.add(fd.new_path)
+    gone = not any((target.tool, target.rule, p) in after_loose for p in post_paths)
     causal = attribute(patch, target, window=window).fix_touches
     return Correspondence(detected_before=detected, gone_after=gone, causal=causal)
 
@@ -151,7 +157,7 @@ def correspond(
 class LeadTime:
     fix_sha: str
     fix_date: str           # ISO-8601 committer date
-    commits_between: int    # commits from the leak revision up to (excluding) the fix
+    commits_between: int    # intervening commits strictly between leak and fix (both excluded)
     found: bool
 
 
@@ -186,7 +192,9 @@ def lead_time(repo: str, leak_sha: str, file: str, line: int) -> LeadTime:
         return LeadTime("", "", -1, False)
 
     fix_sha, fix_date = forward[-1]  # oldest forward commit = the first human fix
-    between = _count_commits(repo, leak_sha, fix_sha)
+    # `leak..fix` excludes the leak (range start) but INCLUDES the fix (range tip); drop the
+    # fix itself so commits_between is the strictly-intervening count, as documented.
+    between = max(0, _count_commits(repo, leak_sha, fix_sha) - 1)
     return LeadTime(fix_sha=fix_sha, fix_date=fix_date, commits_between=between, found=True)
 
 

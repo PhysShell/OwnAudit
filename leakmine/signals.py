@@ -105,7 +105,10 @@ REACT_TS = Ecosystem(
         Signal(TIMER, added=("clearTimeout",), weight=4),
         Signal(TASK, added=("AbortController",), weight=4),
         Signal(TASK, added=(".abort()",), weight=4),
-        Signal(SUBSCRIPTION, added=("useMemo", "useCallback"), weight=2),  # effect-storm
+        # effect-storm fixes add EITHER memo helper — keep them as independent signals so
+        # one alone still scores (a combined ("useMemo","useCallback") tuple is AND-matched).
+        Signal(SUBSCRIPTION, added=("useMemo",), weight=2),
+        Signal(SUBSCRIPTION, added=("useCallback",), weight=2),
     ),
 )
 
@@ -141,7 +144,10 @@ JAVA_SPRING = Ecosystem(
     signals=(
         Signal(IDISPOSABLE, added=("try (",), weight=4),         # try-with-resources
         Signal(IDISPOSABLE, added=(".close()",), weight=4),
-        Signal(TASK, added=(".shutdown()", ".shutdownNow()"), weight=4),
+        # most executor leak fixes add ONE of these, not both — independent signals so a
+        # single-form cleanup still clears the candidate threshold.
+        Signal(TASK, added=(".shutdown()",), weight=4),
+        Signal(TASK, added=(".shutdownNow()",), weight=4),
         Signal(STATIC_RETENTION, added=(".remove()",), removed=("ThreadLocal",), weight=3),
         Signal(STATIC_RETENTION, added=("ThreadLocal", "remove"), weight=3),
     ),
