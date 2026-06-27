@@ -40,6 +40,7 @@ jobs:
           PYTHONPATH=.   python3 oracle/fixtures/test_oracle_arch.py
           PYTHONPATH=.   python3 oracle/fixtures/test_oracle_runtime.py
           PYTHONPATH=.   python3 runtime/tests/test_runtime.py
+          PYTHONPATH=.   python3 leakmine/tests/test_leakmine.py
 
       - name: re-run under -O (assert-stripping safety)
         run: |
@@ -53,6 +54,7 @@ jobs:
           PYTHONPATH=.   python3 -O oracle/fixtures/test_oracle_arch.py
           PYTHONPATH=.   python3 -O oracle/fixtures/test_oracle_runtime.py
           PYTHONPATH=.   python3 -O runtime/tests/test_runtime.py
+          PYTHONPATH=.   python3 -O leakmine/tests/test_leakmine.py
 
   audit-report:
     name: SARIF export + dashboard smoke
