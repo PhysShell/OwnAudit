@@ -53,13 +53,19 @@ jobs:
           # default token can read/search public data; swap for a PAT secret to lift the
           # Search API rate limit or reach private repos.
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Map inputs to env, then reference them as shell vars — never expand
+          # ${{ github.event.inputs.* }} directly into `run` (template injection).
+          ECOSYSTEM: ${{ github.event.inputs.ecosystem || 'dotnet_wpf' }}
+          MERGED_AFTER: ${{ github.event.inputs.merged_after || '' }}
+          PER_QUERY: ${{ github.event.inputs.per_query || '50' }}
+          MIN_SCORE: ${{ github.event.inputs.min_score || '7' }}
         run: |
           set -euo pipefail
           PYTHONPATH=. python3 -m leakmine.cli mine \
-            --ecosystem "${{ github.event.inputs.ecosystem || 'dotnet_wpf' }}" \
-            --merged-after "${{ github.event.inputs.merged_after || '' }}" \
-            --per-query "${{ github.event.inputs.per_query || '50' }}" \
-            --min-score "${{ github.event.inputs.min_score || '7' }}" \
+            --ecosystem "$ECOSYSTEM" \
+            --merged-after "$MERGED_AFTER" \
+            --per-query "$PER_QUERY" \
+            --min-score "$MIN_SCORE" \
             --sleep 2 \
             --out-dir leakmine-out \
             --store leakmine-out/corpus.db
