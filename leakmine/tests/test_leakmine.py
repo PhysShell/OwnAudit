@@ -9,6 +9,7 @@ selection, and deterministic query/SQL generation. -O-safe (explicit raises, no 
 """
 import json
 import os
+import sqlite3
 import subprocess
 import sys
 import tempfile
@@ -373,6 +374,19 @@ def test_schema_store():
     _expect(schema.count(conn, "verdicts") == 1, "verdict stored")
 
 
+def test_candidate_upsert_preserves_children():
+    # re-inserting a candidate must UPDATE in place, not DELETE+reinsert — otherwise (with
+    # FK on) it would orphan/cascade the child label below.
+    conn = schema.connect(":memory:")
+    schema.insert_candidate(conn, {"id": "c1", "ecosystem": "react_ts", "title": "old", "merged": 1})
+    schema.insert_label(conn, "c1", "subscription-leak", 12, ["e"], "patch")
+    schema.insert_candidate(conn, {"id": "c1", "ecosystem": "react_ts", "title": "new", "merged": 1})
+    _expect(schema.count(conn, "candidates") == 1, "still one candidate")
+    _expect(schema.count(conn, "labels") == 1, "child label survived the re-insert")
+    title = conn.execute("SELECT title FROM candidates WHERE id='c1'").fetchone()[0]
+    _expect(title == "new", f"row updated in place, title={title}")
+
+
 def test_schema_verdict_idempotent():
     # re-confirming the same candidate upserts, so resume never double-counts verdicts.
     conn = schema.connect(":memory:")
@@ -390,7 +404,7 @@ def test_schema_foreign_keys_enforced():
     try:
         schema.insert_verdict(conn, v)
         raised = False
-    except Exception:
+    except sqlite3.IntegrityError:           # specifically the FK rejection, not any error
         raised = True
     _expect(raised, "orphan verdict rejected by foreign-key constraint")
 

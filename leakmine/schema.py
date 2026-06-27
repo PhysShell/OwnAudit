@@ -74,14 +74,23 @@ def connect(path: str = ":memory:") -> sqlite3.Connection:
     return conn
 
 
+_CANDIDATE_COLS = (
+    "id", "ecosystem", "query", "repo", "number", "kind",
+    "title", "body", "state", "merged", "url",
+)
+
+
 def insert_candidate(conn: sqlite3.Connection, c: dict) -> None:
+    # In-place upsert, NOT INSERT OR REPLACE: with foreign keys enabled, REPLACE would
+    # DELETE+reinsert the parent row and cascade/break dependent patches/labels/tool_runs/
+    # verdicts. ON CONFLICT(id) DO UPDATE leaves the row identity (and its children) intact.
+    cols = ",".join(_CANDIDATE_COLS)
+    placeholders = ",".join(f":{k}" for k in _CANDIDATE_COLS)
+    updates = ",".join(f"{k}=excluded.{k}" for k in _CANDIDATE_COLS if k != "id")
     conn.execute(
-        "INSERT OR REPLACE INTO candidates "
-        "(id,ecosystem,query,repo,number,kind,title,body,state,merged,url) "
-        "VALUES (:id,:ecosystem,:query,:repo,:number,:kind,:title,:body,:state,:merged,:url)",
-        {**{k: None for k in (
-            "id", "ecosystem", "query", "repo", "number", "kind",
-            "title", "body", "state", "merged", "url")}, **c},
+        f"INSERT INTO candidates ({cols}) VALUES ({placeholders}) "
+        f"ON CONFLICT(id) DO UPDATE SET {updates}",
+        {**{k: None for k in _CANDIDATE_COLS}, **c},
     )
 
 
