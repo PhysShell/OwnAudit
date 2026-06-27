@@ -1,0 +1,76 @@
+# Mine a leak-fix corpus in CI (docs/leakfix-mine.md §10). Discovery + classification only
+# — the part that runs on a hosted runner with just GITHUB_TOKEN. The before/after tool
+# comparison (confirm/metrics) needs per-repo checkout + analyzer builds, so it stays a
+# local / self-hosted step.
+name: leakmine — mine corpus
+
+on:
+  workflow_dispatch:
+    inputs:
+      ecosystem:
+        description: Ecosystem query pack to mine
+        required: true
+        default: dotnet_wpf
+        type: choice
+        options: [dotnet_wpf, react_ts, android_kotlin, java_spring, zig, nim]
+      merged_after:
+        description: "Only PRs merged on/after this date (YYYY-MM-DD, optional)"
+        required: false
+        default: ""
+      per_query:
+        description: Results per search query
+        required: false
+        default: "50"
+      min_score:
+        description: Keep candidates scoring at/above this
+        required: false
+        default: "7"
+  # Uncomment to mine on a schedule (weekly, off-peak minute to spare the API):
+  # schedule:
+  #   - cron: "17 4 * * 1"
+
+permissions:
+  contents: read        # GITHUB_TOKEN is used only to read/search public PRs
+
+concurrency:
+  group: leakmine-${{ github.ref }}-${{ github.event.inputs.ecosystem }}
+  cancel-in-progress: false
+
+jobs:
+  mine:
+    name: mine ${{ github.event.inputs.ecosystem || 'dotnet_wpf' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.12"
+
+      - name: Mine leak-fix candidates
+        env:
+          # default token can read/search public data; swap for a PAT secret to lift the
+          # Search API rate limit or reach private repos.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          PYTHONPATH=. python3 -m leakmine.cli mine \
+            --ecosystem "${{ github.event.inputs.ecosystem || 'dotnet_wpf' }}" \
+            --merged-after "${{ github.event.inputs.merged_after || '' }}" \
+            --per-query "${{ github.event.inputs.per_query || '50' }}" \
+            --min-score "${{ github.event.inputs.min_score || '7' }}" \
+            --sleep 2 \
+            --out-dir leakmine-out \
+            --store leakmine-out/corpus.db
+
+      - name: Publish summary to the run
+        if: always()
+        run: cat leakmine-out/summary.md >> "$GITHUB_STEP_SUMMARY" || true
+
+      - name: Upload corpus + dataset
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: leakmine-${{ github.event.inputs.ecosystem || 'dotnet_wpf' }}
+          path: leakmine-out/
+          if-no-files-found: error

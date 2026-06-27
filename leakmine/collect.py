@@ -87,6 +87,7 @@ class Candidate:
     kind: str           # "pr" | "issue"
     title: str
     url: str
+    body: str = ""
 
 
 def fetch_search(query: str, *, token: str = "", http=None, per_page: int = 50) -> list[Candidate]:
@@ -108,8 +109,31 @@ def fetch_search(query: str, *, token: str = "", http=None, per_page: int = 50) 
             kind="pr" if is_pr else "issue",
             title=it.get("title", ""),
             url=it.get("html_url", ""),
+            body=it.get("body") or "",
         ))
     return out
+
+
+def fetch_patch(repo: str, number: int, *, token: str = "", http=None) -> str:
+    """Fetch a PR's unified diff. `http` is an injectable getter returning the raw diff
+    text (tests pass a fake; production asks GitHub for the `.diff` media type). Network by
+    nature — never called in CI tests. Returns "" on any fetch error so one bad PR doesn't
+    abort a mining run."""
+    url = f"https://api.github.com/repos/{repo}/pulls/{number}"
+    try:
+        return (http or _urllib_get_diff)(url, token)
+    except Exception:
+        return ""
+
+
+def _urllib_get_diff(url: str, token: str) -> str:
+    req = urllib.request.Request(url, headers={
+        "Accept": "application/vnd.github.v3.diff",
+        "User-Agent": "leakmine",
+        **({"Authorization": f"Bearer {token}"} if token else {}),
+    })
+    with urllib.request.urlopen(req, timeout=30) as r:   # noqa: S310 (https only)
+        return r.read().decode("utf-8", "replace")
 
 
 def _urllib_get(url: str, token: str) -> bytes:

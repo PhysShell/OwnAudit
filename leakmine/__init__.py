@@ -27,4 +27,5 @@ __all__ = [
     "sweep",
     "collect",
     "schema",
+    "mine",
 ]
