@@ -1,5 +1,15 @@
 # Own.NET XAML analyzer — design note
 
+> **Implemented in Own.NET.** Phase 1 of this note now ships in the Own.NET repo as
+> the build-free runner `audit/static/tools/xaml_check.py`, and a copy of this design
+> note lives alongside it at `Own.NET/docs/notes/xaml-analyzer-design.md`. This
+> OwnAudit copy is the original design note; the canonical, implementation-tracking
+> copy is the one in Own.NET. Shipped rules: XAML100–113, including **XAML105**
+> merged-dictionary key shadowing in **both** its in-file and cross-*file* `Source=`
+> forms, and the Phase-2 first slice (XAML203 view-subscription join). The catalogue
+> rows below carry ✅ where a rule is live; see the Own.NET copy for the full
+> implementation detail.
+
 The biggest honest gap in `docs/wpf-audit-coverage.md` ("**XAML analyzer** — a large slice of the
 wishlist lives in `.xaml`, not `.cs` … Biggest gap — and technically cheap: XAML is XML, rules are
 tree patterns"). This note turns that gap into a concrete, phased plan with a per-rule catalogue,
@@ -92,22 +102,26 @@ emitting line 1.
 
 | Rule | What it flags | Doc rationale | Avalonia |
 |---|---|---|---|
-| **XAML100** `ResourceShouldBeHoisted` | heavy shared resource (Brush/Style/Geometry/Transform/BitmapImage/template) declared in a control-local dictionary, recurring across siblings | per-instance control resources multiply working set; app/window scope shares (the 52×52 Brush collapse) | ✅ scope model maps |
+| **XAML100** `ResourceShouldBeHoisted` ✅ | heavy shared resource (Brush/Geometry/Transform/Image, or Style/template via a full-subtree signature) keyed identically in ≥2 control-local `.Resources` scopes | per-instance control resources multiply working set; app/window scope shares (the 52×52 Brush collapse) | ✅ scope model maps |
 | **XAML101** `DuplicateStatelessConverterResource` | identical stateless converter declared in many local dictionaries | converters are normally one shared instance; duplication is churn | ✅ |
 | **XAML102** `DynamicResourceLikelyStatic` | `DynamicResource` for an app-local, lexically-stable, non-theme/system key | StaticResource recommended unless runtime-mutated; dynamic carries deferred lookup cost | ❌ Avalonia DynamicResource semantics differ |
 | **XAML103** `SuspiciousSharedFalse` | `x:Shared="False"` on converters/styles/brushes outside documented exceptions | resources shared by default; `x:Shared=false` is the deliberate opt-out | ❌ WPF-only attribute |
 | **XAML104** `DuplicateMergedDictionaryInclude` | same dictionary merged more than once | wasted load + order ambiguity | ~ (Avalonia has merged dicts, diff syntax) |
-| **XAML105** `MergedDictionaryKeyShadowing` | key defined in multiple merged dictionaries → effective value depends on include order | "last merged wins, primary beats merged" — silent order dependence | ~ |
+| **XAML105** `MergedDictionaryKeyShadowing` ✅ *(in-file + cross-file)* | key defined in ≥2 scopes — inline merged dictionaries, primary + merged, or (cross-file) an external `Source=` dictionary resolved to a real file → effective value depends on include order | "last merged wins, primary beats merged" — silent order dependence | ~ |
 | **XAML106** `FreezableResourceShouldFreeze` | `Freezable` resource, no bindings/dynamic-resource/animation, missing `PresentationOptions:Freeze="True"` | freezing drops change-notification overhead + working set | ❌ **Freezable is WPF-only** |
 | **XAML107** `VirtualizationExplicitlyDisabled` | `IsVirtualizing="False"`, `CanContentScroll="False"` on lists, non-virtualizing `ItemsPanel`, direct/mixed containers | virtualization critical for large item controls; these accidentally kill it | ✅ `VirtualizingStackPanel`/`ItemsRepeater` |
 | **XAML108** `PerKeystrokeBindingWithoutDelay` | `TwoWay` + `UpdateSourceTrigger=PropertyChanged` on an editable property with no `Delay` | `Text` defaults to `LostFocus` for a reason; `Delay` exists to avoid per-keystroke flooding | ✅ |
 | **XAML109** `TemplateComplexityHigh` | template-complexity score over threshold (node count, nested panels, Grid/StackPanel depth, trigger count, ItemsControl depth) | template expansion = extra visual-tree objects; layout is a 2-pass cost | ✅ |
-| **XAML110** `ThumbnailDecodedAtFullSize` | image shown small but declared without decode hints; large bitmap animated/scaled with no `BitmapScalingMode` | decode-to-size beats decode-full-then-scale; `LowQuality` smooths animated scaling | ✅ |
+| **XAML110** `ImageDecodedAtFullSize` ✅ | image shown small (explicit Width/Height ≤ thumbnail) but `Source` is a plain URI string, so no decode-to-size is possible | decode-to-size beats decode-full-then-scale; the hint needs a `BitmapImage`, not a string `Source` | ❌ WPF decode hints differ |
+| **XAML111** `LayoutTransformSuspicious` ✅ | a `LayoutTransform` (attribute or property element) where a `RenderTransform` would do | `LayoutTransform` re-runs measure/arrange on change; `RenderTransform` is a render-time matrix. Candidate — legit when layout must reflow | ❌ Avalonia uses `LayoutTransformControl` |
+| **XAML112** `TemplateBindingOpportunity` ✅ | inside a `ControlTemplate`, a `{Binding RelativeSource=TemplatedParent}` with no converter / not two-way | `{TemplateBinding}` is the cheaper compiled form; the converter/two-way exclusions are exactly TemplateBinding's limits | ✅ |
+| **XAML113** `InlineFreezableDuplication` ✅ | the same inline Freezable (brush/geometry/transform set as a property value, not keyed) declared identically more than once | each inline copy is a separate object; one shared keyed resource collapses them (the inline case of XAML100) | ✅ |
 
 Exception lists matter (this is where naive greps die): **XAML106** must skip Freezables that are
 animated, data-bound, or reference a `DynamicResource` (can't freeze); **XAML103** must allow the
 `FrameworkElement`/`FrameworkContentElement` insertion case. Start **XAML101** with exact
-type+key match; structural equivalence is a later refinement.
+type+key match; structural equivalence is a later refinement. (All XAML100–113 rules above, and
+their exception lists, are implemented and selftested in `xaml_check.py` in Own.NET.)
 
 ## Phase 2 — Roslyn-linked hybrid (where the graph pays rent)
 
@@ -160,11 +174,13 @@ framework-agnostic markup rules; the WPF tail waits for STS.
 ## Roadmap summary
 
 1. **Phase 1** — a build-free XAML runner in **`Own.NET/audit/static`** (line-preserving parse, emits
-   the canonical finding record, runs in CI). Start with the rules that already have ⚠️ rows in the
-   coverage matrix: **XAML107** (virtualization-off), **XAML108** (per-keystroke binding),
-   **XAML109** (template complexity). No .NET build, no stand.
+   the canonical finding record, runs in CI). **Done** — `xaml_check.py` ships XAML100–113, starting
+   with the rules that already had ⚠️ rows in the coverage matrix: **XAML107** (virtualization-off),
+   **XAML108** (per-keystroke binding), **XAML109** (template complexity). No .NET build, no stand.
 2. **Phase 2** — link XAML facts to the Roslyn semantic model in **Own.NET's interprocedural core**;
-   the hybrid converter/handler/items-source rules. This is where that core earns its keep.
+   the hybrid converter/handler/items-source rules. This is where that core earns its keep. **First
+   slice done** — `xaml_facts.py` emits the fact document and `xaml_join.py` implements **XAML203**
+   (view-subscription leak), build-free via the deterministic `x:Class`→type naming convention.
 3. **Phase 3** — fold XAML candidates into the runtime correlation (`audit/runtime`; prototyped in
    `OwnAudit/runtime/correlate.py`) alongside the runtime-trace collector; one merged finding model,
    static suspicion upgraded by scenario evidence.
