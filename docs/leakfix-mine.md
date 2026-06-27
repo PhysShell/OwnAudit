@@ -214,3 +214,29 @@ python3 -m leakmine.cli leadtime --repo PATH --sha SHA --file svc.cs --line 42
 - «gone after» без `causal` — **не** засчитывается (это и есть антивезение).
 - lead-time «исправлено по истории» ≠ «исправлено именно эту течь» на 100% — `git log -L`
   следит за строкой, не за семантикой; на сильных заявлениях подтверждать вручную.
+
+## 13. Майнинг в CI (GitHub Action)
+
+`.github/workflows/leakmine-mine.yml` — `leakmine mine` как self-service сборщик корпуса
+на hosted-раннере. `workflow_dispatch` с инпутами (`ecosystem`, `merged_after`,
+`per_query`, `min_score`) + опциональный недельный `schedule` (закомментирован). Авторизация
+— штатный `GITHUB_TOKEN` (read/search публичных PR; для приватных репо или поднятия лимита
+Search API — подставить PAT-секрет). На выходе артефакты: `corpus.db` (SQLite-стор),
+`dataset.json` (размеченные кандидаты), `summary.md` (он же уходит в `$GITHUB_STEP_SUMMARY`).
+
+Команда:
+```
+python3 -m leakmine.cli mine --ecosystem dotnet_wpf --merged-after 2024-01-01 \
+  --per-query 50 --min-score 7 --sleep 2 --out-dir leakmine-out --store leakmine-out/corpus.db
+```
+
+**Что делает оркестратор** (`leakmine/mine.py`): query-pack → `fetch_search` → дедуп по
+`(repo, number)` → `fetch_patch` (diff медиа-тип) → `signals.classify` → фильтр по
+`min_score` → стор + dataset + summary. Сеть изолирована за инъектируемыми `search`/
+`fetch_patch`, поэтому оркестрация юнит-тестится офлайн (CI наружу не ходит).
+
+**Сознательно только discovery + classification** — это часть, которая чисто гоняется в CI.
+Стадия before/after (`confirm`/`metrics`) требует checkout каждого репо и сборки анализаторов
+(см. §7), поэтому остаётся локальной / self-hosted. Ограничения CI-версии: Search API
+~30 req/min и cap 1000 (отсюда `--sleep` и `per_query`); одна страница на запрос (пагинация —
+на потом); `language:` репо-уровневый — язык диффа всё равно перепроверяется по расширениям.

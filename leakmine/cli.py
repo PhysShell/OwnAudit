@@ -15,9 +15,10 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 
-from . import collect, confirm, metrics, signals, sweep, szz
+from . import collect, confirm, metrics, mine, schema, signals, sweep, szz
 
 
 def _read(path: str) -> str:
@@ -86,6 +87,24 @@ def cmd_sweep(a) -> int:
     return 0
 
 
+def cmd_mine(a) -> int:
+    token = a.token or os.environ.get("GITHUB_TOKEN", "")
+    os.makedirs(a.out_dir, exist_ok=True)
+    conn = schema.connect(a.store) if a.store else None
+    res = mine.run(
+        a.ecosystem, token=token, merged_after=a.merged_after or "",
+        per_query=a.per_query, min_score=a.min_score, sleep=a.sleep, conn=conn,
+    )
+    if conn is not None:
+        conn.commit()
+    with open(os.path.join(a.out_dir, "dataset.json"), "w", encoding="utf-8") as f:
+        json.dump(res.rows, f, indent=2, ensure_ascii=False)
+    with open(os.path.join(a.out_dir, "summary.md"), "w", encoding="utf-8") as f:
+        f.write(res.summary_md())
+    print(res.summary_md())
+    return 0
+
+
 def cmd_leadtime(a) -> int:
     lt = szz.lead_time(a.repo, a.sha, a.file, a.line)
     print(json.dumps(lt.__dict__, indent=2, ensure_ascii=False))
@@ -133,6 +152,17 @@ def main(argv=None) -> int:
     sw.add_argument("--n", type=int, default=50)
     sw.add_argument("--max-vetted", type=float, default=0.3, dest="max_vetted")
     sw.set_defaults(fn=cmd_sweep)
+
+    mn = sub.add_parser("mine", help="discover + classify a leak-fix corpus (CI-runnable)")
+    mn.add_argument("--ecosystem", required=True, choices=sorted(signals.ECOSYSTEMS))
+    mn.add_argument("--merged-after", default="", help="ISO date YYYY-MM-DD; appends merged:>=")
+    mn.add_argument("--per-query", type=int, default=50)
+    mn.add_argument("--min-score", type=int, default=7)
+    mn.add_argument("--sleep", type=float, default=1.0, help="throttle between API calls (s)")
+    mn.add_argument("--out-dir", default="leakmine-out")
+    mn.add_argument("--store", default="", help="SQLite path; empty = no DB written")
+    mn.add_argument("--token", default="", help="GitHub token; falls back to $GITHUB_TOKEN")
+    mn.set_defaults(fn=cmd_mine)
 
     lt = sub.add_parser("leadtime", help="time-travel: commits between a leak and its human fix")
     lt.add_argument("--repo", required=True)

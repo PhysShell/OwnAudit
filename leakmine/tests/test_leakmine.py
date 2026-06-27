@@ -18,7 +18,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(os.path.dirname(HERE))
 sys.path.insert(0, ROOT)
 
-from leakmine import collect, confirm, diffparse, metrics, schema, signals, sweep, szz  # noqa: E402
+from leakmine import collect, confirm, diffparse, metrics, mine, schema, signals, sweep, szz  # noqa: E402
 
 
 def _expect(cond, msg):
@@ -357,6 +357,50 @@ def test_fetch_search_with_fake_http():
     got = collect.fetch_search("q", http=lambda url, token: fake)
     _expect(len(got) == 1 and got[0].kind == "pr", "parsed one PR")
     _expect(got[0].repo == "acme/widget", f"repo parsed: {got[0].repo}")
+
+
+def test_fetch_patch_with_fake_http():
+    calls = {}
+    def fake_http(url, token):
+        calls["url"] = url
+        calls["token"] = token
+        return "diff --git a/a b/a\n@@ -1 +1 @@\n-x\n+y\n"
+    out = collect.fetch_patch("acme/w", 7, token="T", http=fake_http)
+    _expect(out.startswith("diff --git"), "returns diff text")
+    _expect(calls["url"].endswith("/repos/acme/w/pulls/7"), f"url {calls['url']}")
+    _expect(calls["token"] == "T", "token threaded through")
+    # a fetch error must degrade to "" (one bad PR can't abort a mining run), not raise.
+    def boom(url, token):
+        raise RuntimeError("network")
+    _expect(collect.fetch_patch("a/b", 1, http=boom) == "", "fetch error -> empty string")
+
+
+def test_mine_run_orchestration():
+    cands = [
+        collect.Candidate("", "acme/w", 1, "pr", "fix memory leak", "u1", "listener leak"),
+        collect.Candidate("", "acme/w", 1, "pr", "dup of #1", "u1", ""),     # dedup by (repo,#)
+        collect.Candidate("", "acme/x", 2, "pr", "chore: tidy", "u2", ""),   # weak -> dropped
+        collect.Candidate("", "acme/y", 3, "issue", "an issue", "u3", ""),   # not a PR -> skip
+    ]
+    weak = ("diff --git a/x.tsx b/x.tsx\n--- a/x.tsx\n+++ b/x.tsx\n"
+            "@@ -1,1 +1,1 @@\n-const a = 1;\n+const a = 2;\n")
+    patches = {("acme/w", 1): REACT_PATCH, ("acme/x", 2): weak}
+
+    def fake_search(query, *, token="", per_page=50):
+        return cands  # query pack repeats the same hits; dedup must collapse them
+
+    def fake_patch(repo, number, *, token=""):
+        return patches.get((repo, number), "")
+
+    conn = schema.connect(":memory:")
+    res = mine.run("react_ts", search=fake_search, fetch_patch=fake_patch, conn=conn, min_score=7)
+    _expect(res.seen == 2, f"PR-only + deduped examined, got {res.seen}")
+    _expect(res.kept == 1, f"only the real leak fix kept, got {res.kept}")
+    _expect(res.rows and res.rows[0]["repo"] == "acme/w", "kept the leak fix")
+    _expect(res.rows[0]["category"] == signals.SUBSCRIPTION, "classified as subscription")
+    _expect(schema.count(conn, "candidates") == 1, "kept candidate stored")
+    _expect(schema.count(conn, "labels") == 1, "kept label stored")
+    _expect("mining run" in res.summary_md(), "summary renders")
 
 
 # ---- schema (store round-trip) ---------------------------------------------------
