@@ -332,3 +332,57 @@ python3 -m leakmine.cli bq-sql --kind contents --ecosystem react_ts          # -
 - metadata-скор ≠ patch-классификация: BigQuery даёт чистую *очередь*, не финальный вердикт.
 - стенка fetch остаётся: на 100k+ дофетч диффов делается клонированием репо (`--filter=blob:none`,
   `git show`) вне Actions, либо для проспективного sweep'а полагаемся на contents-тир (без fetch).
+
+## 15. Case study — реальные прогоны (ClickHouse → enrich → verdict)
+
+Полный firehose→вердикт цикл, прогнанный на GitHub-раннере (его `GITHUB_TOKEN` делает дифф-фетчи
+и GraphQL). Discovery — публичный ClickHouse playground (`github_events`, без авторизации; у него
+нет колонки языка, поэтому отбор кросс-язычный, а enrichment режет хвост **до** дифф-фетча).
+Числа — из артефактов прогонов, не иллюстративные.
+
+### react_ts (события 2024)
+`discovery 137 → ingest 128 kept → enrich: 103 помечено wrong-language → classify-store: 25
+examined → 18 fetched → 7 kept`. Без enrichment classify-store дофетчил бы **128** диффов; с ним —
+**25** (≈80% меньше). Арифметика сходится: TS 11 + JS 7 = 18 в экосистеме, +7 unknown = 25; 103
+скипнуто; 18+7+103=128. Это та же экономия, что мотивировала enrichment изначально (первый
+language-blind прогон дал 284 фетча → 13 kept, ~95% впустую).
+
+### android_kotlin — почему важен таргетинг discovery
+ClickHouse языка не знает, поэтому «голый» отбор по leak-ключевику тянет в основном **чужие**
+языки. Сравнение двух прогонов на android_kotlin показывает, что узкий discovery-запрос важнее,
+чем сам языковой фильтр:
+
+| | language-blind | **android-targeted** |
+|---|---:|---:|
+| discovery | 137 | 53 |
+| ingest kept | 128 | 52 |
+| enrich: wrong-language | 110 | 27 |
+| доля Kotlin | 5/128 ≈ 4% | **17/52 ≈ 33%** |
+| Kotlin+Java в экосистеме | 9% | **42%** |
+| verdict examined → kept | 18 → 3 | **25 → 11** |
+| категоризировано (не `uncategorized`) | 0 | **4+** |
+
+«Голый» прогон оставил все находки серверным Java (Kafka/Ozone/ES) в `uncategorized` — наши
+Android-сигналы (`unregisterReceiver`, `lifecycleScope`, `viewLifecycleOwner`) на нём не
+срабатывают. Таргетинг (`leak-keyword` **И** Android-маркер в title: `fragment`/`activity`/
+`viewmodel`/`lifecycle`/…) поднял долю Kotlin/Java с ~9% до ~42% и дал реальные lifecycle-категории
+(`task-coroutine-leak`, `ui-resource-retention`).
+
+### Сигнал-гэп → расширение сигналов
+Оставшиеся `uncategorized` в таргетированном прогоне были keyword-true Android-фиксами вокруг
+`retainInstance`/ViewModel-state, под которые сигналов не было. После добавления
+(`removed=retainInstance`, `SavedStateHandle`, `_binding = null`, `WeakReference`) повторный прогон
+на том же пуле переклассифицировал их:
+
+- `AppIntro#1134` «remove retainInstance + persist in viewmodel»: `uncategorized` (7) → **ui-resource-retention (14)**.
+- `AmazeFileManager#3840`: ui-resource-retention, score 10 → **15**.
+- `corda-runtime-os#3259` «Kotlin reflection memory leak»: новый в корпусе, **static-cache-retention** (через `WeakReference`).
+
+Итог по категориям: `uncategorized 7→6`, `ui-resource-retention 1→2`, `+static-cache-retention 1`,
+kept `11→12`. Остаток `uncategorized` — это уже **другие формы** (listener=null, фреймворки
+RIBs/Circuit, RN-мост) или borderline по смыслу, дальше точечно расширять — диминишинг.
+
+**Вывод методики:** на firehose-данных без языковой колонки качество корпуса определяют по порядку
+(1) **узость discovery-запроса**, (2) **enrichment** как дешёвый языковой фильтр до фетча,
+(3) **полнота сигналов** под конкретную экосистему — и (3) честнее всего находить именно так:
+прогнал → посмотрел, что упало в `uncategorized` → добавил сигнал → перепрогнал.
