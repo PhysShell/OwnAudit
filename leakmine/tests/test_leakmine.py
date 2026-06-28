@@ -109,6 +109,28 @@ def test_signals_react_broadened_shapes():
         _expect(cls.category != signals.UNKNOWN, f"{tag} no longer uncategorized")
 
 
+def test_signals_android_retention_shapes():
+    # Android lifecycle/state-retention fixes a real targeted run left 'uncategorized':
+    # removing retainInstance, adding SavedStateHandle, viewbinding teardown. Each must now
+    # land in ui-resource-retention instead of UNKNOWN.
+    cases = [
+        # removed retainInstance line (the fix drops retain-across-config):
+        ("diff --git a/F.kt b/F.kt\n--- a/F.kt\n+++ b/F.kt\n"
+         "@@ -1,3 +1,2 @@\n class F {\n-  retainInstance = true\n }\n"),
+        # added SavedStateHandle (state instead of retaining the fragment):
+        ("diff --git a/F.kt b/F.kt\n--- a/F.kt\n+++ b/F.kt\n"
+         "@@ -1,2 +1,3 @@\n class VM {\n+  val h: SavedStateHandle = handle\n }\n"),
+        # viewbinding teardown in onDestroyView:
+        ("diff --git a/F.kt b/F.kt\n--- a/F.kt\n+++ b/F.kt\n"
+         "@@ -1,2 +1,3 @@\n fun onDestroy() {\n+  _binding = null\n }\n"),
+    ]
+    for patch in cases:
+        cls = signals.classify("android_kotlin", title="fix fragment memory leak",
+                               body="", patch=patch)
+        _expect(cls.category == signals.UI_RETENTION, f"category {cls.category} for {patch[:60]!r}")
+        _expect(cls.category != signals.UNKNOWN, "no longer uncategorized")
+
+
 def test_signals_docs_penalty():
     docs = ("diff --git a/README.md b/README.md\n--- a/README.md\n+++ b/README.md\n"
             "@@ -1,1 +1,2 @@\n context\n+a note about leaks\n")

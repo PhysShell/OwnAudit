@@ -145,6 +145,14 @@ ANDROID_KOTLIN = Ecosystem(
         Signal(TASK, added=("viewLifecycleOwner",), weight=3),
         Signal(TASK, added=("lifecycleScope",), removed=("GlobalScope",), weight=5),
         Signal(UI_RETENTION, added=("onDestroyView",), weight=3),
+        # ViewModel / fragment state-retention fixes — a real run left these 'uncategorized'
+        # (keyword-true Android lifecycle fixes whose diff hit none of the above):
+        Signal(UI_RETENTION, removed=("retainInstance",), weight=4),       # drop retain-across-config
+        Signal(UI_RETENTION, added=("setRetainInstance(false",), weight=3),  # Java form of the same
+        Signal(UI_RETENTION, added=("SavedStateHandle",), weight=3),       # state instead of retaining
+        Signal(UI_RETENTION, added=("_binding = null",), weight=4),        # viewbinding teardown
+        Signal(UI_RETENTION, added=("binding = null",), weight=3),         # (looser binding-null form)
+        Signal(STATIC_RETENTION, added=("WeakReference",), weight=2),      # break Activity/View retention
     ),
 )
 
