@@ -577,6 +577,14 @@ def test_fetch_repo_languages_batched_graphql():
     _expect(out == {"a/ts": "typescript", "b/empty": "", "c/gone": ""}, f"parsed langs: {out}")
     _expect(b"repository(owner:" in captured["body"], "batched aliased query built")
 
+    # whole-batch failure must OMIT the repos (so the caller retries), not record "unknown".
+    def boom(body, token):
+        raise RuntimeError("401")
+    _expect(collect.fetch_repo_languages(["x/y"], http=boom) == {}, "failed batch -> empty map")
+    # an errors-only response (no data) is likewise treated as failure.
+    no_data = collect.fetch_repo_languages(["x/y"], http=lambda b, t: b'{"errors":[{"m":"x"}]}')
+    _expect(no_data == {}, "errors-only response -> empty map")
+
 
 def test_enrich_skips_wrong_language_before_fetch():
     conn = schema.connect(":memory:")
@@ -600,6 +608,22 @@ def test_enrich_skips_wrong_language_before_fetch():
     res = mine.classify_from_store(conn, "react_ts", fetch_patch=fake_patch, min_score=7)
     _expect(fetched == ["ts/app"], f"only the TS repo's diff fetched, got {fetched}")
     _expect(res.fetched == 1, f"ruby repo skipped before fetch, fetched={res.fetched}")
+
+
+def test_enrich_retries_after_fetch_failure():
+    conn = schema.connect(":memory:")
+    schema.insert_candidate(conn, {"id": "x/y#1", "ecosystem": "react_ts", "repo": "x/y",
+                                   "number": 1, "kind": "pr", "title": "fix memory leak",
+                                   "body": "", "merged": 1})
+    # whole-batch failure -> fetcher returns {} -> nothing recorded, nothing persisted.
+    er = mine.enrich_languages(conn, "react_ts", fetch_languages=lambda r, *, token="", batch=100: {})
+    _expect(er.repos == 0 and er.labeled == 0, "failure records nothing")
+    n = conn.execute("SELECT COUNT(*) FROM labels WHERE classifier='language'").fetchone()[0]
+    _expect(n == 0, "no 'unknown' label persisted on failure (so it stays retryable)")
+    # a later run with a working fetch enriches it.
+    er2 = mine.enrich_languages(conn, "react_ts",
+                                fetch_languages=lambda r, *, token="", batch=100: {x: "typescript" for x in r})
+    _expect(er2.repos == 1 and er2.labeled == 1, "retry succeeds after token is fixed")
 
 
 def test_bq_ingest_rejects_contents_rows():

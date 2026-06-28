@@ -185,7 +185,9 @@ def enrich_languages(
         return res
     langs = fetch_languages(repos, token=token, batch=batch)
     for repo in repos:
-        lang = langs.get(repo, "")
+        if repo not in langs:
+            continue            # lookup failed for this repo's batch — leave it for a retry
+        lang = langs[repo]
         res.repos += 1
         rows = conn.execute(
             "SELECT id FROM candidates WHERE ecosystem = ? AND repo = ?", (eco_key, repo),

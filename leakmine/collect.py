@@ -144,9 +144,14 @@ def fetch_repo_languages(repos, *, token: str = "", http=None, batch: int = 100)
             )
         body = json.dumps({"query": "query {" + " ".join(parts) + "}"}).encode()
         try:
-            data = json.loads((http or _graphql_post)(body, token)).get("data") or {}
+            data = json.loads((http or _graphql_post)(body, token)).get("data")
         except Exception:
-            data = {}
+            data = None
+        if not data:
+            # whole-batch failure (bad token / rate limit / 5xx / errors-only response):
+            # OMIT these repos from the result so the caller leaves them unenriched and a
+            # later run retries — never record them as a persisted "unknown".
+            continue
         for j, repo in enumerate(chunk):
             node = data.get(f"r{j}") if isinstance(data, dict) else None
             pl = (node or {}).get("primaryLanguage") if isinstance(node, dict) else None
