@@ -57,7 +57,7 @@ def gharchive_discovery_sql(
     )
     langs = " OR ".join(
         f"LOWER(JSON_EXTRACT_SCALAR(payload,'$.pull_request.base.repo.language')) = '{lang}'"
-        for lang in _LANGS.get(eco_key, ())
+        for lang in signals.LANGS.get(eco_key, ())
     ) or "TRUE"
     size_cap = (
         f"\n  AND SAFE_CAST(JSON_EXTRACT_SCALAR(payload,'$.pull_request.changed_files') "
@@ -288,14 +288,3 @@ def iter_ndjson(path: str) -> Iterator[dict]:
             line = line.strip()
             if line:
                 yield json.loads(line)
-
-
-# repo-language filter values (lowercased) per ecosystem for the GH-Archive query.
-_LANGS: dict[str, tuple[str, ...]] = {
-    "dotnet_wpf": ("c#",),
-    "react_ts": ("typescript", "javascript"),
-    "android_kotlin": ("kotlin", "java"),
-    "java_spring": ("java",),
-    "zig": ("zig",),
-    "nim": ("nim",),
-}

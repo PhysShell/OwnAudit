@@ -185,6 +185,18 @@ ECOSYSTEMS: dict[str, Ecosystem] = {
     e.key: e for e in (DOTNET_WPF, REACT_TS, ANDROID_KOTLIN, JAVA_SPRING, ZIG, NIM)
 }
 
+# Ecosystem -> the GitHub repo-language names (lowercased) that belong to it. Used by the
+# BigQuery GH-Archive language filter and by language enrichment (`mine.enrich_languages`)
+# to drop cross-language candidates before the expensive diff fetch.
+LANGS: dict[str, tuple[str, ...]] = {
+    "dotnet_wpf": ("c#",),
+    "react_ts": ("typescript", "javascript"),
+    "android_kotlin": ("kotlin", "java"),
+    "java_spring": ("java",),
+    "zig": ("zig",),
+    "nim": ("nim",),
+}
+
 
 @dataclass
 class Classification:

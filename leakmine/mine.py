@@ -125,6 +125,82 @@ def run(
     return res
 
 
+@dataclass
+class EnrichResult:
+    ecosystem: str
+    repos: int = 0          # repos looked up this run
+    labeled: int = 0        # candidates given a language label
+    skipped: int = 0        # candidates marked wrong-language (won't be diff-fetched)
+    by_lang: dict = field(default_factory=dict)
+
+    def summary_md(self) -> str:
+        lines = [
+            f"# LeakFixMine — language enrichment (`{self.ecosystem}`)",
+            "",
+            f"- repos enriched: **{self.repos}**",
+            f"- candidates labelled: **{self.labeled}**",
+            f"- marked wrong-language (skipped before diff fetch): **{self.skipped}**",
+            "",
+            "| language | candidates |", "|---|---:|",
+        ]
+        for lang, n in sorted(self.by_lang.items(), key=lambda kv: -kv[1]):
+            lines.append(f"| {lang or 'unknown'} | {n} |")
+        return "\n".join(lines) + "\n"
+
+
+def enrich_languages(
+    conn,
+    eco_key: str,
+    *,
+    token: str = "",
+    batch: int = 100,
+    limit=None,
+    fetch_languages=None,
+) -> EnrichResult:
+    """Enrich stored candidates with their repo's primary language (batched GraphQL) and mark
+    cross-language ones so `classify_from_store` skips them BEFORE the expensive diff fetch.
+
+    Run between `bq-ingest` and `classify-store`. For each candidate it writes a
+    `classifier='language'` label (record), and if the repo language is known and NOT in this
+    ecosystem's `signals.LANGS`, also a `classifier='patch'` label `wrong-language` — which the
+    classify-store anti-join already excludes, so no diff is fetched for it. Unknown languages
+    are left for classify-store to try. Resumable: repos already language-labelled are skipped.
+    """
+    fetch_languages = fetch_languages or collect.fetch_repo_languages
+    target = set(signals.LANGS.get(eco_key, ()))
+    res = EnrichResult(ecosystem=eco_key)
+    sql = (
+        "SELECT DISTINCT c.repo FROM candidates c "
+        "LEFT JOIN labels lg ON lg.candidate_id = c.id AND lg.classifier = 'language' "
+        "LEFT JOIN labels lp ON lp.candidate_id = c.id AND lp.classifier = 'patch' "
+        "WHERE c.ecosystem = ? AND c.kind = 'pr' "
+        "AND lg.candidate_id IS NULL AND lp.candidate_id IS NULL ORDER BY c.repo"
+    )
+    params = [eco_key]
+    if limit is not None:
+        sql += " LIMIT ?"
+        params.append(limit)
+    repos = [row[0] for row in conn.execute(sql, params)]
+    if not repos:
+        return res
+    langs = fetch_languages(repos, token=token, batch=batch)
+    for repo in repos:
+        lang = langs.get(repo, "")
+        res.repos += 1
+        rows = conn.execute(
+            "SELECT id FROM candidates WHERE ecosystem = ? AND repo = ?", (eco_key, repo),
+        ).fetchall()
+        for (cid,) in rows:
+            schema.insert_label(conn, cid, lang or "unknown", 0, [], "language")
+            res.labeled += 1
+            res.by_lang[lang] = res.by_lang.get(lang, 0) + 1
+            if target and lang and lang not in target:
+                schema.insert_label(conn, cid, "wrong-language", 0, [], "patch")
+                res.skipped += 1
+        conn.commit()
+    return res
+
+
 def classify_from_store(
     conn,
     eco_key: str,

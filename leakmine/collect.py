@@ -126,6 +126,44 @@ def fetch_patch(repo: str, number: int, *, token: str = "", http=None) -> str:
         return ""
 
 
+def fetch_repo_languages(repos, *, token: str = "", http=None, batch: int = 100) -> dict:
+    """Enrich repos with their primary language via BATCHED GraphQL — ~100 repos per request
+    (aliased `repository(...)` fields), so language is far cheaper than one REST call each.
+    Returns {repo: lowercased-language} ("" when unknown/missing). `http(body, token) -> bytes`
+    is injectable for tests; production posts to the GraphQL endpoint (token required)."""
+    out: dict = {}
+    uniq = list(dict.fromkeys(repos))
+    for i in range(0, len(uniq), batch):
+        chunk = uniq[i:i + batch]
+        parts = []
+        for j, repo in enumerate(chunk):
+            owner, _, name = repo.partition("/")
+            parts.append(
+                f"r{j}: repository(owner: {json.dumps(owner)}, name: {json.dumps(name)}) "
+                "{ primaryLanguage { name } }"
+            )
+        body = json.dumps({"query": "query {" + " ".join(parts) + "}"}).encode()
+        try:
+            data = json.loads((http or _graphql_post)(body, token)).get("data") or {}
+        except Exception:
+            data = {}
+        for j, repo in enumerate(chunk):
+            node = data.get(f"r{j}") if isinstance(data, dict) else None
+            pl = (node or {}).get("primaryLanguage") if isinstance(node, dict) else None
+            out[repo] = ((pl or {}).get("name") or "").lower()
+    return out
+
+
+def _graphql_post(body: bytes, token: str) -> bytes:
+    req = urllib.request.Request(
+        "https://api.github.com/graphql", data=body, method="POST",
+        headers={"Authorization": f"Bearer {token}", "User-Agent": "leakmine",
+                 "Content-Type": "application/json"},
+    )
+    with urllib.request.urlopen(req, timeout=30) as r:   # noqa: S310 (https only)
+        return r.read()
+
+
 def _urllib_get_diff(url: str, token: str) -> str:
     req = urllib.request.Request(url, headers={
         "Accept": "application/vnd.github.v3.diff",

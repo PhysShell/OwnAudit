@@ -564,6 +564,44 @@ def test_classify_from_store():
     _expect(len(fetched) == 2, f"no diffs re-fetched on resume, got {len(fetched)}")
 
 
+def test_fetch_repo_languages_batched_graphql():
+    captured = {}
+    def fake_http(body, token):
+        captured["body"] = body
+        return json.dumps({"data": {
+            "r0": {"primaryLanguage": {"name": "TypeScript"}},
+            "r1": {"primaryLanguage": None},          # empty repo
+            "r2": None,                                # missing/inaccessible repo
+        }}).encode()
+    out = collect.fetch_repo_languages(["a/ts", "b/empty", "c/gone"], token="T", http=fake_http)
+    _expect(out == {"a/ts": "typescript", "b/empty": "", "c/gone": ""}, f"parsed langs: {out}")
+    _expect(b"repository(owner:" in captured["body"], "batched aliased query built")
+
+
+def test_enrich_skips_wrong_language_before_fetch():
+    conn = schema.connect(":memory:")
+    for repo, num, title in [("ts/app", 1, "fix memory leak"), ("rb/app", 2, "fix memory leak")]:
+        schema.insert_candidate(conn, {"id": f"{repo}#{num}", "ecosystem": "react_ts",
+                                       "repo": repo, "number": num, "kind": "pr",
+                                       "title": title, "body": "", "merged": 1})
+
+    def fake_langs(repos, *, token="", batch=100):
+        return {"ts/app": "typescript", "rb/app": "ruby"}
+
+    er = mine.enrich_languages(conn, "react_ts", fetch_languages=fake_langs)
+    _expect(er.repos == 2 and er.skipped == 1, f"one wrong-language marked, {er.skipped}")
+    # the ruby repo now carries a patch-tier 'wrong-language' label -> classify-store skips it.
+    fetched = []
+
+    def fake_patch(repo, number, *, token=""):
+        fetched.append(repo)
+        return REACT_PATCH  # would score high IF fetched
+
+    res = mine.classify_from_store(conn, "react_ts", fetch_patch=fake_patch, min_score=7)
+    _expect(fetched == ["ts/app"], f"only the TS repo's diff fetched, got {fetched}")
+    _expect(res.fetched == 1, f"ruby repo skipped before fetch, fetched={res.fetched}")
+
+
 def test_bq_ingest_rejects_contents_rows():
     # contents-sweep rows (repo/path/signal, no PR number) must fail fast, not silently drop.
     rows = [{"repo": "a/b", "path": "src/x.tsx", "signal": "listener"}]
