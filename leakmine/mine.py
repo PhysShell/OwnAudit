@@ -189,8 +189,18 @@ def enrich_languages(
             continue            # lookup failed for this repo's batch — leave it for a retry
         lang = langs[repo]
         res.repos += 1
+        # Only the repo's UNPROCESSED candidates — mirror the repo-list anti-join. A repo can
+        # have one pending PR and one already-classified/-language-labelled PR; re-scanning the
+        # whole repo here would write a duplicate `language` row (and a second wrong-language
+        # `patch` label) onto the already-processed candidate. This is also the cross-run dedup:
+        # a later enrich pass over an overlapping window touches only genuinely new candidates.
         rows = conn.execute(
-            "SELECT id FROM candidates WHERE ecosystem = ? AND repo = ?", (eco_key, repo),
+            "SELECT c.id FROM candidates c "
+            "LEFT JOIN labels lg ON lg.candidate_id = c.id AND lg.classifier = 'language' "
+            "LEFT JOIN labels lp ON lp.candidate_id = c.id AND lp.classifier = 'patch' "
+            "WHERE c.ecosystem = ? AND c.kind = 'pr' AND c.repo = ? "
+            "AND lg.candidate_id IS NULL AND lp.candidate_id IS NULL",
+            (eco_key, repo),
         ).fetchall()
         for (cid,) in rows:
             schema.insert_label(conn, cid, lang or "unknown", 0, [], "language")

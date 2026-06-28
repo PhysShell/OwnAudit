@@ -26,6 +26,14 @@ def _read(path: str) -> str:
         return f.read()
 
 
+def _positive_int(value: str) -> int:
+    """argparse type: a strictly positive integer (a batch of 0/-N would spin or error)."""
+    n = int(value)
+    if n < 1:
+        raise argparse.ArgumentTypeError(f"must be >= 1, got {n}")
+    return n
+
+
 def cmd_queries(a) -> int:
     for q in collect.github_search_queries(a.ecosystem, merged_after=a.merged_after or ""):
         print(q)
@@ -245,7 +253,7 @@ def main(argv=None) -> int:
                              "marks cross-language ones so classify-store skips them")
     es.add_argument("--store", required=True, help="SQLite store from bq-ingest / mine")
     es.add_argument("--ecosystem", required=True, choices=sorted(signals.ECOSYSTEMS))
-    es.add_argument("--batch", type=int, default=100, help="repos per GraphQL request")
+    es.add_argument("--batch", type=_positive_int, default=100, help="repos per GraphQL request")
     es.add_argument("--limit", type=int, default=None, help="cap repos enriched (default: all)")
     es.add_argument("--out-dir", default="leakmine-out")
     es.add_argument("--token", default="", help="GitHub token; falls back to $GITHUB_TOKEN")

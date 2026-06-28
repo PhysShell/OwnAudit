@@ -113,6 +113,18 @@ REACT_TS = Ecosystem(
         # one alone still scores (a combined ("useMemo","useCallback") tuple is AND-matched).
         Signal(SUBSCRIPTION, added=("useMemo",), weight=2),
         Signal(SUBSCRIPTION, added=("useCallback",), weight=2),
+        # broader JS/TS leak-cleanup shapes (added after a real run left 10/13 verdicts
+        # 'uncategorized' — keyword-matched fixes whose diff hit none of the above):
+        Signal(SUBSCRIPTION, added=(".disconnect()",), weight=4),   # Resize/Intersection/MutationObserver
+        Signal(SUBSCRIPTION, added=("removeListener",), weight=4),   # EventEmitter
+        Signal(SUBSCRIPTION, added=(".off(",), weight=3),            # emitter / rx / jquery .off(
+        Signal(TIMER, added=("cancelAnimationFrame",), weight=4),
+        Signal(TIMER, added=("clearImmediate",), weight=3),
+        Signal(IDISPOSABLE, added=("revokeObjectURL",), weight=4),   # object-URL leak
+        Signal(IDISPOSABLE, added=(".destroy(",), weight=3),         # generic JS teardown
+        Signal(IDISPOSABLE, added=(".dispose(",), weight=3),
+        Signal(STATIC_RETENTION, added=("WeakMap",), weight=2),      # retention-avoiding refactor
+        Signal(STATIC_RETENTION, added=("WeakRef",), weight=2),
     ),
 )
 

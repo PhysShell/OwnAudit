@@ -91,6 +91,24 @@ def test_signals_react():
     _expect("title:leak-keyword" in cls.evidence, "title keyword scored")
 
 
+def test_signals_react_broadened_shapes():
+    # shapes a real run left 'uncategorized' (keyword-matched but no signal hit): an
+    # observer .disconnect(), an EventEmitter removeListener, a cancelAnimationFrame, and an
+    # object-URL revoke. Each must now classify instead of falling through to UNKNOWN.
+    cases = [
+        (".disconnect()", "observer", signals.SUBSCRIPTION),
+        ("removeListener('data', onData)", "emitter", signals.SUBSCRIPTION),
+        ("cancelAnimationFrame(raf)", "raf", signals.TIMER),
+        ("URL.revokeObjectURL(blobUrl)", "objurl", signals.IDISPOSABLE),
+    ]
+    for added_line, tag, want in cases:
+        patch = (f"diff --git a/{tag}.tsx b/{tag}.tsx\n--- a/{tag}.tsx\n+++ b/{tag}.tsx\n"
+                 f"@@ -1,2 +1,3 @@\n function setup() {{\n+  {added_line};\n }}\n")
+        cls = signals.classify("react_ts", title="fix memory leak", body="", patch=patch)
+        _expect(cls.category == want, f"{tag}: category {cls.category}, want {want}")
+        _expect(cls.category != signals.UNKNOWN, f"{tag} no longer uncategorized")
+
+
 def test_signals_docs_penalty():
     docs = ("diff --git a/README.md b/README.md\n--- a/README.md\n+++ b/README.md\n"
             "@@ -1,1 +1,2 @@\n context\n+a note about leaks\n")
@@ -519,6 +537,52 @@ def test_bq_ingest_ndjson():
     _expect("metadata tier" in res.summary_md(), "summary flags the tier")
 
 
+def test_bq_ingest_cross_run_dedup():
+    # re-ingesting an overlapping window must GROW the corpus, not re-score/overwrite PRs we
+    # already hold. The second run sees one repeat (skipped, counted as `known`) + one new PR.
+    conn = schema.connect(":memory:")
+    first = [{"repo": "a/b", "number": 1, "title": "Fix memory leak", "body": "x",
+              "changed_files": 3, "html_url": "u1"}]
+    r1 = bigquery.ingest_rows(first, "dotnet_wpf", min_meta_score=4, conn=conn)
+    _expect(r1.kept == 1 and r1.known == 0, f"first run keeps the new PR, {r1.kept}/{r1.known}")
+
+    second = [
+        {"repo": "a/b", "number": 1, "title": "Fix memory leak", "body": "x",
+         "changed_files": 3, "html_url": "u1"},                       # already in store
+        {"repo": "a/c", "number": 2, "title": "Fix memory leak", "body": "y",
+         "changed_files": 4, "html_url": "u2"},                       # genuinely new
+    ]
+    r2 = bigquery.ingest_rows(second, "dotnet_wpf", min_meta_score=4, conn=conn)
+    _expect(r2.known == 1, f"the repeat is recognised as known, {r2.known}")
+    _expect(r2.kept == 1, f"only the new PR ingested, {r2.kept}")
+    _expect(schema.count(conn, "candidates") == 2, "corpus grew to 2, no duplicate row")
+    _expect("already in store" in r2.summary_md(), "summary reports the dedup count")
+
+
+def test_enrich_no_duplicate_labels_on_rerun():
+    # a repo with one pending PR and one already-classified PR: enrich must touch ONLY the
+    # pending one — no duplicate 'language' row, no second 'patch' label on the processed PR.
+    conn = schema.connect(":memory:")
+    for num in (1, 2):
+        schema.insert_candidate(conn, {"id": f"rb/app#{num}", "ecosystem": "react_ts",
+                                       "repo": "rb/app", "number": num, "kind": "pr",
+                                       "title": "fix memory leak", "body": "", "merged": 1})
+    # PR #2 is already classified (has a patch-tier label) — it must be left alone.
+    schema.insert_label(conn, "rb/app#2", "below-threshold", 3, [], "patch")
+
+    def fake_langs(repos, *, token="", batch=100):
+        return {r: "ruby" for r in repos}
+
+    er = mine.enrich_languages(conn, "react_ts", fetch_languages=fake_langs)
+    _expect(er.labeled == 1, f"only the pending PR labelled, got {er.labeled}")
+    lang = conn.execute("SELECT COUNT(*) FROM labels WHERE classifier='language'").fetchone()[0]
+    _expect(lang == 1, f"exactly one language row, got {lang}")
+    # PR #2 keeps its single original patch label — no second wrong-language label piled on.
+    p2 = conn.execute("SELECT COUNT(*) FROM labels WHERE candidate_id='rb/app#2' "
+                      "AND classifier='patch'").fetchone()[0]
+    _expect(p2 == 1, f"already-classified PR untouched, patch labels={p2}")
+
+
 def test_signals_no_oom_substring_noise():
     # bare "oom" was removed (it matched zoom/room/doom under substring) — junk titles must
     # not register a leak keyword, but a real leak title still must.
@@ -624,6 +688,18 @@ def test_enrich_retries_after_fetch_failure():
     er2 = mine.enrich_languages(conn, "react_ts",
                                 fetch_languages=lambda r, *, token="", batch=100: {x: "typescript" for x in r})
     _expect(er2.repos == 1 and er2.labeled == 1, "retry succeeds after token is fixed")
+
+
+def test_cli_batch_rejects_non_positive():
+    from leakmine import cli
+    _expect(cli._positive_int("100") == 100, "positive batch accepted")
+    for bad in ("0", "-1"):
+        raised = False
+        try:
+            cli._positive_int(bad)
+        except Exception:
+            raised = True
+        _expect(raised, f"--batch {bad} must be rejected")
 
 
 def test_bq_ingest_rejects_contents_rows():
