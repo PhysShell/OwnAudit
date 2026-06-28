@@ -519,6 +519,51 @@ def test_bq_ingest_ndjson():
     _expect("metadata tier" in res.summary_md(), "summary flags the tier")
 
 
+def test_signals_no_oom_substring_noise():
+    # bare "oom" was removed (it matched zoom/room/doom under substring) — junk titles must
+    # not register a leak keyword, but a real leak title still must.
+    for junk in ("Refactor Room screen", "bump react-zoom-pan-pinch", "New Gloomier Bangs"):
+        cls = signals.classify("react_ts", title=junk, body="", patch="")
+        _expect("title:leak-keyword" not in cls.evidence, f"{junk!r} must not match a keyword")
+    cls = signals.classify("react_ts", title="fix memory leak", body="", patch="")
+    _expect("title:leak-keyword" in cls.evidence, "real leak title still matches")
+
+
+def test_classify_from_store():
+    conn = schema.connect(":memory:")
+    schema.insert_candidate(conn, {"id": "a/b#1", "ecosystem": "react_ts", "repo": "a/b",
+                                   "number": 1, "kind": "pr", "title": "fix memory leak",
+                                   "body": "listener leak", "merged": 1})
+    schema.insert_candidate(conn, {"id": "c/d#2", "ecosystem": "react_ts", "repo": "c/d",
+                                   "number": 2, "kind": "pr", "title": "chore: tidy",
+                                   "body": "", "merged": 1})
+    patches = {("a/b", 1): REACT_PATCH,
+               ("c/d", 2): "diff --git a/x.tsx b/x.tsx\n--- a/x.tsx\n+++ b/x.tsx\n"
+                           "@@ -1,1 +1,1 @@\n-const a = 1;\n+const a = 2;\n"}
+    fetched = []
+
+    def fake_patch(repo, number, *, token=""):
+        fetched.append((repo, number))
+        return patches.get((repo, number), "")
+
+    res = mine.classify_from_store(conn, "react_ts", fetch_patch=fake_patch, min_score=7)
+    _expect(res.seen == 2, f"both stored PRs examined, {res.seen}")
+    _expect(res.fetched == 2, f"both diffs fetched, {res.fetched}")
+    _expect(res.kept == 1, f"only the real leak fix kept at patch tier, {res.kept}")
+    _expect(res.rows[0]["repo"] == "a/b" and res.rows[0]["category"] == signals.SUBSCRIPTION,
+            "patch-tier category assigned")
+    # every attempt is labelled at the patch tier: the real category + a below-threshold miss.
+    total = conn.execute("SELECT COUNT(*) FROM labels WHERE classifier='patch'").fetchone()[0]
+    real = conn.execute("SELECT COUNT(*) FROM labels WHERE classifier='patch' "
+                        "AND label NOT IN ('below-threshold','fetch-failed')").fetchone()[0]
+    _expect(total == 2 and real == 1, f"2 patch labels, 1 real verdict; got {total}/{real}")
+
+    # resume: a second run must skip everything already attempted — no re-fetch, no dupes.
+    res2 = mine.classify_from_store(conn, "react_ts", fetch_patch=fake_patch, min_score=7)
+    _expect(res2.seen == 0, f"resume processes nothing, got {res2.seen}")
+    _expect(len(fetched) == 2, f"no diffs re-fetched on resume, got {len(fetched)}")
+
+
 def test_bq_ingest_rejects_contents_rows():
     # contents-sweep rows (repo/path/signal, no PR number) must fail fast, not silently drop.
     rows = [{"repo": "a/b", "path": "src/x.tsx", "signal": "listener"}]

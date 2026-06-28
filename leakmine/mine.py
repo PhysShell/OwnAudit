@@ -123,3 +123,72 @@ def run(
                 schema.insert_label(conn, f"{cand.repo}#{cand.number}", cls.category,
                                     cls.score, cls.evidence, "patch")
     return res
+
+
+def classify_from_store(
+    conn,
+    eco_key: str,
+    *,
+    token: str = "",
+    min_score: int = 7,
+    sleep: float = 0.0,
+    limit=None,
+    fetch_patch=None,
+) -> MineResult:
+    """Close the loop: take the candidate PRs already in the store (from a BigQuery /
+    GH-Archive ingest, which only had title/body metadata), fetch each diff, and run the
+    REAL patch-tier `signals.classify`. The metadata tier was a fetch *queue*; this is the
+    verdict — category + patch-signal score, kept at `min_score`.
+
+    `fetch_patch(repo, number, *, token) -> str` defaults to the live `collect` helper and
+    is injected as a fake in tests. Labels are committed PER ATTEMPT (not just at the end),
+    so a crash/kill mid-run doesn't roll back resume progress and re-burn diff quota.
+
+    RESUMABLE: every attempted PR gets a `classifier='patch'` label — the real category when
+    kept, `below-threshold` for a fetched-but-low-score miss, `fetch-failed` when no diff came
+    back — and any PR that already has such a label is skipped BEFORE `--limit` is counted. So
+    `--limit`-sized batches (and reruns after an interruption) advance through the queue
+    instead of re-burning diff quota on the same head. To retry failures, delete their
+    `fetch-failed` labels.
+    """
+    fetch_patch = fetch_patch or collect.fetch_patch
+    res = MineResult(ecosystem=eco_key)
+    # Exclude already-attempted candidates IN SQL (anti-join on a patch-tier label) and push
+    # --limit into the query, so reruns/batches stream only the unprocessed head instead of
+    # loading the whole table and re-burning diff quota. ORDER BY c.id makes the batch order
+    # stable (and materialises the result, so the in-loop label inserts can't disturb it).
+    sql = (
+        "SELECT c.repo, c.number, c.title, c.body FROM candidates AS c "
+        "LEFT JOIN labels AS l ON l.candidate_id = c.id AND l.classifier = 'patch' "
+        "WHERE c.ecosystem = ? AND c.kind = 'pr' AND l.candidate_id IS NULL "
+        "ORDER BY c.id"
+    )
+    params = [eco_key]
+    if limit is not None:
+        sql += " LIMIT ?"
+        params.append(limit)
+    for repo, number, title, body in conn.execute(sql, params):
+        cid = f"{repo}#{number}"
+        res.seen += 1
+        patch = fetch_patch(repo, number, token=token)
+        if sleep:
+            time.sleep(sleep)
+        if not patch:
+            schema.insert_label(conn, cid, "fetch-failed", 0, [], "patch")
+            conn.commit()                        # persist progress per attempt (crash-safe resume)
+            continue
+        res.fetched += 1
+        cls = signals.classify(eco_key, title=title or "", body=body or "", patch=patch)
+        if cls.score < min_score:
+            schema.insert_label(conn, cid, "below-threshold", cls.score, cls.evidence, "patch")
+            conn.commit()
+            continue
+        res.kept += 1
+        res.rows.append({
+            "ecosystem": eco_key, "repo": repo, "number": number,
+            "title": title, "category": cls.category, "score": cls.score,
+            "is_likely_fix": cls.is_likely_fix, "evidence": cls.evidence,
+        })
+        schema.insert_label(conn, cid, cls.category, cls.score, cls.evidence, "patch")
+        conn.commit()
+    return res
