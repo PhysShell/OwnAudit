@@ -24,6 +24,7 @@ signal, which needs the diff). Pure stdlib; SQL generation + ingest unit-test of
 """
 from __future__ import annotations
 
+import itertools
 import json
 from collections.abc import Iterable, Iterator
 from dataclasses import dataclass, field
@@ -221,6 +222,22 @@ def ingest_rows(rows: Iterable[dict], eco_key: str, *, min_meta_score: int = 4,
     rest of the pipeline (fetch + `signals.classify` + `confirm`) can pick the survivors up.
     """
     res = MetaResult(ecosystem=eco_key)
+    rows = iter(rows)
+    try:
+        first = next(rows)
+    except StopIteration:
+        return res
+    # Fail fast on the wrong export: contents-sweep rows are (repo, path, signal) with no PR
+    # number, and there's no PR metadata to score — they ARE the candidate set, consume that
+    # export directly. Silently dropping them (they'd just miss the repo+number gate) would be
+    # a footgun, so reject explicitly. bq-ingest is GH-Archive-discovery only.
+    if "number" not in first and ("path" in first or "signal" in first):
+        raise ValueError(
+            "these look like contents-sweep rows (repo/path/signal); bq-ingest takes only "
+            "GH-Archive discovery rows (repo/number). The contents-sweep export is already the "
+            "candidate set — use it directly, there is no PR metadata to score."
+        )
+    rows = itertools.chain([first], rows)
     seen: set[tuple[str, str]] = set()
     for r in rows:
         repo, number = r.get("repo", ""), str(r.get("number", ""))

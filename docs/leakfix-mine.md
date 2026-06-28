@@ -273,6 +273,11 @@ BigQuery (SQL)  ->  экспорт NDJSON  ->  leakmine bq-ingest  ->  store + c
                                           узкий per-PR fetch + signals.classify + confirm
 ```
 
+`bq-ingest` принимает **только GH-Archive discovery** строки (`repo`/`number`) — на
+contents-sweep строках (`repo`/`path`/`signal`) он падает с понятной ошибкой, потому что у
+sweep'а нет PR-метаданных для скоринга: его экспорт сам по себе и есть набор кандидат-сайтов,
+его потребляют напрямую.
+
 `ingest_rows` грузит экспорт BigQuery в стор, **скоринг — на metadata-тире** (`metadata_score`:
 ключевик в title/body + форма по размеру PR). Это **сознательно слабее** patch-классификатора:
 без диффа категорию не присвоить — metadata-скор лишь ранжирует очередь на fetch. Survivors

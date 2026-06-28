@@ -519,6 +519,17 @@ def test_bq_ingest_ndjson():
     _expect("metadata tier" in res.summary_md(), "summary flags the tier")
 
 
+def test_bq_ingest_rejects_contents_rows():
+    # contents-sweep rows (repo/path/signal, no PR number) must fail fast, not silently drop.
+    rows = [{"repo": "a/b", "path": "src/x.tsx", "signal": "listener"}]
+    raised = False
+    try:
+        bigquery.ingest_rows(rows, "react_ts")
+    except ValueError:
+        raised = True
+    _expect(raised, "contents-sweep rows rejected by bq-ingest")
+
+
 def main():
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)]
     for t in tests:
