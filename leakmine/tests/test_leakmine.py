@@ -116,18 +116,24 @@ def test_signals_android_retention_shapes():
     cases = [
         # removed retainInstance line (the fix drops retain-across-config):
         ("diff --git a/F.kt b/F.kt\n--- a/F.kt\n+++ b/F.kt\n"
-         "@@ -1,3 +1,2 @@\n class F {\n-  retainInstance = true\n }\n"),
+         "@@ -1,3 +1,2 @@\n class F {\n-  retainInstance = true\n }\n", signals.UI_RETENTION),
+        # Java form: setRetainInstance(false):
+        ("diff --git a/F.java b/F.java\n--- a/F.java\n+++ b/F.java\n"
+         "@@ -1,2 +1,3 @@\n void onCreate() {\n+    setRetainInstance(false);\n }\n", signals.UI_RETENTION),
         # added SavedStateHandle (state instead of retaining the fragment):
         ("diff --git a/F.kt b/F.kt\n--- a/F.kt\n+++ b/F.kt\n"
-         "@@ -1,2 +1,3 @@\n class VM {\n+  val h: SavedStateHandle = handle\n }\n"),
+         "@@ -1,2 +1,3 @@\n class VM {\n+  val h: SavedStateHandle = handle\n }\n", signals.UI_RETENTION),
         # viewbinding teardown in onDestroyView:
         ("diff --git a/F.kt b/F.kt\n--- a/F.kt\n+++ b/F.kt\n"
-         "@@ -1,2 +1,3 @@\n fun onDestroy() {\n+  _binding = null\n }\n"),
+         "@@ -1,2 +1,3 @@\n fun onDestroy() {\n+  _binding = null\n }\n", signals.UI_RETENTION),
+        # WeakReference to break Activity/View retention -> static-cache-retention:
+        ("diff --git a/F.kt b/F.kt\n--- a/F.kt\n+++ b/F.kt\n"
+         "@@ -1,2 +1,3 @@\n class H {\n+  val ref = WeakReference(activity)\n }\n", signals.STATIC_RETENTION),
     ]
-    for patch in cases:
+    for patch, want in cases:
         cls = signals.classify("android_kotlin", title="fix fragment memory leak",
                                body="", patch=patch)
-        _expect(cls.category == signals.UI_RETENTION, f"category {cls.category} for {patch[:60]!r}")
+        _expect(cls.category == want, f"category {cls.category} (want {want}) for {patch[:60]!r}")
         _expect(cls.category != signals.UNKNOWN, "no longer uncategorized")
 
 
