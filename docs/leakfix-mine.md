@@ -282,6 +282,21 @@ sweep'а нет PR-метаданных для скоринга: его эксп
 ключевик в title/body + форма по размеру PR). Это **сознательно слабее** patch-классификатора:
 без диффа категорию не присвоить — metadata-скор лишь ранжирует очередь на fetch.
 
+**Cross-run дедуп** — `ingest_rows` подгружает id уже лежащих в сторе кандидатов (для этой
+экосистемы) один раз и пропускает их (счётчик `known` в `MetaResult`/summary). Так корпус
+**наращивается**: повторный ingest пересекающегося окна добавляет только новые PR, а не
+пере-скорит и не перезаписывает уже собранные. Дедуп внутри одного экспорта (повтор события
+в firehose) ловится тем же множеством.
+
+**Enrichment языка (опционально, между ingest и classify-store)** — `enrich-store`
+(`mine.enrich_languages`): ClickHouse-discovery языка не знает, поэтому кандидаты кросс-
+язычные. Дотягиваем primary-language репо **батчами по ~100 через GraphQL** (≈3 запроса на
+300 кандидатов, а не 1 REST на репо) и помечаем кросс-язычные `classifier='patch'` лейблом
+`wrong-language` — anti-join в `classify-store` их уже пропускает, **дифф не фетчится**. Это
+и есть «saturation»: без enrichment реальный прогон дал 284 фетча → 13 kept (≈95% впустую на
+не-JS репо); enrichment режет этот хвост до дифф-фетча. Экономит, потому что GraphQL батчится;
+наивный per-repo REST стоил бы столько же, сколько сам дифф.
+
 Замыкание очереди в вердикт — `classify-store` (`mine.classify_from_store`): берёт кандидатов
 из стора, дофетчивает дифф каждого (`collect.fetch_patch`) и прогоняет **настоящий**
 `signals.classify` (title+body+patch) → категория + patch-скор, пишет label с
@@ -297,6 +312,10 @@ python3 -m leakmine.cli bq-sql --kind gharchive --ecosystem dotnet_wpf --from 20
 # B) загрузить результат обратно в пайплайн (metadata-тир):
 python3 -m leakmine.cli bq-ingest --rows rows.ndjson --ecosystem dotnet_wpf \
         --min-meta-score 4 --out-dir bq-out --store bq-out/corpus.db
+
+# B.5) обогатить языком (батч-GraphQL) и отсеять кросс-язычное ДО дифф-фетча:
+python3 -m leakmine.cli enrich-store --store bq-out/corpus.db --ecosystem dotnet_wpf \
+        --out-dir bq-out   # $GITHUB_TOKEN
 
 # C) замкнуть очередь в вердикт: дофетч диффов кандидатов + настоящий patch-классификатор:
 python3 -m leakmine.cli classify-store --store bq-out/corpus.db --ecosystem dotnet_wpf \

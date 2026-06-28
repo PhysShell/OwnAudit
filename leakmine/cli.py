@@ -26,6 +26,14 @@ def _read(path: str) -> str:
         return f.read()
 
 
+def _positive_int(value: str) -> int:
+    """argparse type: a strictly positive integer (a batch of 0/-N would spin or error)."""
+    n = int(value)
+    if n < 1:
+        raise argparse.ArgumentTypeError(f"must be >= 1, got {n}")
+    return n
+
+
 def cmd_queries(a) -> int:
     for q in collect.github_search_queries(a.ecosystem, merged_after=a.merged_after or ""):
         print(q)
@@ -134,6 +142,18 @@ def cmd_bq_ingest(a) -> int:
     return 0
 
 
+def cmd_enrich_store(a) -> int:
+    token = a.token or os.environ.get("GITHUB_TOKEN", "")
+    os.makedirs(a.out_dir, exist_ok=True)
+    conn = schema.connect(a.store)
+    res = mine.enrich_languages(conn, a.ecosystem, token=token, batch=a.batch, limit=a.limit)
+    conn.commit()
+    with open(os.path.join(a.out_dir, "enrich.md"), "w", encoding="utf-8") as f:
+        f.write(res.summary_md())
+    print(res.summary_md())
+    return 0
+
+
 def cmd_classify_store(a) -> int:
     token = a.token or os.environ.get("GITHUB_TOKEN", "")
     os.makedirs(a.out_dir, exist_ok=True)
@@ -227,6 +247,17 @@ def main(argv=None) -> int:
     bi.add_argument("--out-dir", default="leakmine-out")
     bi.add_argument("--store", default="", help="SQLite path; empty = no DB written")
     bi.set_defaults(fn=cmd_bq_ingest)
+
+    es = sub.add_parser("enrich-store",
+                        help="enrich stored candidates with repo language (batched GraphQL); "
+                             "marks cross-language ones so classify-store skips them")
+    es.add_argument("--store", required=True, help="SQLite store from bq-ingest / mine")
+    es.add_argument("--ecosystem", required=True, choices=sorted(signals.ECOSYSTEMS))
+    es.add_argument("--batch", type=_positive_int, default=100, help="repos per GraphQL request")
+    es.add_argument("--limit", type=int, default=None, help="cap repos enriched (default: all)")
+    es.add_argument("--out-dir", default="leakmine-out")
+    es.add_argument("--token", default="", help="GitHub token; falls back to $GITHUB_TOKEN")
+    es.set_defaults(fn=cmd_enrich_store)
 
     cs = sub.add_parser("classify-store",
                         help="fetch diffs for stored candidates and run the real patch classifier")

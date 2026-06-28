@@ -57,7 +57,7 @@ def gharchive_discovery_sql(
     )
     langs = " OR ".join(
         f"LOWER(JSON_EXTRACT_SCALAR(payload,'$.pull_request.base.repo.language')) = '{lang}'"
-        for lang in _LANGS.get(eco_key, ())
+        for lang in signals.LANGS.get(eco_key, ())
     ) or "TRUE"
     size_cap = (
         f"\n  AND SAFE_CAST(JSON_EXTRACT_SCALAR(payload,'$.pull_request.changed_files') "
@@ -175,11 +175,14 @@ class MetaResult:
     rows: list[dict] = field(default_factory=list)
     seen: int = 0
     kept: int = 0
+    known: int = 0          # candidates already in the store (skipped — cross-run dedup)
 
     def summary_md(self) -> str:
         return (
             f"# LeakFixMine — BigQuery ingest (`{self.ecosystem}`, metadata tier)\n\n"
-            f"- rows seen: **{self.seen}**\n- kept (>= meta threshold): **{self.kept}**\n\n"
+            f"- rows seen: **{self.seen}**\n"
+            f"- already in store (skipped): **{self.known}**\n"
+            f"- kept (>= meta threshold): **{self.kept}**\n\n"
             "NOTE: metadata-tier score (keyword + PR size), NOT the patch signal. "
             "Narrow-fetch the kept PRs and run `mine`/`confirm` for the real classification.\n"
         )
@@ -239,6 +242,17 @@ def ingest_rows(rows: Iterable[dict], eco_key: str, *, min_meta_score: int = 4,
         )
     rows = itertools.chain([first], rows)
     seen: set[tuple[str, str]] = set()
+    # Cross-run dedup: candidates already in the store are skipped, so re-ingesting an
+    # overlapping date window (to GROW the corpus) never re-scores/re-writes a PR we already
+    # hold. Pre-load the existing id set once (cheap vs a per-row SELECT). New keys are added
+    # to it as we go, so a duplicate within THIS export is caught too.
+    known_ids: set[str] = set()
+    if conn is not None:
+        known_ids = {
+            r[0] for r in conn.execute(
+                "SELECT id FROM candidates WHERE ecosystem = ?", (eco_key,)
+            )
+        }
     for r in rows:
         repo, number = r.get("repo", ""), str(r.get("number", ""))
         if not repo or not number:
@@ -247,6 +261,11 @@ def ingest_rows(rows: Iterable[dict], eco_key: str, *, min_meta_score: int = 4,
         if key in seen:
             continue
         seen.add(key)
+        cid = f"{repo}#{number}"
+        if cid in known_ids:
+            res.known += 1
+            continue
+        known_ids.add(cid)
         res.seen += 1
         cf = r.get("changed_files")
         cf = int(cf) if cf not in (None, "") else None
@@ -288,14 +307,3 @@ def iter_ndjson(path: str) -> Iterator[dict]:
             line = line.strip()
             if line:
                 yield json.loads(line)
-
-
-# repo-language filter values (lowercased) per ecosystem for the GH-Archive query.
-_LANGS: dict[str, tuple[str, ...]] = {
-    "dotnet_wpf": ("c#",),
-    "react_ts": ("typescript", "javascript"),
-    "android_kotlin": ("kotlin", "java"),
-    "java_spring": ("java",),
-    "zig": ("zig",),
-    "nim": ("nim",),
-}
