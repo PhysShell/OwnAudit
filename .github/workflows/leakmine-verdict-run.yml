@@ -1,0 +1,108 @@
+# ONE-SHOT verdict run (throwaway, branch-scoped) — android_kotlin, ANDROID-TARGETED discovery,
+# RE-RUN to validate the new ViewModel/state-retention signals (retainInstance / SavedStateHandle
+# / _binding = null). Expectation: the ~7 'uncategorized' from the prior targeted run now land in
+# ui-resource-retention.
+#
+#   ClickHouse playground (zero-auth) -> NDJSON  (leak-kw AND android-marker in title)
+#     -> bq-ingest -> enrich-store (Kotlin/Java confirm) -> classify-store (android patch signals)
+#
+# Triggered by push to this dev branch only; delete the file when the run is captured.
+name: leakmine — verdict run (one-shot)
+
+on:
+  push:
+    branches: [claude/own-language-market-research-jgrrgm]
+    paths: [.github/workflows/leakmine-verdict-run.yml]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: leakmine-verdict-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  verdict:
+    name: android_kotlin (android-targeted, retention signals) -> enrich -> verdict
+    runs-on: ubuntu-latest
+    env:
+      ECOSYSTEM: android_kotlin
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.12"
+
+      - name: Discover Android candidates (ClickHouse playground -> NDJSON)
+        run: |
+          set -euo pipefail
+          cat > q.sql <<'SQL'
+          SELECT
+            repo_name AS repo,
+            number,
+            title,
+            body,
+            changed_files,
+            concat('https://github.com/', repo_name, '/pull/', toString(number)) AS html_url
+          FROM github_events
+          WHERE event_type = 'PullRequestEvent'
+            AND action = 'closed'
+            AND merged = 1
+            AND created_at >= '2023-01-01' AND created_at < '2025-01-01'
+            AND changed_files BETWEEN 1 AND 80
+            AND multiSearchAnyCaseInsensitive(title,
+                  ['memory leak','leaks','retain','not disposed','not released',
+                   'never released','grows unbounded','out of memory'])
+            AND multiSearchAnyCaseInsensitive(title,
+                  ['fragment','activity','viewmodel','lifecycle','recyclerview',
+                   'livedata','viewbinding','jetpack','coroutine','android','kotlin'])
+          ORDER BY changed_files ASC
+          LIMIT 1500
+          FORMAT JSONEachRow
+          SQL
+          curl -sS --fail-with-body 'https://play.clickhouse.com/?user=play' \
+            --data-binary @q.sql > rows.ndjson
+          echo "discovered $(wc -l < rows.ndjson) raw rows"
+
+      - name: Ingest (metadata tier)
+        run: |
+          set -euo pipefail
+          PYTHONPATH=. python3 -m leakmine.cli bq-ingest \
+            --rows rows.ndjson --ecosystem "$ECOSYSTEM" \
+            --min-meta-score 4 --out-dir bq-out/ingest --store bq-out/corpus.db
+
+      - name: Enrich language (batched GraphQL) — confirm Kotlin/Java, drop the rest
+        run: |
+          set -euo pipefail
+          PYTHONPATH=. python3 -m leakmine.cli enrich-store \
+            --store bq-out/corpus.db --ecosystem "$ECOSYSTEM" \
+            --batch 100 --out-dir bq-out/enrich
+
+      - name: Classify from store (verdict; android patch signals incl. retention)
+        run: |
+          set -euo pipefail
+          PYTHONPATH=. python3 -m leakmine.cli classify-store \
+            --store bq-out/corpus.db --ecosystem "$ECOSYSTEM" \
+            --min-score 7 --sleep 1 --out-dir bq-out/verdict
+
+      - name: Publish summaries to the run
+        if: always()
+        run: |
+          {
+            echo "## Discovery"; echo "android-targeted: leak-kw AND android-marker in title"
+            echo; echo "## Ingest (metadata tier)"; cat bq-out/ingest/summary.md 2>/dev/null || true
+            echo; echo "## Enrichment (Kotlin/Java confirm)"
+            cat bq-out/enrich/enrich.md 2>/dev/null || true
+            echo; echo "## Verdict (classify-store)"; cat bq-out/verdict/summary.md 2>/dev/null || true
+          } >> "$GITHUB_STEP_SUMMARY" || true
+
+      - name: Upload corpus + outputs
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: leakmine-verdict-android_kotlin-retention
+          path: bq-out/
+          if-no-files-found: warn
