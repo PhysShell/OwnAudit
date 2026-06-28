@@ -49,10 +49,14 @@ class Ecosystem:
     file_ext: tuple[str, ...]
     queries: tuple[str, ...]
     signals: tuple[Signal, ...]
-    # keywords that, in a title/body, suggest a lifetime fix at all.
+    # Keywords that, in a title/body, suggest a lifetime fix at all. These are matched as
+    # SUBSTRINGS — here (Python `in`) and in the BigQuery/ClickHouse discovery SQL — so every
+    # token must be safe inside unrelated words. Bare "oom" was REMOVED: it matched
+    # zoom/room/doom/bloom and flooded discovery (~68% of one real ClickHouse run on 2024).
+    # "out of memory" carries that meaning safely.
     keywords: tuple[str, ...] = (
         "memory leak", "leak", "leaks", "retain", "retained", "not disposed",
-        "not released", "never released", "grows unbounded", "oom", "out of memory",
+        "not released", "never released", "grows unbounded", "out of memory",
     )
 
 

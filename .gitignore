@@ -32,3 +32,9 @@ report/out-*/
 
 # Own.NET Auditor — user-managed baseline (large; created on the stand)
 sts_audit/baseline.json
+
+# leakmine mining run outputs (generated; corpus.db / dataset.json / summary.md)
+leakmine-out/
+bq-out/
+ch-out/
+*-leakmine-out/

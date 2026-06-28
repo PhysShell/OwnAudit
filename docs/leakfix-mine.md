@@ -280,8 +280,12 @@ sweep'а нет PR-метаданных для скоринга: его эксп
 
 `ingest_rows` грузит экспорт BigQuery в стор, **скоринг — на metadata-тире** (`metadata_score`:
 ключевик в title/body + форма по размеру PR). Это **сознательно слабее** patch-классификатора:
-без диффа категорию не присвоить — metadata-скор лишь ранжирует очередь на fetch. Survivors
-потом дофетчиваются и проходят настоящий `signals.classify`/`confirm`.
+без диффа категорию не присвоить — metadata-скор лишь ранжирует очередь на fetch.
+
+Замыкание очереди в вердикт — `classify-store` (`mine.classify_from_store`): берёт кандидатов
+из стора, дофетчивает дифф каждого (`collect.fetch_patch`) и прогоняет **настоящий**
+`signals.classify` (title+body+patch) → категория + patch-скор, пишет label с
+`classifier='patch'`. Metadata-тир был очередью, это — вердикт.
 
 ### CLI
 
@@ -293,6 +297,10 @@ python3 -m leakmine.cli bq-sql --kind gharchive --ecosystem dotnet_wpf --from 20
 # B) загрузить результат обратно в пайплайн (metadata-тир):
 python3 -m leakmine.cli bq-ingest --rows rows.ndjson --ecosystem dotnet_wpf \
         --min-meta-score 4 --out-dir bq-out --store bq-out/corpus.db
+
+# C) замкнуть очередь в вердикт: дофетч диффов кандидатов + настоящий patch-классификатор:
+python3 -m leakmine.cli classify-store --store bq-out/corpus.db --ecosystem dotnet_wpf \
+        --min-score 7 --out-dir bq-out   # $GITHUB_TOKEN для лимита 5000/час
 
 # zero-fetch syntactic sweep по снапшоту кода (по умолчанию дешёвый sample_*):
 python3 -m leakmine.cli bq-sql --kind contents --ecosystem react_ts          # --full = весь ~2.7TB

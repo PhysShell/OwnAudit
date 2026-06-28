@@ -123,3 +123,52 @@ def run(
                 schema.insert_label(conn, f"{cand.repo}#{cand.number}", cls.category,
                                     cls.score, cls.evidence, "patch")
     return res
+
+
+def classify_from_store(
+    conn,
+    eco_key: str,
+    *,
+    token: str = "",
+    min_score: int = 7,
+    sleep: float = 0.0,
+    limit=None,
+    fetch_patch=None,
+) -> MineResult:
+    """Close the loop: take the candidate PRs already in the store (from a BigQuery /
+    GH-Archive ingest, which only had title/body metadata), fetch each diff, and run the
+    REAL patch-tier `signals.classify`. The metadata tier was a fetch *queue*; this is the
+    verdict — category + patch-signal score, kept at `min_score`.
+
+    `fetch_patch(repo, number, *, token) -> str` defaults to the live `collect` helper and
+    is injected as a fake in tests. Writes a 'patch'-classifier label per kept PR so the
+    metadata and patch verdicts coexist in the store.
+    """
+    fetch_patch = fetch_patch or collect.fetch_patch
+    res = MineResult(ecosystem=eco_key)
+    cur = conn.execute(
+        "SELECT repo, number, title, body FROM candidates WHERE ecosystem=? AND kind='pr'",
+        (eco_key,),
+    )
+    for repo, number, title, body in cur.fetchall():
+        if limit is not None and res.seen >= limit:
+            break
+        res.seen += 1
+        patch = fetch_patch(repo, number, token=token)
+        if sleep:
+            time.sleep(sleep)
+        if not patch:
+            continue
+        res.fetched += 1
+        cls = signals.classify(eco_key, title=title or "", body=body or "", patch=patch)
+        if cls.score < min_score:
+            continue
+        res.kept += 1
+        res.rows.append({
+            "ecosystem": eco_key, "repo": repo, "number": number,
+            "title": title, "category": cls.category, "score": cls.score,
+            "is_likely_fix": cls.is_likely_fix, "evidence": cls.evidence,
+        })
+        schema.insert_label(conn, f"{repo}#{number}", cls.category, cls.score,
+                            cls.evidence, "patch")
+    return res

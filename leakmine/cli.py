@@ -134,6 +134,21 @@ def cmd_bq_ingest(a) -> int:
     return 0
 
 
+def cmd_classify_store(a) -> int:
+    token = a.token or os.environ.get("GITHUB_TOKEN", "")
+    os.makedirs(a.out_dir, exist_ok=True)
+    conn = schema.connect(a.store)
+    res = mine.classify_from_store(conn, a.ecosystem, token=token, min_score=a.min_score,
+                                   sleep=a.sleep, limit=a.limit)
+    conn.commit()
+    with open(os.path.join(a.out_dir, "classified.json"), "w", encoding="utf-8") as f:
+        json.dump(res.rows, f, indent=2, ensure_ascii=False)
+    with open(os.path.join(a.out_dir, "summary.md"), "w", encoding="utf-8") as f:
+        f.write(res.summary_md())
+    print(res.summary_md())
+    return 0
+
+
 def cmd_leadtime(a) -> int:
     lt = szz.lead_time(a.repo, a.sha, a.file, a.line)
     print(json.dumps(lt.__dict__, indent=2, ensure_ascii=False))
@@ -212,6 +227,17 @@ def main(argv=None) -> int:
     bi.add_argument("--out-dir", default="leakmine-out")
     bi.add_argument("--store", default="", help="SQLite path; empty = no DB written")
     bi.set_defaults(fn=cmd_bq_ingest)
+
+    cs = sub.add_parser("classify-store",
+                        help="fetch diffs for stored candidates and run the real patch classifier")
+    cs.add_argument("--store", required=True, help="SQLite store from bq-ingest / mine")
+    cs.add_argument("--ecosystem", required=True, choices=sorted(signals.ECOSYSTEMS))
+    cs.add_argument("--min-score", type=int, default=7, dest="min_score")
+    cs.add_argument("--sleep", type=float, default=1.0, help="throttle between diff fetches (s)")
+    cs.add_argument("--limit", type=int, default=None, help="cap PRs fetched (default: all)")
+    cs.add_argument("--out-dir", default="leakmine-out")
+    cs.add_argument("--token", default="", help="GitHub token; falls back to $GITHUB_TOKEN")
+    cs.set_defaults(fn=cmd_classify_store)
 
     lt = sub.add_parser("leadtime", help="time-travel: commits between a leak and its human fix")
     lt.add_argument("--repo", required=True)
