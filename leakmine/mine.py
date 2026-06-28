@@ -141,7 +141,8 @@ def classify_from_store(
     verdict — category + patch-signal score, kept at `min_score`.
 
     `fetch_patch(repo, number, *, token) -> str` defaults to the live `collect` helper and
-    is injected as a fake in tests.
+    is injected as a fake in tests. Labels are committed PER ATTEMPT (not just at the end),
+    so a crash/kill mid-run doesn't roll back resume progress and re-burn diff quota.
 
     RESUMABLE: every attempted PR gets a `classifier='patch'` label — the real category when
     kept, `below-threshold` for a fetched-but-low-score miss, `fetch-failed` when no diff came
@@ -174,11 +175,13 @@ def classify_from_store(
             time.sleep(sleep)
         if not patch:
             schema.insert_label(conn, cid, "fetch-failed", 0, [], "patch")
+            conn.commit()                        # persist progress per attempt (crash-safe resume)
             continue
         res.fetched += 1
         cls = signals.classify(eco_key, title=title or "", body=body or "", patch=patch)
         if cls.score < min_score:
             schema.insert_label(conn, cid, "below-threshold", cls.score, cls.evidence, "patch")
+            conn.commit()
             continue
         res.kept += 1
         res.rows.append({
@@ -187,4 +190,5 @@ def classify_from_store(
             "is_likely_fix": cls.is_likely_fix, "evidence": cls.evidence,
         })
         schema.insert_label(conn, cid, cls.category, cls.score, cls.evidence, "patch")
+        conn.commit()
     return res
