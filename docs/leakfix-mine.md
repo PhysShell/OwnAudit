@@ -259,15 +259,15 @@ BETWEEN`) — сотни МБ–единицы ГБ, внутри free 1 ТБ/м
 
 **B. Contents sweep (снапшот кода, zero-fetch) — `contents_sweep_sql`.**
 SQL по `bigquery-public-data.github_repos`: синтаксический тир прямо в SQL — acquire без
-cleanup (`addEventListener(` есть, `removeEventListener` нет; `setInterval(` без
-`clearInterval`; и т.д., см. `SWEEP_PAIRS`). **Ноль fetch**, масштаб до миллионов файлов.
+cleanup (`addEventListener()` есть, `removeEventListener()` нет; `setInterval()` без
+`clearInterval()`; и т.д., см. `SWEEP_PAIRS`). **Ноль fetch**, масштаб до миллионов файлов.
 **Дорого**: любое обращение к `contents.content` сканирует весь столбец ~2.7 ТБ (~$13,
 сжигает free-tier) — поэтому по умолчанию бьёт по `sample_files`/`sample_contents` (дёшево);
 `--full` включай осознанно.
 
 ### Поток и замыкание петли
 
-```
+```text
 BigQuery (SQL)  ->  экспорт NDJSON  ->  leakmine bq-ingest  ->  store + candidates.json
                                                                   |
                                           узкий per-PR fetch + signals.classify + confirm
@@ -280,7 +280,7 @@ BigQuery (SQL)  ->  экспорт NDJSON  ->  leakmine bq-ingest  ->  store + c
 
 ### CLI
 
-```
+```bash
 # A) сгенерить discovery-SQL, выполнить в BigQuery, выгрузить как NDJSON:
 python3 -m leakmine.cli bq-sql --kind gharchive --ecosystem dotnet_wpf --from 20240101 --to 20241231
 #   -> bq query ... | bq extract ... > rows.ndjson   (в своём GCP)

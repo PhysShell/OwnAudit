@@ -109,17 +109,21 @@ def cmd_bq_sql(a) -> int:
     if a.kind == "gharchive":
         print(bigquery.gharchive_discovery_sql(
             a.ecosystem, date_from=getattr(a, "from"), date_to=a.to,
-            max_changed_files=a.max_changed_files, limit=a.limit))
+            max_changed_files=a.max_changed_files,
+            limit=50000 if a.limit is None else a.limit))
     else:
-        print(bigquery.contents_sweep_sql(a.ecosystem, sample=not a.full, limit=a.limit))
+        # contents scan is far pricier per row, so keep the helper's cheaper 5k default.
+        print(bigquery.contents_sweep_sql(
+            a.ecosystem, sample=not a.full, limit=5000 if a.limit is None else a.limit))
     return 0
 
 
 def cmd_bq_ingest(a) -> int:
-    rows = bigquery.read_ndjson(_read(a.rows))
     os.makedirs(a.out_dir, exist_ok=True)
     conn = schema.connect(a.store) if a.store else None
-    res = bigquery.ingest_rows(rows, a.ecosystem, min_meta_score=a.min_meta_score, conn=conn)
+    # stream the export line-by-line so a multi-GB dump ingests at bounded memory.
+    res = bigquery.ingest_rows(bigquery.iter_ndjson(a.rows), a.ecosystem,
+                               min_meta_score=a.min_meta_score, conn=conn)
     if conn is not None:
         conn.commit()
     with open(os.path.join(a.out_dir, "candidates.json"), "w", encoding="utf-8") as f:
@@ -197,7 +201,8 @@ def main(argv=None) -> int:
     bq.add_argument("--max-changed-files", type=int, default=80, dest="max_changed_files")
     bq.add_argument("--full", action="store_true",
                     help="contents sweep: scan full ~2.7TB tables instead of sample_* (costs $$)")
-    bq.add_argument("--limit", type=int, default=50000)
+    bq.add_argument("--limit", type=int, default=None,
+                    help="row cap (default: 50000 gharchive, 5000 contents)")
     bq.set_defaults(fn=cmd_bq_sql)
 
     bi = sub.add_parser("bq-ingest", help="ingest BigQuery NDJSON export -> store (metadata tier)")

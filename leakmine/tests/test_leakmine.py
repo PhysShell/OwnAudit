@@ -459,7 +459,10 @@ def test_bq_gharchive_sql():
     sql = bigquery.gharchive_discovery_sql("dotnet_wpf", date_from="20240101", date_to="20241231",
                                           max_changed_files=80)
     _expect("_TABLE_SUFFIX BETWEEN '20240101' AND '20241231'" in sql, "partition-scoped")
-    _expect("pull_request.title" in sql and "pull_request.body" in sql, "title OR body matched")
+    # assert the actual OR boolean, not mere field presence (an AND regression must fail).
+    _expect(("title')) LIKE '%memory leak%' OR "
+             "LOWER(COALESCE(JSON_EXTRACT_SCALAR(payload,'$.pull_request.body'),'')) "
+             "LIKE '%memory leak%'") in sql, "title OR body, not AND")
     _expect("base.repo.language')) = 'c#'" in sql, "language filter")
     _expect("changed_files') AS INT64) <= 80" in sql, "size cap applied")
     _expect("QUALIFY ROW_NUMBER()" in sql, "deduped to one row per PR")
@@ -492,7 +495,8 @@ def test_bq_metadata_score():
     _expect(hi >= 4 and "small-pr" in ev, f"focused leak fix ranks high, {hi}")
     lo, ev2 = bigquery.metadata_score("dotnet_wpf", title="Fix memory leak", body="",
                                      changed_files=500)
-    _expect("penalty:mega-pr" in ev2, "mega-PR penalised")
+    # +3 title keyword, -3 mega penalty -> 0; assert the score, not just the evidence.
+    _expect(lo == 0 and "penalty:mega-pr" in ev2, f"mega-PR penalty zeroes the score, {lo}")
     none, _ = bigquery.metadata_score("dotnet_wpf", title="add feature", body="", changed_files=3)
     _expect(none < 4, "no-keyword PR below threshold")
 

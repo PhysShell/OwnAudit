@@ -25,6 +25,7 @@ signal, which needs the diff). Pure stdlib; SQL generation + ingest unit-test of
 from __future__ import annotations
 
 import json
+from collections.abc import Iterable, Iterator
 from dataclasses import dataclass, field
 
 from . import schema, signals
@@ -54,8 +55,8 @@ def gharchive_discovery_sql(
         for k in eco.keywords
     )
     langs = " OR ".join(
-        f"LOWER(JSON_EXTRACT_SCALAR(payload,'$.pull_request.base.repo.language')) = '{l}'"
-        for l in _LANGS.get(eco_key, ())
+        f"LOWER(JSON_EXTRACT_SCALAR(payload,'$.pull_request.base.repo.language')) = '{lang}'"
+        for lang in _LANGS.get(eco_key, ())
     ) or "TRUE"
     size_cap = (
         f"\n  AND SAFE_CAST(JSON_EXTRACT_SCALAR(payload,'$.pull_request.changed_files') "
@@ -141,7 +142,13 @@ def contents_sweep_sql(
         f"AND NOT REGEXP_CONTAINS(c.content, r'{cln}') THEN '{label}'"
         for acq, cln, label in pairs
     )
-    any_acquire = " OR ".join(f"REGEXP_CONTAINS(c.content, r'{acq}')" for acq, _, _ in pairs)
+    # candidate = acquire present AND its cleanup absent — for at least one pair. Without the
+    # NOT-cleanup half a *balanced* file (acquire + cleanup) would still match and fall through
+    # the CASE to 'other', flooding the sweep with non-leaks. So the WHERE mirrors the CASE.
+    candidate_pred = " OR ".join(
+        f"(REGEXP_CONTAINS(c.content, r'{acq}') AND NOT REGEXP_CONTAINS(c.content, r'{cln}'))"
+        for acq, cln, _ in pairs
+    )
     return (
         f"-- LeakFixMine contents sweep: ecosystem={eco_key}, table="
         f"{'sample_' if sample else ''}(files/contents). "
@@ -149,12 +156,12 @@ def contents_sweep_sql(
         "SELECT f.repo_name AS repo, f.path AS path,\n"
         "  CASE\n"
         f"{cases}\n"
-        "    ELSE 'other' END AS signal\n"
+        "  END AS signal\n"
         f"FROM `bigquery-public-data.github_repos.{files_tbl}` f\n"
         f"JOIN `bigquery-public-data.github_repos.{contents_tbl}` c USING (id)\n"
         f"WHERE ({exts})\n"
         "  AND NOT c.binary\n"
-        f"  AND ({any_acquire})\n"
+        f"  AND ({candidate_pred})\n"
         f"LIMIT {limit}\n"
     )
 
@@ -189,23 +196,29 @@ def metadata_score(eco_key: str, *, title: str = "", body: str = "",
     score, ev = 0, []
     tl, bl = (title or "").lower(), (body or "").lower()
     if any(k in tl for k in eco.keywords):
-        score += 3; ev.append("title:leak-keyword")
+        score += 3
+        ev.append("title:leak-keyword")
     if any(k in bl for k in eco.keywords):
-        score += 2; ev.append("body:leak-keyword")
+        score += 2
+        ev.append("body:leak-keyword")
     if changed_files is not None:
         if changed_files <= 10:
-            score += 2; ev.append("small-pr")
+            score += 2
+            ev.append("small-pr")
         elif changed_files > 200:
-            score -= 3; ev.append("penalty:mega-pr")
+            score -= 3
+            ev.append("penalty:mega-pr")
     return score, ev
 
 
-def ingest_rows(rows: list[dict], eco_key: str, *, min_meta_score: int = 4, conn=None) -> MetaResult:
+def ingest_rows(rows: Iterable[dict], eco_key: str, *, min_meta_score: int = 4,
+                conn=None) -> MetaResult:
     """Ingest exported BigQuery rows (dicts with the SELECT-alias keys) into the store.
 
-    Dedups by (repo, number), scores at the metadata tier, keeps >= `min_meta_score`. With a
-    `conn` it writes candidates + a 'bigquery-meta' label so the rest of the pipeline (fetch
-    + `signals.classify` + `confirm`) can pick the survivors up.
+    `rows` is any iterable — pass `iter_ndjson(path)` to stream a multi-GB export without
+    loading it into memory. Dedups by (repo, number), scores at the metadata tier, keeps
+    >= `min_meta_score`. With a `conn` it writes candidates + a 'bigquery-meta' label so the
+    rest of the pipeline (fetch + `signals.classify` + `confirm`) can pick the survivors up.
     """
     res = MetaResult(ecosystem=eco_key)
     seen: set[tuple[str, str]] = set()
@@ -245,13 +258,19 @@ def ingest_rows(rows: list[dict], eco_key: str, *, min_meta_score: int = 4, conn
 
 
 def read_ndjson(text: str) -> list[dict]:
-    """Parse BigQuery NDJSON export (one JSON object per line; blank lines ignored)."""
-    out = []
-    for line in text.splitlines():
-        line = line.strip()
-        if line:
-            out.append(json.loads(line))
-    return out
+    """Parse an in-memory NDJSON string (one JSON object per line; blanks ignored)."""
+    return [json.loads(ln) for ln in text.splitlines() if ln.strip()]
+
+
+def iter_ndjson(path: str) -> Iterator[dict]:
+    """Stream an NDJSON export file line-by-line — never materialises the whole dump, so a
+    multi-GB BigQuery export ingests at bounded memory (the only in-memory state downstream
+    is the (repo, number) dedup set)."""
+    with open(path, encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if line:
+                yield json.loads(line)
 
 
 # repo-language filter values (lowercased) per ecosystem for the GH-Archive query.
