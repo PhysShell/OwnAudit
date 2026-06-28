@@ -540,8 +540,10 @@ def test_classify_from_store():
     patches = {("a/b", 1): REACT_PATCH,
                ("c/d", 2): "diff --git a/x.tsx b/x.tsx\n--- a/x.tsx\n+++ b/x.tsx\n"
                            "@@ -1,1 +1,1 @@\n-const a = 1;\n+const a = 2;\n"}
+    fetched = []
 
     def fake_patch(repo, number, *, token=""):
+        fetched.append((repo, number))
         return patches.get((repo, number), "")
 
     res = mine.classify_from_store(conn, "react_ts", fetch_patch=fake_patch, min_score=7)
@@ -550,8 +552,16 @@ def test_classify_from_store():
     _expect(res.kept == 1, f"only the real leak fix kept at patch tier, {res.kept}")
     _expect(res.rows[0]["repo"] == "a/b" and res.rows[0]["category"] == signals.SUBSCRIPTION,
             "patch-tier category assigned")
-    n = conn.execute("SELECT COUNT(*) FROM labels WHERE classifier='patch'").fetchone()[0]
-    _expect(n == 1, f"one patch-tier label written to the store, {n}")
+    # every attempt is labelled at the patch tier: the real category + a below-threshold miss.
+    total = conn.execute("SELECT COUNT(*) FROM labels WHERE classifier='patch'").fetchone()[0]
+    real = conn.execute("SELECT COUNT(*) FROM labels WHERE classifier='patch' "
+                        "AND label NOT IN ('below-threshold','fetch-failed')").fetchone()[0]
+    _expect(total == 2 and real == 1, f"2 patch labels, 1 real verdict; got {total}/{real}")
+
+    # resume: a second run must skip everything already attempted — no re-fetch, no dupes.
+    res2 = mine.classify_from_store(conn, "react_ts", fetch_patch=fake_patch, min_score=7)
+    _expect(res2.seen == 0, f"resume processes nothing, got {res2.seen}")
+    _expect(len(fetched) == 2, f"no diffs re-fetched on resume, got {len(fetched)}")
 
 
 def test_bq_ingest_rejects_contents_rows():
