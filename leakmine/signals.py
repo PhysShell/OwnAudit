@@ -150,8 +150,7 @@ ANDROID_KOTLIN = Ecosystem(
         Signal(UI_RETENTION, removed=("retainInstance",), weight=4),       # drop retain-across-config
         Signal(UI_RETENTION, added=("setRetainInstance(false",), weight=3),  # Java form of the same
         Signal(UI_RETENTION, added=("SavedStateHandle",), weight=3),       # state instead of retaining
-        Signal(UI_RETENTION, added=("_binding = null",), weight=4),        # viewbinding teardown
-        Signal(UI_RETENTION, added=("binding = null",), weight=3),         # (looser binding-null form)
+        Signal(UI_RETENTION, added=("binding = null",), weight=4),         # viewbinding teardown (covers _binding = null too — substring)
         Signal(STATIC_RETENTION, added=("WeakReference",), weight=2),      # break Activity/View retention
     ),
 )
