@@ -18,7 +18,9 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(os.path.dirname(HERE))
 sys.path.insert(0, ROOT)
 
-from leakmine import collect, confirm, diffparse, metrics, mine, schema, signals, sweep, szz  # noqa: E402
+from leakmine import (  # noqa: E402
+    bigquery, collect, confirm, diffparse, metrics, mine, schema, signals, sweep, szz,
+)
 
 
 def _expect(cond, msg):
@@ -451,6 +453,66 @@ def test_schema_foreign_keys_enforced():
     except sqlite3.IntegrityError:           # specifically the FK rejection, not any error
         raised = True
     _expect(raised, "orphan verdict rejected by foreign-key constraint")
+
+
+def test_bq_gharchive_sql():
+    sql = bigquery.gharchive_discovery_sql("dotnet_wpf", date_from="20240101", date_to="20241231",
+                                          max_changed_files=80)
+    _expect("_TABLE_SUFFIX BETWEEN '20240101' AND '20241231'" in sql, "partition-scoped")
+    _expect("pull_request.title" in sql and "pull_request.body" in sql, "title OR body matched")
+    _expect("base.repo.language')) = 'c#'" in sql, "language filter")
+    _expect("changed_files') AS INT64) <= 80" in sql, "size cap applied")
+    _expect("QUALIFY ROW_NUMBER()" in sql, "deduped to one row per PR")
+    # size cap can be disabled.
+    nocap = bigquery.gharchive_discovery_sql("react_ts", date_from="20240101", date_to="20240131",
+                                            max_changed_files=0)
+    _expect("changed_files') AS INT64) <=" not in nocap, "cap omitted when 0")
+
+
+def test_bq_contents_sweep_sql():
+    s = bigquery.contents_sweep_sql("react_ts", sample=True)
+    _expect("sample_files" in s and "sample_contents" in s, "uses cheap sample tables by default")
+    _expect("REGEXP_CONTAINS(c.content, r'addEventListener\\(')" in s, "acquire regex present")
+    _expect("NOT REGEXP_CONTAINS(c.content, r'removeEventListener')" in s, "cleanup-absence test")
+    full = bigquery.contents_sweep_sql("react_ts", sample=False)
+    _expect("github_repos.files`" in full and "github_repos.contents`" in full, "full tables")
+    _expect("2.7TB" in full, "full scan is cost-warned")
+    # an ecosystem without sweep pairs raises rather than emit garbage.
+    raised = False
+    try:
+        bigquery.contents_sweep_sql("nim")
+    except ValueError:
+        raised = True
+    _expect(raised, "missing sweep pairs -> explicit error")
+
+
+def test_bq_metadata_score():
+    hi, ev = bigquery.metadata_score("dotnet_wpf", title="Fix memory leak in view",
+                                    body="event handler retained", changed_files=4)
+    _expect(hi >= 4 and "small-pr" in ev, f"focused leak fix ranks high, {hi}")
+    lo, ev2 = bigquery.metadata_score("dotnet_wpf", title="Fix memory leak", body="",
+                                     changed_files=500)
+    _expect("penalty:mega-pr" in ev2, "mega-PR penalised")
+    none, _ = bigquery.metadata_score("dotnet_wpf", title="add feature", body="", changed_files=3)
+    _expect(none < 4, "no-keyword PR below threshold")
+
+
+def test_bq_ingest_ndjson():
+    ndjson = "\n".join([
+        json.dumps({"repo": "a/b", "number": 1, "title": "Fix memory leak", "body": "x",
+                    "changed_files": 3, "html_url": "u1"}),
+        json.dumps({"repo": "a/b", "number": 1, "title": "dup", "body": "", "changed_files": 3}),
+        json.dumps({"repo": "c/d", "number": 9, "title": "add feature", "body": "",
+                    "changed_files": 2}),  # no keyword -> dropped
+    ])
+    rows = bigquery.read_ndjson(ndjson)
+    conn = schema.connect(":memory:")
+    res = bigquery.ingest_rows(rows, "dotnet_wpf", min_meta_score=4, conn=conn)
+    _expect(res.seen == 2, f"deduped by (repo,number), got {res.seen}")
+    _expect(res.kept == 1, f"only the keyword'd small PR kept, got {res.kept}")
+    _expect(res.rows[0]["repo"] == "a/b", "kept the leak PR")
+    _expect(schema.count(conn, "candidates") == 1 and schema.count(conn, "labels") == 1, "stored")
+    _expect("metadata tier" in res.summary_md(), "summary flags the tier")
 
 
 def main():
