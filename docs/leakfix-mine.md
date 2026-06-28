@@ -240,3 +240,68 @@ python3 -m leakmine.cli mine --ecosystem dotnet_wpf --merged-after 2024-01-01 \
 (см. §7), поэтому остаётся локальной / self-hosted. Ограничения CI-версии: Search API
 ~30 req/min и cap 1000 (отсюда `--sleep` и `per_query`); одна страница на запрос (пагинация —
 на потом); `language:` репо-уровневый — язык диффа всё равно перепроверяется по расширениям.
+
+## 14. BigQuery — массовость (10k–миллионы), `leakmine/bigquery.py`
+
+Search-API путь упирается в cap 1000, ~30 req/min и стенку per-PR fetch (~1–2k/прогон).
+Для массовости backend — BigQuery. **Главное: BigQuery снимает стенку discovery, но не
+стенку fetch** — GH Archive отдаёт метаданные PR (title/body/repo/number), а не дифф.
+Поэтому роль BigQuery: дать огромный, уже отфильтрованный список кандидатов, который потом
+узко дофетчивается и классифицируется существующим пайплайном.
+
+### Два продукта (с РАЗНОЙ стоимостью)
+
+**A. GH-Archive discovery (события) — `gharchive_discovery_sql`.**
+SQL по `githubarchive.day.*`: merged-PR, где leak-ключевик в title ИЛИ body, нужный язык,
+с отсечкой мега-PR (`changed_files <= N`, чтобы убрать «течь сбоку от рефакторинга»),
+дедуп `QUALIFY ROW_NUMBER()`. **Дёшево**: скан ограничен дневными партициями (`_TABLE_SUFFIX
+BETWEEN`) — сотни МБ–единицы ГБ, внутри free 1 ТБ/мес. Это и есть discovery «10k, не 10».
+
+**B. Contents sweep (снапшот кода, zero-fetch) — `contents_sweep_sql`.**
+SQL по `bigquery-public-data.github_repos`: синтаксический тир прямо в SQL — acquire без
+cleanup (`addEventListener()` есть, `removeEventListener()` нет; `setInterval()` без
+`clearInterval()`; и т.д., см. `SWEEP_PAIRS`). **Ноль fetch**, масштаб до миллионов файлов.
+**Дорого**: любое обращение к `contents.content` сканирует весь столбец ~2.7 ТБ (~$13,
+сжигает free-tier) — поэтому по умолчанию бьёт по `sample_files`/`sample_contents` (дёшево);
+`--full` включай осознанно.
+
+### Поток и замыкание петли
+
+```text
+BigQuery (SQL)  ->  экспорт NDJSON  ->  leakmine bq-ingest  ->  store + candidates.json
+                                                                  |
+                                          узкий per-PR fetch + signals.classify + confirm
+```
+
+`bq-ingest` принимает **только GH-Archive discovery** строки (`repo`/`number`) — на
+contents-sweep строках (`repo`/`path`/`signal`) он падает с понятной ошибкой, потому что у
+sweep'а нет PR-метаданных для скоринга: его экспорт сам по себе и есть набор кандидат-сайтов,
+его потребляют напрямую.
+
+`ingest_rows` грузит экспорт BigQuery в стор, **скоринг — на metadata-тире** (`metadata_score`:
+ключевик в title/body + форма по размеру PR). Это **сознательно слабее** patch-классификатора:
+без диффа категорию не присвоить — metadata-скор лишь ранжирует очередь на fetch. Survivors
+потом дофетчиваются и проходят настоящий `signals.classify`/`confirm`.
+
+### CLI
+
+```bash
+# A) сгенерить discovery-SQL, выполнить в BigQuery, выгрузить как NDJSON:
+python3 -m leakmine.cli bq-sql --kind gharchive --ecosystem dotnet_wpf --from 20240101 --to 20241231
+#   -> bq query ... | bq extract ... > rows.ndjson   (в своём GCP)
+
+# B) загрузить результат обратно в пайплайн (metadata-тир):
+python3 -m leakmine.cli bq-ingest --rows rows.ndjson --ecosystem dotnet_wpf \
+        --min-meta-score 4 --out-dir bq-out --store bq-out/corpus.db
+
+# zero-fetch syntactic sweep по снапшоту кода (по умолчанию дешёвый sample_*):
+python3 -m leakmine.cli bq-sql --kind contents --ecosystem react_ts          # --full = весь ~2.7TB
+```
+
+### Стоимость и честность
+- discovery (A): партиция-скоуп обязателен; без него скан = вся история (терабайты).
+- contents (B): `content` — не партиционирован, фильтры скан не уменьшают → `sample_*` по
+  умолчанию; полный скан только когда реально надо и бюджет позволяет.
+- metadata-скор ≠ patch-классификация: BigQuery даёт чистую *очередь*, не финальный вердикт.
+- стенка fetch остаётся: на 100k+ дофетч диффов делается клонированием репо (`--filter=blob:none`,
+  `git show`) вне Actions, либо для проспективного sweep'а полагаемся на contents-тир (без fetch).

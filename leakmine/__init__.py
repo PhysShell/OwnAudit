@@ -28,4 +28,5 @@ __all__ = [
     "collect",
     "schema",
     "mine",
+    "bigquery",
 ]
