@@ -38,3 +38,5 @@ leakmine-out/
 bq-out/
 ch-out/
 *-leakmine-out/
+
+.direnv/

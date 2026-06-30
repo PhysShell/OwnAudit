@@ -237,11 +237,17 @@ HTML = r"""<!doctype html>
   h1{margin:0;font-size:26px;font-weight:800;letter-spacing:-.4px;
     background:linear-gradient(92deg,var(--fg),var(--accent));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
   .sub{color:var(--mut);margin-top:5px;max-width:760px}
-  .themes{display:flex;gap:8px;flex-wrap:wrap}
-  .themes button{cursor:pointer;border:1px solid var(--line);background:var(--card);color:var(--mut);
+  .actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+  .actions button{cursor:pointer;border:1px solid var(--line);background:var(--card);color:var(--mut);
     border-radius:999px;padding:7px 14px;font:600 13px/1 var(--font);transition:.2s;backdrop-filter:blur(8px)}
-  .themes button:hover{color:var(--fg);border-color:var(--accent)}
-  .themes button.on{color:#fff;border-color:transparent;background:linear-gradient(92deg,var(--accent),var(--c3));box-shadow:0 0 0 1px var(--accent), 0 6px 22px var(--glow)}
+  .actions button:hover{color:var(--fg);border-color:var(--accent)}
+  .actions button.on{color:#fff;border-color:transparent;background:linear-gradient(92deg,var(--accent),var(--c3));box-shadow:0 0 0 1px var(--accent), 0 6px 22px var(--glow)}
+  .sourcebar{display:flex;gap:8px;align-items:center;width:min(760px,100%);margin-top:10px}
+  .sourcebar label{color:var(--mut);font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;white-space:nowrap}
+  .sourcebar input{min-width:260px;flex:1;border:1px solid var(--line);background:var(--card);color:var(--fg);
+    border-radius:999px;padding:8px 12px;font:13px/1 var(--font);outline:none;backdrop-filter:blur(8px)}
+  .sourcebar input:focus{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+  .sourcebar .hint{color:var(--mut);font-size:12px;flex-basis:100%}
   .kpis{display:flex;flex-wrap:wrap;gap:14px;padding:18px 34px 6px}
   .kpi{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:15px 20px;min-width:158px;
     backdrop-filter:blur(10px);transition:transform .2s, border-color .2s}
@@ -280,6 +286,8 @@ HTML = r"""<!doctype html>
   tbody td{padding:6px 13px;border-bottom:1px solid var(--line);white-space:nowrap;
     overflow:hidden;text-overflow:ellipsis;max-width:420px}
   tbody tr:hover{background:rgba(120,140,180,.08)}
+  .filelink{color:var(--accent);text-decoration:none;cursor:pointer}
+  .filelink:hover{text-decoration:underline}
   .tg{font-weight:700;border-radius:5px;padding:1px 7px;font-size:11px}
   code{color:var(--accent);background:rgba(120,140,180,.12);padding:1px 5px;border-radius:5px}
   footer{color:var(--mut);font-size:12px;padding:0 34px 34px}
@@ -292,7 +300,15 @@ HTML = r"""<!doctype html>
     <h1>OwnAudit — STS health dashboard</h1>
     <div class="sub">Static audit of <code>STS_new/SectorTS</code> — a legacy .NET 4.7.2 / WPF / DevExpress app. Filter by tool/category, click a module to drill into its findings, switch themes.</div>
   </div>
-  <div class="themes" id="themes"></div>
+  <div>
+    <div class="actions" id="themes"></div>
+    <div class="sourcebar">
+      <label for="source-root">Source root</label>
+      <input id="source-root" type="text" spellcheck="false" placeholder="/home/user/repos/SectorTS or C:\\Repos\\STS_new\\SectorTS">
+      <button id="save-root" type="button">save</button>
+      <div class="hint">File clicks use <code>vscode://file/&lt;source-root&gt;/&lt;file&gt;:&lt;line&gt;</code>. Your browser may ask permission to open the editor.</div>
+    </div>
+  </div>
 </header>
 <div class="kpis" id="kpis"></div>
 <div class="filters">
@@ -354,12 +370,34 @@ function applyTheme(name){
   CUR=name; const t=THEMES[name];
   for(const k in t.vars) document.body.style.setProperty(k,t.vars[k]);
   document.body.setAttribute('data-theme',name);
-  document.querySelectorAll('.themes button').forEach(b=>b.classList.toggle('on',b.dataset.t===name));
+  document.querySelectorAll('#themes button').forEach(b=>b.classList.toggle('on',b.dataset.t===name));
   renderAll();
 }
 document.getElementById('themes').innerHTML=Object.entries(THEMES)
   .map(([k,t])=>`<button data-t="${k}">${t.label}</button>`).join('');
 document.getElementById('themes').onclick=e=>{const b=e.target.closest('button'); if(b) applyTheme(b.dataset.t);};
+
+// ---- source links --------------------------------------------------------
+const ROOT_KEY='ownaudit.sourceRoot';
+const rootInput=document.getElementById('source-root');
+rootInput.value=localStorage.getItem(ROOT_KEY)||'';
+function cleanRoot(v){return String(v||'').trim().replace(/^['"]|['"]$/g,'').replace(/[\\/]+$/,'');}
+function normalizePath(p){return String(p||'').replace(/\\/g,'/').replace(/^\.\//,'');}
+function sourceUrl(path,line){
+  const root=cleanRoot(rootInput.value);
+  if(!root) return '';
+  const full=normalizePath(root)+'/'+normalizePath(path);
+  return 'vscode://file/'+encodeURI(full).replace(/#/g,'%23')+':'+encodeURIComponent(line||1);
+}
+function saveRoot(){
+  const root=cleanRoot(rootInput.value);
+  rootInput.value=root;
+  root ? localStorage.setItem(ROOT_KEY,root) : localStorage.removeItem(ROOT_KEY);
+  update();
+}
+document.getElementById('save-root').onclick=saveRoot;
+rootInput.addEventListener('keydown',e=>{if(e.key==='Enter') saveRoot();});
+rootInput.addEventListener('change',saveRoot);
 
 // ---- KPIs (global, filter-independent) ----------------------------------
 const kpis=[[D.total.toLocaleString(),'raw findings'],[D.fixable_pct+'%','auto-fixable (ships a fix)','ok'],
@@ -470,7 +508,11 @@ function drawTable(rows){
     : (rows.length?`Each row is one finding.`:`No findings match the current filters.`);
   const rowsHtml=rows.slice(0,cap).map(r=>{
     const tier=D_.tiers[r[TI]];
-    return `<tr><td>${esc(D_.paths[r[P]])}</td><td>${esc(r[LN])}</td>`+
+    const path=D_.paths[r[P]], line=r[LN]||1, href=sourceUrl(path,line);
+    const fileCell=href
+      ? `<a class="filelink" href="${esc(href)}" title="Open in editor">${esc(path)}</a>`
+      : `${esc(path)}`;
+    return `<tr><td>${fileCell}</td><td>${esc(line)}</td>`+
       `<td><code>${esc(D_.rules[r[RU]])}</code></td>`+
       `<td><span class="tg" style="background:${cssv(TG_COL[tier])};color:#0b0f17">${esc(tier)}</span></td>`+
       `<td>${esc(D_.cats[r[CA]])}</td><td>${esc(D_.tools[r[TO]])}</td></tr>`;

@@ -1,0 +1,4 @@
+[mcp_servers.context7]
+startup_timeout_sec = 40
+tool_timeout_sec = 60
+url = "https://mcp.context7.com/mcp"

@@ -1,0 +1,48 @@
+{
+  "nodes": {
+    "mcp-servers-nix": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1782699556,
+        "narHash": "sha256-eGcr6Umykp8QD/GLBoTL1UuUZ44CxuuRGJ2bPhDyNS0=",
+        "owner": "PhysShell",
+        "repo": "mcp-servers-nix",
+        "rev": "ba0544fe6ee94c8211e57176cf6f8918e61f2d4a",
+        "type": "github"
+      },
+      "original": {
+        "owner": "PhysShell",
+        "repo": "mcp-servers-nix",
+        "type": "github"
+      }
+    },
+    "nixpkgs": {
+      "locked": {
+        "lastModified": 1782467914,
+        "narHash": "sha256-pGvFkM8N0xEkIIXDe5YYfbEAvHrk4IxBrjB/x8OomhE=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "e73de5be04e0eff4190a1432b946d469c794e7b4",
+        "type": "github"
+      },
+      "original": {
+        "owner": "NixOS",
+        "ref": "nixos-unstable",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
+    "root": {
+      "inputs": {
+        "mcp-servers-nix": "mcp-servers-nix",
+        "nixpkgs": "nixpkgs"
+      }
+    }
+  },
+  "root": "root",
+  "version": 7
+}
