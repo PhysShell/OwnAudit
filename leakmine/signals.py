@@ -200,8 +200,24 @@ NIM = Ecosystem(
     ),
 )
 
+# Odin — same allocator-first family as Zig (manual MM, `defer` cleanup, allocator via the
+# implicit `context`). Grouped with Zig as "OwnSys" in the appendix. A leak fix typically
+# adds a `defer delete(...)`/`defer free(...)` or a missing `deinit`/`destroy`.
+ODIN = Ecosystem(
+    key="odin",
+    file_ext=(".odin",),
+    queries=('"memory leak" is:pr is:merged language:Odin', 'defer delete is:pr is:merged language:Odin'),
+    signals=(
+        Signal(IDISPOSABLE, added=("defer delete(",), weight=5),
+        Signal(IDISPOSABLE, added=("defer free(",), weight=5),
+        Signal(IDISPOSABLE, added=("->deinit", ), weight=3),
+        Signal(IDISPOSABLE, added=(".deinit(",), weight=3),
+        Signal(IDISPOSABLE, added=("destroy(",), weight=3),
+    ),
+)
+
 ECOSYSTEMS: dict[str, Ecosystem] = {
-    e.key: e for e in (DOTNET_WPF, REACT_TS, ANDROID_KOTLIN, JAVA_SPRING, ZIG, NIM)
+    e.key: e for e in (DOTNET_WPF, REACT_TS, ANDROID_KOTLIN, JAVA_SPRING, ZIG, NIM, ODIN)
 }
 
 # Ecosystem -> the GitHub repo-language names (lowercased) that belong to it. Used by the
@@ -214,6 +230,7 @@ LANGS: dict[str, tuple[str, ...]] = {
     "java_spring": ("java",),
     "zig": ("zig",),
     "nim": ("nim",),
+    "odin": ("odin",),
 }
 
 

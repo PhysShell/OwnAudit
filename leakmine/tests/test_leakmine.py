@@ -137,6 +137,17 @@ def test_signals_android_retention_shapes():
         _expect(cls.category != signals.UNKNOWN, "no longer uncategorized")
 
 
+def test_signals_odin_allocator():
+    # Odin (OwnSys family): a leak fix that adds `defer delete(...)` is the allocator-cleanup
+    # shape — must classify as idisposable-leak, not UNKNOWN.
+    patch = ("diff --git a/m.odin b/m.odin\n--- a/m.odin\n+++ b/m.odin\n"
+             "@@ -1,3 +1,4 @@\n foo :: proc() {\n   xs := make([]int, 1024)\n"
+             "+  defer delete(xs)\n }\n")
+    cls = signals.classify("odin", title="fix memory leak in parser", body="", patch=patch)
+    _expect(cls.category == signals.IDISPOSABLE, f"category {cls.category}")
+    _expect(cls.is_candidate, f"odin defer-delete is a candidate, score={cls.score}")
+
+
 def test_signals_docs_penalty():
     docs = ("diff --git a/README.md b/README.md\n--- a/README.md\n+++ b/README.md\n"
             "@@ -1,1 +1,2 @@\n context\n+a note about leaks\n")
