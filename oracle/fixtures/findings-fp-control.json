@@ -1,0 +1,40 @@
+{
+  "_note": "FP-direction control for the FP-judge Phase-1 gate (OwnAudit domain). These are DELIBERATELY-false findings: they point own-check-shaped OWN001/OWN-TIMER messages at the oracle's Fixed*ViewModel counterparts, which correctly detach/dispose on Dispose(). own-check would NOT actually emit these (the -=/Dispose makes them released) — they exist only to prove the judge returns `false_positive`, not just `real`. Expected verdicts: both false_positive.",
+  "coverage": {
+    "tools": ["own-check"],
+    "total": 2,
+    "kept": 2,
+    "suppressed": 0,
+    "suppressed_by": {},
+    "analysis_skipped": 0,
+    "analysis_skipped_by": {},
+    "by_category": {"2": 1, "1": 1},
+    "uncategorized_rules": {}
+  },
+  "findings": [
+    {
+      "tool": "own-check",
+      "path": "oracle/LeakyOracle/ViewModels/FixedWatchlistViewModel.cs",
+      "line": 27,
+      "rule": "OWN001",
+      "category": 2,
+      "category_name": "subscription-leak",
+      "resource": "subscription token",
+      "suppressed": false,
+      "suppress_reason": "",
+      "message": "event '_service.QuoteReceived' is subscribed (handler 'OnQuoteReceived') but never unsubscribed; its source is an injected dependency whose lifetime is unknown, so it may outlive and keep 'FixedWatchlistViewModel' alive (possible leak) [resource: subscription token]"
+    },
+    {
+      "tool": "own-check",
+      "path": "oracle/LeakyOracle/ViewModels/FixedTickerViewModel.cs",
+      "line": 19,
+      "rule": "OWN-TIMER",
+      "category": 1,
+      "category_name": "idisposable-leak",
+      "resource": "timer",
+      "suppressed": false,
+      "suppress_reason": "",
+      "message": "timer '_timer' (System.Threading.Timer) is created but never Stop()/Dispose()d; it stays registered in the TimerQueue and its callback 'OnTick' roots 'FixedTickerViewModel' (possible leak) [resource: timer]"
+    }
+  ]
+}
