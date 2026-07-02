@@ -127,15 +127,43 @@ class _Intern:
         return i
 
 
+def _fresh_triaged(triaged_path: str, findings_path: str) -> bool:
+    """The FP-judge overlay is 'current truth' only if it was judged against the CURRENT
+    findings.json — the same staleness rule apply_verdicts enforces (verdict-contract.md):
+    `verdict_summary.generated_from` must equal sha256(findings.json bytes). This re-checks
+    it in the consumer so a leftover triaged file (e.g. Run-Audit refreshed findings.json but
+    not the overlay) is never rendered as current truth, bypassing the guard."""
+    if not (os.path.isfile(triaged_path) and os.path.isfile(findings_path)):
+        return False
+    try:
+        with open(triaged_path, encoding="utf-8") as fh:
+            want = (json.load(fh).get("verdict_summary") or {}).get("generated_from")
+    except (ValueError, OSError):
+        return False
+    if not want:
+        return False
+    with open(findings_path, "rb") as fh:
+        return want == hashlib.sha256(fh.read()).hexdigest()
+
+
 def collect() -> dict:
-    # Prefer the FP-judge overlay output (apply_verdicts --out findings-triaged.json) when
-    # present: it carries per-finding `triage_class`/`verdict`, so the dashboard can retire
-    # confident false positives. Fall back to the raw findings.json otherwise.
+    # Prefer the FP-judge overlay output (apply_verdicts --out findings-triaged.json) — but
+    # only when FRESH (its generated_from matches the current findings.json). A stale overlay
+    # is ignored so we never render an old triage as current truth (verdict-contract.md §3).
+    findings_path = os.path.join(STS, "findings.json")
     triaged_path = os.path.join(STS, "findings-triaged.json")
-    src_path = triaged_path if os.path.isfile(triaged_path) else os.path.join(STS, "findings.json")
+    if _fresh_triaged(triaged_path, findings_path):
+        src_path = triaged_path
+    else:
+        src_path = findings_path
+        if os.path.isfile(triaged_path):
+            print(f"build_dashboard: ignoring stale {os.path.basename(triaged_path)} "
+                  "(generated_from != current findings.json) — rendering raw findings.")
     raw = open(src_path, encoding="utf-8").read()
-    # content digest = the audit run's identity for the trend series (below).
-    digest = hashlib.sha256(raw.encode("utf-8")).hexdigest()[:16]
+    # trend identity = the AUDIT run = raw findings.json bytes (never the overlay, whose
+    # content shifts with judge metadata / reasons / threshold even when the audit did not).
+    with open(findings_path, "rb") as fh:
+        digest = hashlib.sha256(fh.read()).hexdigest()[:16]
     doc = json.loads(raw)
     findings = doc["findings"]
     triaged = any("triage_class" in f for f in findings)
