@@ -80,6 +80,13 @@ jobs:
       - name: Build dashboards (smoke)
         run: |
           set -euo pipefail
+          # raw path: renders straight from findings.json
+          python3 viz/build_dashboard.py viz/fixtures
+          # FP-judge triaged path: merge the overlay (also exercises apply_verdicts'
+          # staleness guard + merge), then re-render — build_dashboard auto-prefers the
+          # freshly written findings-triaged.json and renders the triage view.
+          python3 viz/apply_verdicts.py --findings viz/fixtures/findings.json \
+            --overlay viz/fixtures/fp-verdicts.json --out viz/fixtures/findings-triaged.json
           python3 viz/build_dashboard.py viz/fixtures
           python3 viz/build_arch_dashboard.py
 

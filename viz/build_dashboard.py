@@ -39,6 +39,11 @@ from fixarm.tiers import tier_of, gate_for_tier, T1, T2, T3, T4   # noqa: E402
 
 TIERS = [T1, T2, T3, T4]
 
+# FP-judge triage classes, real-first / judged_fp-last (matches apply_verdicts._ORDER).
+# Present only when the input is a triaged overlay (findings-triaged.json); otherwise the
+# dashboard renders the raw audit exactly as before.
+TRIAGE = ["real", "uncertain", "unjudged", "judged_fp"]
+
 
 def _source(rule: str) -> str:
     r = rule or ""
@@ -123,10 +128,17 @@ class _Intern:
 
 
 def collect() -> dict:
-    raw = open(os.path.join(STS, "findings.json"), encoding="utf-8").read()
+    # Prefer the FP-judge overlay output (apply_verdicts --out findings-triaged.json) when
+    # present: it carries per-finding `triage_class`/`verdict`, so the dashboard can retire
+    # confident false positives. Fall back to the raw findings.json otherwise.
+    triaged_path = os.path.join(STS, "findings-triaged.json")
+    src_path = triaged_path if os.path.isfile(triaged_path) else os.path.join(STS, "findings.json")
+    raw = open(src_path, encoding="utf-8").read()
     # content digest = the audit run's identity for the trend series (below).
     digest = hashlib.sha256(raw.encode("utf-8")).hexdigest()[:16]
-    findings = json.loads(raw)["findings"]
+    doc = json.loads(raw)
+    findings = doc["findings"]
+    triaged = any("triage_class" in f for f in findings)
 
     # stable dimension orders: most-frequent first reads best in the chips/legends.
     cat = collections.Counter(x.get("category_name") for x in findings)
@@ -147,17 +159,26 @@ def collect() -> dict:
     rule_src = [src.index(_source(r)) for r in rules.items]
     sources = [{"name": n, "codefix": int(n in _SHIPS_FIX)} for n in src.items]
     tier_pos = {t: i for i, t in enumerate(TIERS)}
+    triage_pos = {c: i for i, c in enumerate(TRIAGE)}
+    reasons = _Intern([""])   # verdict reason, interned; index 0 = none (repeats share an id)
 
-    # one compact row per finding: [pathIdx, line, ruleIdx, toolIdx, catIdx, tierIdx, moduleIdx]
-    rows, tier_counts = [], collections.Counter()
+    # one compact row per finding:
+    #   [pathIdx, line, ruleIdx, toolIdx, catIdx, tierIdx, moduleIdx, triageIdx, reasonIdx]
+    # triageIdx is -1 (and reasonIdx 0) unless the input was triaged.
+    rows, tier_counts, triage_counts = [], collections.Counter(), collections.Counter()
     for x in findings:
         r = x.get("rule")
         ti = tier_pos[tier_of(r, x.get("tool", ""))]
         tier_counts[TIERS[ti]] += 1
+        tc = x.get("triage_class")
+        tri = triage_pos.get(tc, -1) if triaged else -1
+        if tri >= 0:
+            triage_counts[TRIAGE[tri]] += 1
+        reason = (x.get("verdict") or {}).get("reason", "") if triaged else ""
         rows.append([paths.index(x.get("path", "")), x.get("line", 0),
                      rules.index(r), tools.index(x.get("tool")),
                      cats.index(x.get("category_name")), ti,
-                     module_of(x.get("path", ""))])
+                     module_of(x.get("path", "")), tri, reasons.index(reason)])
 
     shapes = _own_shapes(findings)
     md = open(os.path.join(STS, "health-report.md"), encoding="utf-8").read()
@@ -183,9 +204,12 @@ def collect() -> dict:
                                         if sources[s]["codefix"]) / len(findings))
                         if findings else 0),
         "tier_gates": {t: gate_for_tier(t) for t in TIERS},
+        "triaged": triaged,
+        "triage_counts": {c: triage_counts[c] for c in TRIAGE} if triaged else {},
+        "verdict_summary": doc.get("verdict_summary") if triaged else None,
         "dims": {"paths": paths.items, "rules": rules.items, "tools": tools.items,
                  "cats": cats.items, "sources": sources, "modules": [*mod_names, "(other)"],
-                 "tiers": TIERS},
+                 "tiers": TIERS, "triage": TRIAGE if triaged else [], "reasons": reasons.items},
         "rule_src": rule_src,
         "rows": rows,
         "history": history,
@@ -315,6 +339,7 @@ HTML = r"""<!doctype html>
 </header>
 <div class="kpis" id="kpis"></div>
 <div class="filters">
+  <div class="fgroup" id="f-triage"></div>
   <div class="fgroup" id="f-tools"><span class="lbl">Tool</span></div>
   <div class="fgroup" id="f-cats"><span class="lbl">Category</span></div>
   <div class="fgroup" id="f-mod"></div>
@@ -336,8 +361,12 @@ HTML = r"""<!doctype html>
 <script>
 const D = %DATA%;
 const D_ = D.dims;
-const P=0, LN=1, RU=2, TO=3, CA=4, TI=5, MO=6;            // row column indices
+const P=0, LN=1, RU=2, TO=3, CA=4, TI=5, MO=6, TR=7, RE=8;   // row column indices
 const TIERMETA={T1:{g:'auto',c:'--c2'},T2:{g:'review',c:'--c1'},T3:{g:'unfixable',c:'--mute'},T4:{g:'bespoke',c:'--c3'}};
+// FP-judge triage classes. judged_fp (confident false positive) is retired from the
+// default view — counted in a KPI, revealable via its chip — per verdict-contract.md §3.
+const TRIAGEMETA={real:{lbl:'real',c:'--ok'},uncertain:{lbl:'uncertain',c:'--c4'},
+                  unjudged:{lbl:'unjudged',c:'--mute'},judged_fp:{lbl:'judged-FP',c:'--mute'}};
 // audit-derived strings (paths/rules/categories/tools/module names) are escaped before
 // any innerHTML so a crafted name can't inject HTML into the generated dashboard.
 function esc(v){return String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
@@ -403,19 +432,33 @@ rootInput.addEventListener('keydown',e=>{if(e.key==='Enter') saveRoot();});
 rootInput.addEventListener('change',saveRoot);
 
 // ---- KPIs (global, filter-independent) ----------------------------------
-const kpis=[[D.total.toLocaleString(),'raw findings'],[D.fixable_pct+'%','auto-fixable (ships a fix)','ok'],
-  [D.clusters.high.toLocaleString(),'high-confidence clusters'],[D.modules.length,'modules ranked'],
-  [D.own_shapes_fixed,'OWN leak shapes fixed','ok']];
+// After FP-judge triage, lead with the verdict split; else the raw-audit KPIs.
+const TC=D.triage_counts||{};
+const kpis=D.triaged
+  ? [[(TC.real||0).toLocaleString(),'real (confirmed leaks)','ok'],
+     [(TC.uncertain||0).toLocaleString(),'uncertain (needs review)'],
+     [(TC.unjudged||0).toLocaleString(),'unjudged (no verdict)'],
+     [(TC.judged_fp||0).toLocaleString(),'judged-FP (retired)'],
+     [D.total.toLocaleString(),'findings (pre-triage)']]
+  : [[D.total.toLocaleString(),'raw findings'],[D.fixable_pct+'%','auto-fixable (ships a fix)','ok'],
+     [D.clusters.high.toLocaleString(),'high-confidence clusters'],[D.modules.length,'modules ranked'],
+     [D.own_shapes_fixed,'OWN leak shapes fixed','ok']];
 document.getElementById('kpis').innerHTML=kpis.map(k=>
   `<div class="kpi"><div class="n ${k[2]||''}">${k[0]}</div><div class="l">${k[1]}</div></div>`).join('');
 
 // ---- filter state -------------------------------------------------------
-const F={tools:new Set(), cats:new Set(), module:null};
+// F.triage holds the VISIBLE triage-class indices; it defaults to everything except
+// judged_fp, so confident false positives are retired from every aggregate until the
+// user opts them back in via the chip.
+const FP_IDX=D_.triage.indexOf('judged_fp');
+function defaultTriage(){return new Set(D_.triage.map((_,i)=>i).filter(i=>i!==FP_IDX));}
+const F={tools:new Set(), cats:new Set(), module:null, triage:defaultTriage()};
 function filteredRows(){
   return D.rows.filter(r=>
     (F.tools.size===0 || F.tools.has(r[TO])) &&
     (F.cats.size===0  || F.cats.has(r[CA])) &&
-    (F.module===null  || r[MO]===F.module));
+    (F.module===null  || r[MO]===F.module) &&
+    (!D.triaged || F.triage.has(r[TR])));
 }
 function aggCount(rows, col){
   const m=new Map();
@@ -446,11 +489,28 @@ function renderModChip(){
   b.onclick=()=>{ F.module=null; renderModChip(); update(); };
   host.appendChild(b);
 }
+// triage chips: each is a VISIBILITY toggle (on = shown). judged_fp starts off.
+function renderTriageChips(){
+  const host=document.getElementById('f-triage');
+  host.innerHTML='';
+  if(!D.triaged) return;
+  host.appendChild(Object.assign(document.createElement('span'),{className:'lbl',textContent:'Triage'}));
+  D_.triage.forEach((cls,i)=>{
+    const meta=TRIAGEMETA[cls]||{lbl:cls,c:'--mute'}, n=D.triage_counts[cls]||0;
+    const b=document.createElement('button');
+    b.className='chip'+(F.triage.has(i)?' on':'');
+    b.innerHTML=`<span style="display:inline-block;width:8px;height:8px;border-radius:50%;`+
+      `margin-right:6px;vertical-align:middle;background:${cssv(meta.c)}"></span>`+
+      `${esc(meta.lbl)} <span class="x">${n.toLocaleString()}</span>`;
+    b.onclick=()=>{ F.triage.has(i)?F.triage.delete(i):F.triage.add(i); renderTriageChips(); update(); };
+    host.appendChild(b);
+  });
+}
 document.getElementById('clear').onclick=()=>{
-  F.tools.clear(); F.cats.clear(); F.module=null;
+  F.tools.clear(); F.cats.clear(); F.module=null; F.triage=defaultTriage();
   chipRow(document.getElementById('f-tools'),D_.tools,F.tools);
   chipRow(document.getElementById('f-cats'),D_.cats,F.cats);
-  renderModChip(); update();
+  renderTriageChips(); renderModChip(); update();
 };
 
 // ---- charts -------------------------------------------------------------
@@ -515,13 +575,23 @@ function drawTable(rows){
     const fileCell=href
       ? `<a class="filelink" href="${esc(href)}" title="Open in editor">${esc(path)}</a>`
       : `${esc(path)}`;
+    let triCell='';
+    if(D.triaged){
+      const cls=D_.triage[r[TR]];
+      if(cls==null){ triCell='<td></td>'; }
+      else{ const m=TRIAGEMETA[cls]||{lbl:cls,c:'--mute'}, reason=D_.reasons[r[RE]]||'';
+        triCell=`<td><span class="tg" style="background:${cssv(m.c)};color:#0b0f17"`+
+          `${reason?` title="${esc(reason)}"`:''}>${esc(m.lbl)}</span></td>`; }
+    }
     return `<tr><td>${fileCell}</td><td>${esc(line)}</td>`+
       `<td><code>${esc(D_.rules[r[RU]])}</code></td>`+
       `<td><span class="tg" style="background:${cssv(TG_COL[tier])};color:#0b0f17">${esc(tier)}</span></td>`+
+      triCell+
       `<td>${esc(D_.cats[r[CA]])}</td><td>${esc(D_.tools[r[TO]])}</td></tr>`;
   }).join('');
   document.getElementById('tablewrap').innerHTML=
-    `<table><thead><tr><th>File</th><th>Line</th><th>Rule</th><th>Tier</th><th>Category</th><th>Tool</th></tr></thead>`+
+    `<table><thead><tr><th>File</th><th>Line</th><th>Rule</th><th>Tier</th>`+
+    `${D.triaged?'<th>Triage</th>':''}<th>Category</th><th>Tool</th></tr></thead>`+
     `<tbody>${rowsHtml}</tbody></table>`;
 }
 
@@ -571,6 +641,7 @@ function renderAll(){
 // init
 chipRow(document.getElementById('f-tools'),D_.tools,F.tools);
 chipRow(document.getElementById('f-cats'),D_.cats,F.cats);
+renderTriageChips();
 applyTheme('midnight');
 </script>
 </body>

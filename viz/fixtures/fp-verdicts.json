@@ -1,0 +1,36 @@
+{
+  "schema": 1,
+  "tool": "own-check",
+  "generated_from": "b0d62846fc7a0d934e44552266f97f71db8fbef5ea0a5fd2505acb5268d705bf",
+  "model": "claude-opus-4-8",
+  "run_id": "fixture-run-0001",
+  "_note": "SYNTHETIC FP-judge overlay for CI smoke of the triaged dashboard path. generated_from is sha256 of viz/fixtures/findings.json \u2014 if that fixture changes, regenerate this digest or apply_verdicts will (correctly) reject it as stale.",
+  "verdicts": {
+    "f30ad5d28222826c": {
+      "class": "real",
+      "confidence": 0.9,
+      "reason": "handler outlives VM; source is a long-lived singleton \u2014 real leak",
+      "evidence": "no -= in Dispose"
+    },
+    "43f9fe2dd2ea57c5": {
+      "class": "false_positive",
+      "confidence": 0.95,
+      "reason": "detached in Unloaded handler two lines below; not a leak"
+    },
+    "fff68f808b542b59": {
+      "class": "uncertain",
+      "confidence": 0.6,
+      "reason": "disposed only on one of two paths; needs a human"
+    },
+    "3a2419fd0b29c666": {
+      "class": "real",
+      "confidence": 0.85,
+      "reason": "stream escapes the using scope via return"
+    },
+    "d47fec71da9004c6": {
+      "class": "false_positive",
+      "confidence": 0.5,
+      "reason": "ownership transfers to caller; low confidence"
+    }
+  }
+}
