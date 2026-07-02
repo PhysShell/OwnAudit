@@ -603,18 +603,24 @@ def main(argv=None):
     global STS
     ap = argparse.ArgumentParser(
         description="Build the interactive audit dashboard from an audit-output folder.")
-    ap.add_argument("data_dir", nargs="?", default="artifacts",
+    ap.add_argument("data_dir", nargs="?", default=None,
                     help="folder with findings.json + health-report.md (default: artifacts). "
                          "A relative path resolves from the repo root.")
     args = ap.parse_args(argv)
-    STS = args.data_dir if os.path.isabs(args.data_dir) else os.path.join(ROOT, args.data_dir)
-    # No artifact -> nothing to render. Skip cleanly (exit 0) rather than fail: the
-    # default `artifacts/` is empty until a stand run populates it, and CI points us at
-    # a committed fixture. A missing input is "no work", not an error.
+    # An EXPLICIT dir must have its inputs (a caller asked to render *that* folder —
+    # missing files there is an error, so CI's `build_dashboard.py viz/fixtures` fails
+    # loudly if the fixture is gone). The IMPLICIT default `artifacts/` is empty until a
+    # stand run populates it, so a missing input there is "no work" — skip cleanly.
+    explicit = args.data_dir is not None
+    data_dir = args.data_dir if explicit else "artifacts"
+    STS = data_dir if os.path.isabs(data_dir) else os.path.join(ROOT, data_dir)
     missing = [f for f in ("findings.json", "health-report.md")
                if not os.path.isfile(os.path.join(STS, f))]
     if missing:
-        print(f"build_dashboard: {STS} has no {', '.join(missing)} — nothing to render, skipping.")
+        msg = f"{STS} is missing {', '.join(missing)}"
+        if explicit:
+            ap.error(msg)
+        print(f"build_dashboard: {msg} — nothing to render, skipping.")
         return
     data = collect()
     out = HTML.replace("%PLOTLY%", _plotly_tag()) \
