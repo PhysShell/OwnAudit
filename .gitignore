@@ -23,6 +23,7 @@ __pycache__/
 # viz generated/vendored artifacts (reproducible via viz/build_dashboard.py)
 viz/plotly.min.js
 viz/sts-dashboard.html
+viz/arch-dashboard.html
 viz/preview.png
 viz/theme-*.png
 

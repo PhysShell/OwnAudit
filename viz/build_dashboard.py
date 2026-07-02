@@ -603,13 +603,25 @@ def main(argv=None):
     global STS
     ap = argparse.ArgumentParser(
         description="Build the interactive audit dashboard from an audit-output folder.")
-    ap.add_argument("data_dir", nargs="?", default="artifacts",
+    ap.add_argument("data_dir", nargs="?", default=None,
                     help="folder with findings.json + health-report.md (default: artifacts). "
                          "A relative path resolves from the repo root.")
     args = ap.parse_args(argv)
-    STS = args.data_dir if os.path.isabs(args.data_dir) else os.path.join(ROOT, args.data_dir)
-    if not os.path.isdir(STS):
-        ap.error(f"data dir not found: {STS}")
+    # An EXPLICIT dir must have its inputs (a caller asked to render *that* folder —
+    # missing files there is an error, so CI's `build_dashboard.py viz/fixtures` fails
+    # loudly if the fixture is gone). The IMPLICIT default `artifacts/` is empty until a
+    # stand run populates it, so a missing input there is "no work" — skip cleanly.
+    explicit = args.data_dir is not None
+    data_dir = args.data_dir if explicit else "artifacts"
+    STS = data_dir if os.path.isabs(data_dir) else os.path.join(ROOT, data_dir)
+    missing = [f for f in ("findings.json", "health-report.md")
+               if not os.path.isfile(os.path.join(STS, f))]
+    if missing:
+        msg = f"{STS} is missing {', '.join(missing)}"
+        if explicit:
+            ap.error(msg)
+        print(f"build_dashboard: {msg} — nothing to render, skipping.")
+        return
     data = collect()
     out = HTML.replace("%PLOTLY%", _plotly_tag()) \
               .replace("%DATA%", _json_for_script(data)) \

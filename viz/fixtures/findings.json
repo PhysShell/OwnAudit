@@ -1,0 +1,30 @@
+{
+  "_note": "GOLDEN smoke fixture for the dashboard/report CI (viz/build_dashboard.py + report.cli). Fully SYNTHETIC — invented module/file/handler names, not from any real audited project. Its only job is to exercise the render/export code paths (every tool, tier, source family, category, and OWN leak-shape) so CI catches Python/JS-template regressions without depending on the stand-only sts_audit corpus. Keep it small and stable.",
+  "coverage": {
+    "tools": ["own-check", "roslyn", "codeql", "infersharp"],
+    "total": 14,
+    "kept": 14,
+    "suppressed": 0,
+    "suppressed_by": {},
+    "analysis_skipped": 0,
+    "analysis_skipped_by": {},
+    "by_category": {"1": 3, "2": 2, "3": 2, "4": 3, "5": 1, "6": 2, "7": 1},
+    "uncategorized_rules": {}
+  },
+  "findings": [
+    {"tool": "own-check", "path": "Acme.Portfolio/ViewModels/PortfolioViewModel.cs", "line": 42, "rule": "OWN001", "category": 2, "category_name": "subscription-leak", "resource": "subscription token", "suppressed": false, "suppress_reason": "", "message": "event 'quotes.Updated' is subscribed (handler '(s, e) => Refresh()') but never unsubscribed; its source is an injected dependency whose lifetime is unknown, so it may outlive and keep 'PortfolioViewModel' alive (possible leak) [resource: subscription token]"},
+    {"tool": "own-check", "path": "Acme.Portfolio/ViewModels/PortfolioViewModel.cs", "line": 58, "rule": "OWN001", "category": 2, "category_name": "subscription-leak", "resource": "subscription token", "suppressed": false, "suppress_reason": "", "message": "event 'service.Ticked' is subscribed (handler 'OnTicked') but never unsubscribed; its source outlives the view model, so it may keep 'PortfolioViewModel' alive (possible leak) [resource: subscription token]"},
+    {"tool": "own-check", "path": "Acme.Portfolio/Data/PortfolioRepository.cs", "line": 19, "rule": "OWN020", "category": 1, "category_name": "idisposable-leak", "resource": "connection", "suppressed": false, "suppress_reason": "", "message": "field '_conn' (DbConnection) is created but never disposed; it holds an unmanaged handle for the lifetime of 'PortfolioRepository' (possible leak) [resource: connection]"},
+    {"tool": "own-check", "path": "Acme.Market/Services/QuoteFeed.cs", "line": 77, "rule": "OWN021", "category": 1, "category_name": "idisposable-leak", "resource": "stream", "suppressed": false, "suppress_reason": "", "message": "local 'buffer' (MemoryStream) is created but never disposed; wrap it in a using statement (possible leak) [resource: stream]"},
+    {"tool": "own-check", "path": "Acme.Portfolio/Reports/PdfExporter.cs", "line": 61, "rule": "OWN-REGION", "category": 7, "category_name": "region-escape", "resource": "region handle", "suppressed": false, "suppress_reason": "", "message": "a rented buffer escapes its region via the returned closure; ownership is ambiguous and it may never be released (possible leak) [resource: region handle]"},
+    {"tool": "roslyn", "path": "Acme.Portfolio/ViewModels/PortfolioViewModel.cs", "line": 33, "rule": "INPC020", "category": 3, "category_name": "inpc-correctness", "resource": "", "suppressed": false, "suppress_reason": "", "message": "prefer a nameof() expression over the string literal for the raised property name"},
+    {"tool": "roslyn", "path": "Acme.Portfolio/ViewModels/PositionViewModel.cs", "line": 14, "rule": "INPC003", "category": 3, "category_name": "inpc-correctness", "resource": "", "suppressed": false, "suppress_reason": "", "message": "notify when the 'Quantity' property value changes"},
+    {"tool": "roslyn", "path": "Acme.Market/Services/QuoteFeed.cs", "line": 90, "rule": "MA0006", "category": 4, "category_name": "general-quality", "resource": "", "suppressed": false, "suppress_reason": "", "message": "use String.Equals instead of the equality operator for culture-aware comparison"},
+    {"tool": "roslyn", "path": "Acme.UI/Controls/GaugeControl.cs", "line": 120, "rule": "WPF0041", "category": 5, "category_name": "wpf-freezable", "resource": "", "suppressed": false, "suppress_reason": "", "message": "set the DataContext in the constructor rather than in a loaded handler"},
+    {"tool": "roslyn", "path": "Acme.Portfolio/Data/PortfolioRepository.cs", "line": 48, "rule": "CA2000", "category": 1, "category_name": "idisposable-leak", "resource": "", "suppressed": false, "suppress_reason": "", "message": "call System.IDisposable.Dispose on the object before all references to it are out of scope"},
+    {"tool": "roslyn", "path": "Acme.UI/Controls/GaugeControl.cs", "line": 7, "rule": "RCS1037", "category": 4, "category_name": "general-quality", "resource": "", "suppressed": false, "suppress_reason": "", "message": "remove trailing white-space"},
+    {"tool": "roslyn", "path": "Acme.Portfolio/Reports/PdfExporter.cs", "line": 25, "rule": "RCS1090", "category": 6, "category_name": "architecture", "resource": "", "suppressed": false, "suppress_reason": "", "message": "add a ConfigureAwait(false) call to the awaited task"},
+    {"tool": "codeql", "path": "Acme.Market/Services/QuoteFeed.cs", "line": 132, "rule": "cs/dereferenced-value-may-be-null", "category": 6, "category_name": "architecture", "resource": "", "suppressed": false, "suppress_reason": "", "message": "this expression may be null at this access and would raise a NullReferenceException"},
+    {"tool": "infersharp", "path": "Acme.Portfolio/Reports/PdfExporter.cs", "line": 88, "rule": "NULL_DEREFERENCE", "category": 4, "category_name": "general-quality", "resource": "", "suppressed": false, "suppress_reason": "", "message": "object returned by the factory could be null and is dereferenced without a guard"}
+  ]
+}
