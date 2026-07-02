@@ -40,3 +40,8 @@ ch-out/
 *-leakmine-out/
 
 .direnv/
+
+# 007-style scratch files: Claude writes the commit message / PR body here, the user
+# commits & pushes by hand (signed). Not committed.
+/.commit-msg
+/.pr-body.md
