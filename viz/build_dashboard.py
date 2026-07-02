@@ -608,8 +608,14 @@ def main(argv=None):
                          "A relative path resolves from the repo root.")
     args = ap.parse_args(argv)
     STS = args.data_dir if os.path.isabs(args.data_dir) else os.path.join(ROOT, args.data_dir)
-    if not os.path.isdir(STS):
-        ap.error(f"data dir not found: {STS}")
+    # No artifact -> nothing to render. Skip cleanly (exit 0) rather than fail: the
+    # default `artifacts/` is empty until a stand run populates it, and CI points us at
+    # a committed fixture. A missing input is "no work", not an error.
+    missing = [f for f in ("findings.json", "health-report.md")
+               if not os.path.isfile(os.path.join(STS, f))]
+    if missing:
+        print(f"build_dashboard: {STS} has no {', '.join(missing)} — nothing to render, skipping.")
+        return
     data = collect()
     out = HTML.replace("%PLOTLY%", _plotly_tag()) \
               .replace("%DATA%", _json_for_script(data)) \

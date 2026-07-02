@@ -69,15 +69,18 @@ jobs:
           python-version: "3.12"
 
       # GitHub-friendly SARIF (warning+), plus metrics.json / report.md.
+      # Runs against the committed synthetic fixture, not the stand-only sts_audit
+      # corpus, so CI stays green (and leaks nothing) once sts_audit is removed.
       - name: Export audit artifacts
-        run: PYTHONPATH=. python3 -m report.cli --min-level warning
+        run: PYTHONPATH=. python3 -m report.cli --min-level warning --findings viz/fixtures/findings.json
 
       # Catches Python/JS-template regressions in the dashboards (no unit tests there).
+      # Points at viz/fixtures (synthetic golden set) for the same reason as above.
       # The arch dashboard renders empty-state here (graph.json/runtime.json are stand-only).
       - name: Build dashboards (smoke)
         run: |
           set -euo pipefail
-          python3 viz/build_dashboard.py
+          python3 viz/build_dashboard.py viz/fixtures
           python3 viz/build_arch_dashboard.py
 
       - name: Upload artifacts
