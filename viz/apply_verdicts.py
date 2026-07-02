@@ -125,6 +125,7 @@ def run(findings_path: str, overlay_path: str, fp_threshold: float, out_path: st
     if out_path:
         merged = {**fdoc, "verdict_summary": {"fp_threshold": fp_threshold, "counts": c,
                                               "model": overlay.get("model"),
+                                              "run_id": overlay.get("run_id"),
                                               "generated_from": overlay.get("generated_from")},
                   "findings": result["findings"]}
         with open(out_path, "w", encoding="utf-8") as fh:
