@@ -24,6 +24,13 @@ Contract to sync across the seam: **the overlay file + `verdict-contract.md`** �
   `--selftest` (guard: match→merge, mismatch→reject; + finding_id + classify + merge).
   `viz/build_dashboard.py` repointed `sts_audit/` → `artifacts/` so the dashboard reflects the
   de-noised audit.
+- **Dashboard consumes the triage.** `viz/build_dashboard.py` auto-prefers
+  `<DATA_DIR>/findings-triaged.json` when present (else raw `findings.json`), reads each
+  finding's `triage_class`/`verdict`, and: leads the KPIs with the real/uncertain/unjudged/
+  judged-FP split, adds a triage chip filter + a Triage table column (verdict `reason` on
+  hover), and **retires `judged_fp` from every aggregate by default** (counted in a KPI,
+  revealable via its chip — contract §3). Raw audits (no overlay) render exactly as before.
+  A synthetic overlay (`viz/fixtures/fp-verdicts.json`) smokes this path in CI.
 
 ## Next (Phase 2 — the real STS run)
 
