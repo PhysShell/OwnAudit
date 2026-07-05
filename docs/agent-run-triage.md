@@ -57,6 +57,25 @@ outside the declared scope, an unrecognized `[permissions]` field that failed
 closed) and output-filter hits (a secret pattern caught before it reached
 `agent.stdout`/`diff.patch`).
 
+**Before trusting any of it, verify provenance.** 007's records are meant to be
+hash-chained (`prev_record_hash`/`record_hash` over the gate manifest, each
+step's sandbox policy, the task, the diff, and stdout — see
+`007/docs/zero-trust-framework.md` §5). The ingest adapter's first move is
+checking that chain, the same reflex `runtime.json`'s consumer already applies
+to its own inputs: a broken chain (or a hash that doesn't match the artifact it
+claims to describe) is itself the finding — `provenance-broken`, filed
+alongside the buckets below, not silently trusted because the JSON parsed.
+
+Concrete instances of the `policy-violation-confirmed` bucket worth naming, so
+"triage" doesn't stay abstract: a step whose policy declares `tcp_connect = []`
+shows a denied connect attempt anyway (the boundary caught something — log it,
+it's not automatically an incident); a step writes outside its declared `fs_rw`
+scope and gets denied; the diff touches `.007/policies/**` without the task
+naming a policy change; the diff touches `.007/gate.toml` itself — that last one
+is `policy-violation-allowed-then-flagged` even when the gate step technically
+passed, because an agent editing its own leash is the one action this pipeline
+should never wave through unread.
+
 This is **not** source-code SARIF — there's no file/line to point at, the
 "finding" is about a process's behavior during a run, not a static code
 location. It needs its own thin record shape and its own adapter into the
