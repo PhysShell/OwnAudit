@@ -4,7 +4,7 @@ Status: design note / vision, not implementation (same status as
 [`audit-data-leverage.md`](audit-data-leverage.md) and
 [`own-net-auditor.md`](own-net-auditor.md)). Trigger to build: once **007**
 actually emits structured per-run capability events (its Phase 1 — see
-[`007/docs/zero-trust-framework.md`](https://github.com/PhysShell/007/blob/main/docs/zero-trust-framework.md)).
+`007/docs/zero-trust-framework.md`).
 Gated on that repo's data existing, not something to build ahead of it.
 
 ## 0. What this is
@@ -19,7 +19,7 @@ phase in that roadmap is: **something has to look at the resulting evidence and
 decide what's noise vs. a real incident.** That's this repo's job, not 007's —
 007 orchestrates and enforces; it isn't built to triage its own findings, same
 reason OwnAudit doesn't run its own detectors (see
-[`docs/proposals/P-024-security-audit-profile.md`](https://github.com/PhysShell/Own.NET/blob/main/docs/proposals/P-024-security-audit-profile.md)
+`Own.NET docs/proposals/P-024-security-audit-profile.md`
 in Own.NET: "оркестратор, не анализатор" applies here verbatim).
 
 ## 1. Reuse, don't build a new pipeline
@@ -50,7 +50,9 @@ score → report pipeline, fed a new evidence source.
 ## 2. What gets ingested
 
 From a 007 run record (`runs/<target>/<run-id>/`): `meta.json` (run identity —
-`run_id`, `agent_id`, `target_repo`, `base_commit`, `policy_id`), `gate/*.log` +
+today `run_id`, `target`, `repo`, `base_commit`, `engine`; the full
+`run_id`/`agent_id`/`target_repo`/`base_commit`/`policy_id` identity is itself
+a Phase 1 item), `gate/*.log` +
 `gate/verdict.json` (per-step pass/fail), and — once Phase 1 lands — capability
 manifest violations (attempted network egress under `network = "deny"`, a write
 outside the declared scope, an unrecognized `[permissions]` field that failed
@@ -141,7 +143,8 @@ new report pipeline, a new adapter feeding the one that exists.
 Layout, if/when 007 Phase 1 lands and this gets built:
 
 ```text
-audit/agent-runs/           # parallel to audit/security/ (Own.NET)
+audit/agent-runs/           # parallel to the audit/security/ layout proposed
+                            # in Own.NET P-024 (not yet built)
   adapters/                 # o7_run_to_finding.py
   profiles/                 # which run stores to poll, retention window
 ```

@@ -3,6 +3,11 @@
 - **Status:** draft. Imported from a design discussion and normalized; the
   pasted original suggested an Own.NET-style `P-NNN` path, but OwnAudit keeps
   flat topic docs under `docs/`.
+- **Related:** `007 docs/sketch-aware-evidence.md` (the 007-side per-run
+  execution evidence this layer ingests) and
+  `Own.NET docs/proposals/P-033-probabilistic-data-structures.md` (the
+  in-process instrumentation whose `own.sketches.v1` exports this layer
+  anticipates).
 
 ## Summary
 
@@ -21,10 +26,11 @@ The goal is to make OwnAudit better at answering questions such as:
 
 This proposal complements the existing direction where OwnAudit acts as an evidence orchestrator and audit/report/gate layer. Own.NET can produce facts. 007 can produce agent execution evidence. OwnAudit should aggregate, rank, compare, and explain.
 
-Problem
+## Problem
 
 Architecture audits often drown in raw findings:
 
+```text
 312 warnings
 48 changed files
 9 analyzer categories
@@ -32,6 +38,7 @@ Architecture audits often drown in raw findings:
 5 architecture rules
 2 flaky checks
 1 very tired developer
+```
 
 Raw counts are not enough. They do not explain trend, severity, repetition, blast radius, or whether the same issue keeps coming back wearing a fake mustache.
 
@@ -45,15 +52,13 @@ OwnAudit needs compact evidence models that can survive repeated runs and answer
 - what should merely be reported;
 - what should be suppressed as known noise.
 
-Proposed solution
+## Proposed solution
 
-Introduce a normalized evidence layer:
-
-"OwnAudit.Evidence.Sketches"
+Introduce a normalized evidence layer, `OwnAudit.Evidence.Sketches`.
 
 It should support the following families of summaries.
 
-1. Heavy hitters for repeated risk
+### 1. Heavy hitters for repeated risk
 
 Use Top-K / Space-Saving style summaries for:
 
@@ -67,6 +72,7 @@ Use Top-K / Space-Saving style summaries for:
 
 Example output:
 
+```json
 {
   "schema": "ownaudit.heavy_hitters.v1",
   "kind": "rule_findings_by_file",
@@ -78,8 +84,9 @@ Example output:
     }
   ]
 }
+```
 
-2. Latency sketches for CI and analyzer timing
+### 2. Latency sketches for CI and analyzer timing
 
 Use t-digest/DDSketch-like summaries for:
 
@@ -91,14 +98,16 @@ Use t-digest/DDSketch-like summaries for:
 
 This lets OwnAudit report:
 
+```text
 Analyzer OWN014:
   p50: 180 ms
   p95: 2.1 s
   p99: 5.8 s
+```
 
 This matters because “the analyzer is fast on average” is how slow tools sneak into CI and start eating morale.
 
-3. Bitmap indexes for audit slicing
+### 3. Bitmap indexes for audit slicing
 
 Use bitmap or roaring-style indexes to represent sets of internal ids:
 
@@ -112,14 +121,16 @@ Use bitmap or roaring-style indexes to represent sets of internal ids:
 
 Then OwnAudit can compute:
 
+```text
 GateFailures =
     ChangedFiles
     AND ArchitectureViolations
     AND NOT SuppressedFindings
+```
 
 This gives OwnAudit a compact internal query model for reports and gates.
 
-4. SimHash / MinHash for finding duplicates and near-duplicates
+### 4. SimHash / MinHash for finding duplicates and near-duplicates
 
 Use fingerprints for:
 
@@ -127,11 +138,13 @@ Use fingerprints for:
 - repeated review comments;
 - similar stack traces;
 - near-duplicate architecture drift explanations;
-- repeated agent mistakes from 007;
+- repeated agent mistakes from 007 (the per-run fingerprints arrive via the
+  export defined in `007 docs/sketch-aware-evidence.md`);
 - copy-pasted code smells.
 
 The output should group related findings:
 
+```json
 {
   "schema": "ownaudit.similar_findings.v1",
   "groupId": "simhash:8f31...",
@@ -141,8 +154,9 @@ The output should group related findings:
   ],
   "reason": "similar diagnostic message and nearby code structure"
 }
+```
 
-5. Optional HLL for unique cardinality trends
+### 5. Optional HLL for unique cardinality trends
 
 Use HLL/HLL++ style sketches only where exact distinct counting is too expensive or noisy:
 
@@ -154,12 +168,13 @@ Use HLL/HLL++ style sketches only where exact distinct counting is too expensive
 
 For most small repositories, exact sets are enough. HLL should not be added just to look sophisticated. That would be technical debt wearing a lab coat.
 
-Architecture
+## Architecture
 
 OwnAudit should treat sketches as evidence, not as final truth.
 
 Suggested flow:
 
+```text
 raw inputs
   -> parsers
   -> normalized facts
@@ -167,6 +182,7 @@ raw inputs
   -> audit evidence
   -> policy/gate
   -> report
+```
 
 Inputs may include:
 
@@ -180,17 +196,20 @@ Inputs may include:
 
 Outputs should be stable JSON artifacts:
 
+```text
 artifacts/ownaudit/evidence/
   heavy-hitters.json
   latency-sketches.json
   bitmap-indexes.json
   similarity-groups.json
   trend-summary.json
+```
 
-Policy integration
+## Policy integration
 
 Sketch evidence should support policies such as:
 
+```yaml
 rules:
   - id: audit.hotspot.file_changed_too_often
     when:
@@ -206,10 +225,11 @@ rules:
         right: architecture_sensitive_files
         min_count: 5
     severity: error
+```
 
 The goal is not to make OwnAudit mystical. The goal is to make repeated patterns visible and enforceable.
 
-MVP
+## MVP
 
 The MVP should include:
 
@@ -226,7 +246,7 @@ The MVP should include:
    - “Chronic findings”;
    - “Large blast-radius changes”.
 
-Phase 2
+## Phase 2
 
 Add:
 
@@ -237,7 +257,7 @@ Add:
 - ingestion of 007 run evidence;
 - ingestion of Own.NET runtime diagnostic exports.
 
-Non-goals
+## Non-goals
 
 OwnAudit should not:
 
@@ -250,7 +270,7 @@ OwnAudit should not:
 
 Approximate evidence can raise suspicion. Exact evidence should convict. Tiny difference, huge legal and engineering consequences.
 
-Acceptance criteria
+## Acceptance criteria
 
 This proposal is successful when:
 
@@ -262,7 +282,7 @@ This proposal is successful when:
 - exported artifacts are stable enough for 007 and Own.NET integration;
 - the system remains usable without external infrastructure.
 
-Expected benefit
+## Expected benefit
 
 OwnAudit becomes less of a static report printer and more of an evidence engine:
 

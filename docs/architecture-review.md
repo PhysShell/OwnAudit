@@ -8,7 +8,7 @@ Introduce an OwnAudit-side architecture review pipeline that consumes architectu
 
 OwnAudit should not own the extractor or analyzer core. That belongs in Own.NET. OwnAudit owns:
 
-- consuming "arch-facts.json" and "arch-findings.json";
+- consuming `arch-facts.json` and `arch-findings.json`;
 - baseline and diff for architecture findings;
 - architecture drift snapshots;
 - PR markdown reports;
@@ -19,7 +19,7 @@ OwnAudit should not own the extractor or analyzer core. That belongs in Own.NET.
 
 This proposal turns the existing "arch/" work into a product-shaped pipeline.
 
-Existing groundwork
+## Existing groundwork
 
 OwnAudit already has an architecture roadmap that positions the project as an auditor built from semantic code graph, architecture rules, WPF/runtime probes, baseline/diff, SARIF/GitHub reports, and an AI explanation layer.
 
@@ -31,17 +31,15 @@ OwnAudit already has "arch/rules.json" with concrete architecture rules: UI reac
 
 The roadmap also documents Phase 3 as an architecture pass over Roslyn-generated "graph.json", with Python-side evaluation producing findings in the same "findings.json" schema for SARIF/diff/dashboard reuse.
 
-Related open PRs:
+Related docs:
 
-- OwnAudit PR #35: "docs: add agentic coding discipline proposal"
-  https://github.com/PhysShell/OwnAudit/pull/35
-  This PR adds a design note on disciplined agentic coding, task contracts, negative prompts, plan-then-build, diff policy gates, judge-run, and trust levels for Own.NET/OwnAudit/007.
+- [agentic-coding-discipline-proposal.md](agentic-coding-discipline-proposal.md)
+  This doc adds a design note on disciplined agentic coding, task contracts, negative prompts, plan-then-build, diff policy gates, judge-run, and trust levels for Own.NET/OwnAudit/007.
 
-- 007 PR #15: "docs: add agentic coding discipline proposal"
-  https://github.com/PhysShell/007/pull/15
+- 007 `docs/agentic-coding-discipline-proposal.md`
   This is relevant because it records the 007-side isolate → run → gate → harvest loop and future task/diff-policy gates that OwnAudit can depend on instead of reinventing agent execution.
 
-Problem
+## Problem
 
 OwnAudit has the right pieces, but architecture review is currently split across:
 
@@ -63,10 +61,11 @@ What should a reviewer look at first?
 
 Without this, developers still need to read raw JSON or multiple partial reports. That is how useful analysis dies: not because the detector is wrong, but because the output is a filing cabinet thrown down a staircase.
 
-Proposed command surface
+## Proposed command surface
 
 Add:
 
+```bash
 python3 -m arch.review_cli \
   --facts arch-facts.json \
   --findings arch-findings.json \
@@ -75,9 +74,11 @@ python3 -m arch.review_cli \
   --drift-baseline arch-snapshot.main.json \
   --out-dir arch/out \
   --gate-level error
+```
 
 Outputs:
 
+```text
 arch/out/
   architecture-review.md
   architecture-findings.sarif
@@ -86,9 +87,11 @@ arch/out/
   architecture-drift.md
   architecture-verdict.json
   architecture-summary.json
+```
 
-Pipeline
+## Pipeline
 
+```text
 Own.NET arch facts/findings
         ↓
 OwnAudit normalization
@@ -102,22 +105,23 @@ risk scoring
 SARIF + markdown + dashboard artifacts
         ↓
 gate verdict
+```
 
-Inputs
+## Inputs
 
-"arch-facts.json"
+### `arch-facts.json`
 
 Produced by Own.NET.
 
 Contains project/type/component dependency graph.
 
-"arch-findings.json"
+### `arch-findings.json`
 
-Produced by Own.NET "Own.Arch".
+Produced by Own.NET `Own.Arch` (see `Own.NET docs/proposals/P-032-own-arch-facts.md`).
 
 Contains deterministic architecture findings with fingerprints.
 
-"architecture-baseline.json"
+### `architecture-baseline.json`
 
 OwnAudit-owned artifact for accepted historical findings.
 
@@ -127,7 +131,7 @@ Purpose:
 - fail only on new violations;
 - force explicit reason when accepting new debt.
 
-"arch-snapshot.main.json"
+### `arch-snapshot.main.json`
 
 OwnAudit-owned drift snapshot.
 
@@ -135,15 +139,17 @@ Used to compare current PR structure against main.
 
 The existing drift design already treats snapshots as compact summaries containing component metrics, dependency surface, and cycles.
 
-Report model
+## Report model
 
 The architecture review report should have five sections.
 
 1. Verdict
 
+```text
 FAIL: 2 new blocking architecture violations.
 WARN: 3 medium-risk drift items.
 INFO: 1 dependency removed.
+```
 
 2. New blocking findings
 
@@ -155,6 +161,7 @@ Only findings that are:
 
 Example:
 
+```text
 ARCH001: Presentation depends on Infrastructure directly
 Evidence:
   Broker.Presentation -> Broker.Infrastructure
@@ -162,6 +169,7 @@ Evidence:
 
 Why this matters:
   Presentation can bypass Application policies and reach persistence implementation directly.
+```
 
 3. Baselined debt
 
@@ -169,9 +177,11 @@ Existing violations remain visible but do not block.
 
 Example:
 
+```text
 ARCH-DOMAIN-WPF: 7 existing findings
 Baseline reason:
   legacy ViewModel formatting leaked into Domain; tracked separately
+```
 
 4. Drift since main
 
@@ -186,9 +196,11 @@ Use existing "arch.drift" concepts:
 
 Example:
 
+```text
 High: new dependency Sts.Domain.Orders -> System.Data.SqlClient
 Medium: Sts.UI.ViewModels Ce 21 -> 27 (+6, +29%)
 Info: removed dependency Sts.Legacy.Import -> DevExpress.Xpf
+```
 
 5. Recommended reviewer focus
 
@@ -196,12 +208,14 @@ This section is report-only and may be generated from deterministic evidence.
 
 Example:
 
+```text
 Reviewer focus:
 1. The PR introduces a new Domain -> SQL dependency.
 2. The PR increases UI ViewModel outgoing dependencies by 29%.
 3. No new cycles were introduced.
+```
 
-Gate policy
+## Gate policy
 
 Default gate behavior:
 
@@ -213,6 +227,7 @@ LLM review text: never gates directly
 
 Example:
 
+```json
 {
   "schema": "own.audit.arch.verdict/v1",
   "verdict": "fail",
@@ -231,8 +246,9 @@ Example:
     }
   ]
 }
+```
 
-SARIF export
+## SARIF export
 
 OwnAudit should convert architecture findings to SARIF with:
 
@@ -247,7 +263,7 @@ Only deterministic findings should become code scanning alerts by default.
 
 Drift items can be added as SARIF notes later, but they should start as markdown/report artifacts. Drift often describes component-level movement rather than a single source span.
 
-AI explanation layer
+## AI explanation layer
 
 The AI layer must be downstream of deterministic results.
 
@@ -268,8 +284,9 @@ Forbidden AI tasks:
 - suppress architecture findings without explicit reason;
 - treat style inference as deterministic truth.
 
-Example report
+## Example report
 
+```markdown
 # Architecture Review
 
 Verdict: FAIL
@@ -297,11 +314,13 @@ Introduce an Application service or port and move the concrete Infrastructure de
 ## Baselined debt
 
 - 7 existing `ARCH-DOMAIN-WPF` findings remain unchanged.
+```
 
-Dashboard integration
+## Dashboard integration
 
 Extend existing dashboard artifacts with an Architecture tab:
 
+```text
 Architecture
   - verdict
   - new blocking findings
@@ -309,15 +328,17 @@ Architecture
   - drift count by risk
   - top risky components by Ce growth
   - cycles introduced/resolved
+```
 
 No new dashboard model should be invented if existing "viz/" history/report artifacts can be reused.
 
-Integration with 007
+## Integration with 007
 
 OwnAudit should emit machine-readable candidate tasks for 007.
 
 Example:
 
+```json
 {
   "schema": "own.audit.arch.task-candidates/v1",
   "tasks": [
@@ -335,10 +356,11 @@ Example:
     }
   ]
 }
+```
 
 007 remains responsible for executing/refactoring. OwnAudit only prepares evidence and gates.
 
-Acceptance criteria
+## Acceptance criteria
 
 MVP is accepted when:
 
@@ -359,7 +381,7 @@ MVP is accepted when:
    - no baseline file;
    - malformed facts/findings input.
 
-Risks
+## Risks
 
 Risk: architecture review becomes generic lint soup
 
@@ -373,15 +395,17 @@ Risk: AI summary overclaims
 
 Mitigation: every AI-generated claim must cite a deterministic finding, drift item, or metric. No evidence, no claim.
 
-First implementation slice
+## First implementation slice
 
 Implement:
 
+```text
 arch/review_cli.py
 arch/report.py
 architecture-review.md renderer
 architecture-verdict.json
 SARIF export for deterministic arch findings
 tests
+```
 
 Do not implement LLM review in the first slice. First make the boring pipeline work. Then let the parrot narrate the evidence.
