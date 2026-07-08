@@ -34,5 +34,6 @@ console crash on the Russian-locale Windows target.
 | boundary + STS runner + artifacts + lift-out home | `OwnAudit/` (this repo) | active |
 | fix arm — wire mass appliers + safety wrapper + OWN fixer | `OwnAudit/` ([docs/fix-arm.md](docs/fix-arm.md)) | design |
 | LeakFixMine — mine real leak-fixes, SZZ-prove them, score OwnAudit vs baselines | `leakmine/` ([docs/leakfix-mine.md](docs/leakfix-mine.md)) | active |
+| agent-run triage — ingest 007's Zero Trust audit trail as evidence | `OwnAudit/` ([docs/agent-run-triage.md](docs/agent-run-triage.md)) | design |
 
 See [PLAN.md](PLAN.md), the [Fix arm design](docs/fix-arm.md), and [LeakFixMine](docs/leakfix-mine.md).
