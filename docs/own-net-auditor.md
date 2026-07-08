@@ -228,7 +228,9 @@ managed double-free = double-`Dispose` (`OWN003`), утечка = `OWN001`/`OWN0
 кусок, которого реально не хватает — лёгкий, ClrMD-независимый **runtime-guard** (throw на
 double-Dispose/use-after-dispose в DEBUG/TEST) и **quarantine**-проверка в тестах (без heap
 walk и без стенда) — задокументирован как отдельное предложение, не здесь:
-[`Own.NET` P-026](https://github.com/PhysShell/Own.NET/blob/main/docs/proposals/P-026-runtime-lifetime-guard.md).
+[`Own.NET` P-034](https://github.com/PhysShell/Own.NET/blob/main/docs/proposals/P-034-runtime-lifetime-guard.md)
+(перенумеровано из P-026 после того, как консолидационный PR Own.NET#190 разрулил семь
+предложений, одновременно претендовавших на этот номер).
 Это дополнение к фазе 5, а не замена: фаза 5 — единственный источник ground-truth «объект
 реально держится в куче», guard/quarantine — дешёвый сигнал «этот конкретный `Dispose()`
 вызван не в том порядке», ограниченный покрытием тестов.
