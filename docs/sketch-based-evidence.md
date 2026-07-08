@@ -1,14 +1,10 @@
-Proposal: Sketch-Based Evidence Layer for Architecture and Code Audit
+# Sketch-based evidence layer for architecture and code audit
 
-Target repository
+- **Status:** draft. Imported from a design discussion and normalized; the
+  pasted original suggested an Own.NET-style `P-NNN` path, but OwnAudit keeps
+  flat topic docs under `docs/`.
 
-"PhysShell/OwnAudit"
-
-Suggested file:
-
-"docs/proposals/P-029-sketch-based-evidence-layer.md"
-
-Summary
+## Summary
 
 OwnAudit should add a sketch-based evidence layer for compactly summarizing audit findings across repositories, pull requests, builds, and analyzer outputs.
 

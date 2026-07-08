@@ -1,18 +1,8 @@
-Proposal: OwnAudit Architecture Review, Drift Gate & Report Pipeline
+# OwnAudit architecture review, drift gate & report pipeline
 
-Status
+- **Status:** draft. Imported from a design discussion and normalized.
 
-Draft.
-
-Target repository
-
-"PhysShell/OwnAudit"
-
-Suggested file:
-
-"docs/architecture-review-and-drift-pipeline.md"
-
-Summary
+## Summary
 
 Introduce an OwnAudit-side architecture review pipeline that consumes architecture facts from Own.NET, applies reporting/baseline/drift logic, and emits PR-friendly architecture reports, SARIF, and gate verdicts.
 

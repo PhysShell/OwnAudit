@@ -35,5 +35,8 @@ console crash on the Russian-locale Windows target.
 | fix arm — wire mass appliers + safety wrapper + OWN fixer | `OwnAudit/` ([docs/fix-arm.md](docs/fix-arm.md)) | design |
 | LeakFixMine — mine real leak-fixes, SZZ-prove them, score OwnAudit vs baselines | `leakmine/` ([docs/leakfix-mine.md](docs/leakfix-mine.md)) | active |
 | agent-run triage — ingest 007's Zero Trust audit trail as evidence | `OwnAudit/` ([docs/agent-run-triage.md](docs/agent-run-triage.md)) | design |
+| architecture review — drift gate & report pipeline over Own.Arch facts | `OwnAudit/` ([docs/architecture-review.md](docs/architecture-review.md)) | design |
+| sketch-based evidence layer — compact cross-run finding summaries | `OwnAudit/` ([docs/sketch-based-evidence.md](docs/sketch-based-evidence.md)) | design |
+| agentic coding discipline — task contracts, diff gates, judge-run | `OwnAudit/` ([docs/agentic-coding-discipline-proposal.md](docs/agentic-coding-discipline-proposal.md)) | design |
 
 See [PLAN.md](PLAN.md), the [Fix arm design](docs/fix-arm.md), and [LeakFixMine](docs/leakfix-mine.md).
