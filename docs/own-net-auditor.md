@@ -219,6 +219,22 @@ dotnet-gcdump) гоняет сценарий N× на стенде и выдаё
 - *Тестируется в CI* (`runtime/tests/test_runtime.py`, 12/12, и под `-O`). Коллектор дампа —
   sketch в `docs/runtime-contract.md`, на стенде (нужен CLR + живой STS), в repo не коммитится.
 
+**Примечание — «Enterprise Malloc для .NET»?** Обсуждали, есть ли смысл в .NET-аналоге
+C/C++ практики оборачивать `malloc`/`free` параноидальными enterprise-проверками.
+Как аллокатор-шим — почти нет (managed-рантайм и так убирает use-after-free/OOB/double-free
+классы багов). Как идея — да, и это буквально фазы 3–5 выше плюс `OWN001/002/003/014` в
+Own.NET (`docs/lifetimes.md`): managed use-after-free = use-after-`Dispose` (`OWN002`),
+managed double-free = double-`Dispose` (`OWN003`), утечка = `OWN001`/`OWN014`. Единственный
+кусок, которого реально не хватает — лёгкий, ClrMD-независимый **runtime-guard** (throw на
+double-Dispose/use-after-dispose в DEBUG/TEST) и **quarantine**-проверка в тестах (без heap
+walk и без стенда) — задокументирован как отдельное предложение, не здесь:
+[`Own.NET` P-034](https://github.com/PhysShell/Own.NET/blob/main/docs/proposals/P-034-runtime-lifetime-guard.md)
+(перенумеровано из P-026 после того, как консолидационный PR Own.NET#190 разрулил семь
+предложений, одновременно претендовавших на этот номер).
+Это дополнение к фазе 5, а не замена: фаза 5 — единственный источник ground-truth «объект
+реально держится в куче», guard/quarantine — дешёвый сигнал «этот конкретный `Dispose()`
+вызван не в том порядке», ограниченный покрытием тестов.
+
 ### Отложено сознательно
 - Свой query-DSL (CQLinq/CodeQL-подобный) — после YAML + C#-плагинов.
 - Зоопарк из 40 метрик — вместо них 3–4 составных диагноза.
