@@ -37,6 +37,7 @@ console crash on the Russian-locale Windows target.
 | agent-run triage — ingest 007's Zero Trust audit trail as evidence | `OwnAudit/` ([docs/agent-run-triage.md](docs/agent-run-triage.md)) | design |
 | architecture review — drift gate & report pipeline over Own.Arch facts | `OwnAudit/` ([docs/architecture-review.md](docs/architecture-review.md)) | design |
 | sketch-based evidence layer — compact cross-run finding summaries | `OwnAudit/` ([docs/sketch-based-evidence.md](docs/sketch-based-evidence.md)) | design |
+| proof-carrying findings — replay and present verified derivations emitted by Own.NET | `OwnAudit/` ([docs/proof-carrying-findings.md](docs/proof-carrying-findings.md)) | design |
 | agentic coding discipline — task contracts, diff gates, judge-run | `OwnAudit/` ([docs/agentic-coding-discipline-proposal.md](docs/agentic-coding-discipline-proposal.md)) | design |
 
 See [PLAN.md](PLAN.md), the [Fix arm design](docs/fix-arm.md), and [LeakFixMine](docs/leakfix-mine.md).
