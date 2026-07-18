@@ -40,7 +40,7 @@ public sealed class HeapCollector
 {
     public CollectionResult Collect(int pid, IReadOnlyList<string> suspectTypes, int maxChainsPerType = 3)
     {
-        using var target = DataTarget.AttachToProcess(pid, suspend: true);
+        using var target = Attach(pid);
         var clrInfo = target.ClrVersions.FirstOrDefault()
             ?? throw new InvalidOperationException($"no CLR found in process {pid} — is it managed?");
         using var runtime = clrInfo.CreateRuntime();
@@ -173,6 +173,23 @@ public sealed class HeapCollector
 
         return new CollectionResult(
             new HeapStats(heapObjs, heapBytes, liveObjs, liveBytes, rootCount), retained);
+    }
+
+    /// Hosted CI runners occasionally refuse the first attach (docs/collector-plan.md D9);
+    /// three attempts with a settle delay, then let the real exception through.
+    private static DataTarget Attach(int pid)
+    {
+        for (var attempt = 1; ; attempt++)
+        {
+            try
+            {
+                return DataTarget.AttachToProcess(pid, suspend: true);
+            }
+            catch when (attempt < 3)
+            {
+                Thread.Sleep(2000);
+            }
+        }
     }
 
     private sealed record ChainHop(string Type, string? FieldFromParent, bool IsDelegate);
