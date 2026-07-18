@@ -1,0 +1,40 @@
+{
+  "_comment": "Fixture heap-retention artifact for the dashboard's runtime-confirmed panel — the shape `own-audit collect` emits (docs/runtime-contract.md + heapStats/chain extensions).",
+  "schema": "ownAudit/runtime/v1",
+  "scenario": "open+close 50 screens (fixture)",
+  "iterations": 50,
+  "heapStats": { "objects": 500992, "bytes": 18300000, "reachableObjects": 500712, "reachableBytes": 14800000, "rootCount": 28 },
+  "retained": [
+    {
+      "type": "LeakyOracle.ViewModels.WatchlistViewModel",
+      "count": 50,
+      "expected": 0,
+      "bytes": 2400000,
+      "roots": [
+        { "kind": "static-event", "holder": "LeakyOracle.Services.MarketDataService", "member": "QuoteReceived",
+          "via": "delegate", "chain": ["[StrongHandle] System.Object[]", "LeakyOracle.Services.MarketDataService",
+          "System.EventHandler<System.String>", "System.Object[]", "System.EventHandler<System.String>",
+          "LeakyOracle.ViewModels.WatchlistViewModel"] }
+      ]
+    },
+    {
+      "type": "LeakyOracle.ViewModels.TickerViewModel",
+      "count": 50,
+      "expected": 0,
+      "bytes": 51200,
+      "roots": [
+        { "kind": "timer", "holder": "System.Threading.TimerQueue", "via": "timer-callback",
+          "chain": ["[StrongHandle] System.Object[]", "System.Threading.TimerQueue",
+          "System.Threading.TimerQueueTimer", "System.Threading.TimerCallback",
+          "LeakyOracle.ViewModels.TickerViewModel"] }
+      ]
+    },
+    {
+      "type": "LeakyOracle.ViewModels.FixedWatchlistViewModel",
+      "count": 0,
+      "expected": 0,
+      "bytes": 0,
+      "roots": []
+    }
+  ]
+}
