@@ -50,7 +50,22 @@ architectural piece of the runtime arm — the **stand-side heap collector** tha
 4. **`runtime.json` emit** (D7) + smoke of the real output through `runtime/correlate.py`.
 5. **CLI verb** (D5, D6).
 6. **`collector.yml`** (D9).
-7. **STS acceptance** (D10) — Windows stand, manual; report artifact into `artifacts/`.
+7. **STS acceptance** (D10) — **done 2026-07-18**, artifacts: `artifacts/runtime-sts.json`
+   + `artifacts/runtime-sts-report.md`. Scenario: SerializerSim `leaktest --hold` (94 docs,
+   shipping build `d753747b` rebuilt into an `STS_shipping` worktree — the Jul-15 Setup
+   rebuild had made documents unconstructible on the research DBs). Result: **250 high +
+   58 medium confirmed, 2465 static-only, 0 runtime-only**. The LEAK.md chain reproduced
+   mechanically: GTD (76) and KDTKTS (107) `static-event` roots naming
+   `BrokerDataClasses.Property.GBProperty.PropertyChanged`; `KDT.cs:88` confirmed.
+   Deviations from the expected shape, both instructive:
+   - **GTD came out `confirmed`, not `runtime-only`** — correlation is type-level and
+     GTD.cs carries other OWN001 findings (2466, 2489, …), so the runtime root
+     (`GBProperty.PropertyChanged`) got attributed to *different* event findings; the
+     5192 site itself is still unflagged. Follow-up: **member-aware matching** (root
+     holder+member vs the finding's event name) would expose it as the true blind spot.
+   - The harness's own prototype/parents statics show up as legitimate `static-field`
+     chains; wide sampling (`--max-chains 40`) was needed for the event chains to appear
+     among the samples. Follow-up: prefer diverse root-kind sampling per type.
 
 Branch cadence: `claude/collector-stepN-*`, red/green commit pairs, PR to `main`.
 
