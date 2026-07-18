@@ -1,0 +1,8 @@
+AsyncFixer01	Unnecessary async/await usage
+AsyncFixer02	Long-running or blocking operations inside an async method
+AsyncFixer03	Fire-and-forget async-void methods
+AsyncFixer04	Fire-and-forget async call inside a using block
+AsyncFixer05	Downcasting from a nested task to an outer task
+THREAD_SAFETY_VIOLATION	Potential data race on a field (Infer# RacerD)
+PULSE_RESOURCE_LEAK	Resource not released on all paths (Infer# Pulse)
+NULLPTR_DEREFERENCE	Possible null dereference (Infer# Pulse)

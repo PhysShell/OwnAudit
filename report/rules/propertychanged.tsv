@@ -1,0 +1,25 @@
+INPC001	The class has mutable properties and should implement INotifyPropertyChanged
+INPC002	Mutable public property should notify
+INPC003	Notify when property changes
+INPC004	Use [CallerMemberName]
+INPC005	Check if value is different before notifying
+INPC006_a	Check if value is different using ReferenceEquals before notifying
+INPC006_b	Check if value is different using object.Equals before notifying
+INPC007	The class has PropertyChangedEvent but no invoker
+INPC008	Struct must not implement INotifyPropertyChanged
+INPC009	Don't raise PropertyChanged for missing property
+INPC010	The property gets and sets a different backing member
+INPC011	Don't shadow PropertyChanged event
+INPC012	Don't use expression for raising PropertyChanged
+INPC013	Use nameof
+INPC014	Prefer setting backing field in constructor
+INPC015	Property is recursive
+INPC016	Notify after update
+INPC017	Backing field name must match
+INPC018	PropertyChanged invoker should be protected when the class is not sealed
+INPC019	Getter should return backing field
+INPC020	Prefer expression body accessor
+INPC021	Setter should set backing field
+INPC022	Comparison should be with backing field
+INPC023	Don't use instance equals in setter
+INPC024	ReferenceEquals is always false for value types

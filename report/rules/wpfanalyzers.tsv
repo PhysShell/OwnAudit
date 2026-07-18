@@ -1,0 +1,82 @@
+WPF0001	Backing field for a DependencyProperty should match registered name
+WPF0002	Backing field for a DependencyPropertyKey should match registered name
+WPF0003	CLR property for a DependencyProperty should match registered name
+WPF0004	CLR method for a DependencyProperty must match registered name
+WPF0005	Name of PropertyChangedCallback should match registered name
+WPF0006	Name of CoerceValueCallback should match registered name
+WPF0007	Name of ValidateValueCallback should match registered name
+WPF0008	[DependsOn(target)] must exist
+WPF0010	Default value type must match registered type
+WPF0011	Containing type should be used as registered owner
+WPF0012	CLR property type should match registered type
+WPF0013	CLR accessor for attached property must match registered type
+WPF0014	SetValue must use registered type
+WPF0015	Registered owner type must inherit DependencyObject
+WPF0016	Default value is shared reference type
+WPF0017	Metadata must be of same type or super type
+WPF0018	Use containing type
+WPF0019	Cast sender to correct type
+WPF0020	Cast value to correct type
+WPF0021	Cast sender to containing type
+WPF0022	Cast value to correct type
+WPF0023	The callback is trivial, convert to lambda
+WPF0024	Parameter type should be nullable
+WPF0030	Backing field for a DependencyProperty should be static and readonly
+WPF0031	DependencyPropertyKey member must be declared before DependencyProperty member
+WPF0032	Use same dependency property in get and set
+WPF0033	Add [AttachedPropertyBrowsableForType]
+WPF0034	Use correct argument for [AttachedPropertyBrowsableForType]
+WPF0035	Use SetValue in setter
+WPF0036	Avoid side effects in CLR accessors
+WPF0040	A readonly DependencyProperty must be set with DependencyPropertyKey
+WPF0041	Set mutable dependency properties using SetCurrentValue
+WPF0042	Avoid side effects in CLR accessors
+WPF0043	Don't set DataContext and Style using SetCurrentValue
+WPF0050	XmlnsPrefix must map to the same url as XmlnsDefinition
+WPF0051	XmlnsDefinition must map to existing namespace
+WPF0052	XmlnsDefinitions does not map all namespaces with public types
+WPF0060	Backing member for DependencyProperty should have standard documentation text
+WPF0061	Accessor method for attached property should have standard documentation text
+WPF0062	Property changed callback should have standard documentation text
+WPF0070	Add default field to converter
+WPF0071	Add ValueConversion attribute
+WPF0072	ValueConversion must use correct types
+WPF0073	Add ValueConversion attribute (unknown types)
+WPF0074	Use containing type
+WPF0080	Add MarkupExtensionReturnType attribute
+WPF0081	MarkupExtensionReturnType must use correct return type
+WPF0082	[ConstructorArgument] must match
+WPF0083	Add [ConstructorArgument]
+WPF0084	Target of [XamlSetMarkupExtension] should exist and have correct signature
+WPF0085	Target of [XamlSetTypeConverter] should exist and have correct signature
+WPF0090	Name the invoked method OnEventName
+WPF0091	Name the invoked method OnEventName
+WPF0092	Use correct handler type
+WPF0100	Backing field for a RoutedEvent should match registered name
+WPF0101	Containing type should be used as registered owner
+WPF0102	Name of the event should match registered name
+WPF0103	Use same event in add and remove
+WPF0104	Call AddHandler in add
+WPF0105	Call RemoveHandler in remove
+WPF0106	Use the registered handler type
+WPF0107	Backing member for a RoutedEvent should be static and readonly
+WPF0108	Backing member for RoutedEvent should have standard documentation text
+WPF0120	Register containing member name as name for routed command
+WPF0121	Register containing type as owner for routed command
+WPF0122	Register name and owning type for routed command
+WPF0123	Backing field for a RoutedCommand should be static and readonly
+WPF0130	Add [TemplatePart] to the type
+WPF0131	Use correct [TemplatePart] type
+WPF0132	Use PART prefix
+WPF0133	ContentProperty target does not exist
+WPF0140	Use containing type when creating a ComponentResourceKey
+WPF0141	Use containing member as key when creating a ComponentResourceKey
+WPF0150	Use nameof() instead of literal
+WPF0151	Use nameof() instead of constant
+WPF0170	StyleTypedProperty.Property must exist
+WPF0171	StyleTypedProperty.Property must specify a property of type Style
+WPF0172	StyleTypedProperty.Property must be specified
+WPF0173	StyleTypedProperty.StyleTargetType must be assignable to a type that has a Style property
+WPF0174	StyleTypedProperty.StyleTargetType must be specified
+WPF0175	StyleTypedProperty.Property must be specified only once
+WPF0176	StyleTypedProperty is missing
