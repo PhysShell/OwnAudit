@@ -20,7 +20,10 @@ import re
 
 from report.rules_map import load_rules_map, describe
 
-_LINE = re.compile(r"^(- `(?P<path>[^`:]+):(?P<line>\d+)` \*\*\[.*?\]\*\* \([^)]*\))\s*$")
+# two generator formats: "**[...]** (tool)" (candidates) and "**[...]** — tool, tool"
+# (cross-tool clusters).
+_LINE = re.compile(
+    r"^(- `(?P<path>[^`:]+):(?P<line>\d+)` \*\*\[.*?\]\*\*(?: \([^)]*\)| — .+?))\s*$")
 
 
 def annotate(report_path: str, findings_path: str, out_path: str) -> None:

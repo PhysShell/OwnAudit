@@ -29,6 +29,7 @@ REPORT = """# Own.NET Audit — health report — `X`
 
 - `Broker/MainWindow.xaml.cs:3957` **[P1 · subscription-leak]** (own-check)
 - `Broker/Util.cs:10` **[P2 · quality]** (meziantou)
+- `BaseDict/DictionaryList.cs:625` **[P1 · idisposable-leak]** — codeql, roslyn
 
 ## Coverage / honesty
 """
@@ -38,6 +39,8 @@ FINDINGS = {"findings": [
      "category_name": "subscription-leak", "tool": "own-check", "suppressed": False},
     {"rule": "MA0006", "path": "Broker/Util.cs", "line": 10,
      "category_name": "quality", "tool": "meziantou", "suppressed": False},
+    {"rule": "IDISP001", "path": "BaseDict/DictionaryList.cs", "line": 625,
+     "category_name": "idisposable-leak", "tool": "roslyn", "suppressed": False},
 ]}
 
 with tempfile.TemporaryDirectory() as td:
@@ -53,6 +56,9 @@ with tempfile.TemporaryDirectory() as td:
     # finding lines gain the rule id and its human title, RU included for OWN rules
     check("own001-inline", "OWN001" in out and "Подписка на событие без отписки" in out)
     check("ma0006-inline", "MA0006" in out and "Use String.Equals instead of equality operator" in out)
+
+    # cluster-format lines ("— codeql, roslyn" instead of "(tool)") annotate too
+    check("cluster-line", "IDISP001" in out and "Dispose created" in out)
 
     # a legend appendix lists every referenced rule once, with the doc link when known
     check("legend-section", "## Rule legend" in out)
