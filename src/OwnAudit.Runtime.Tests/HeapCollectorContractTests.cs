@@ -64,4 +64,45 @@ public sealed class HeapCollectorContractTests : IClassFixture<OracleFixture>
         Assert.Empty(byType[FixedWatchlist].Roots);
         Assert.Empty(byType[FixedTicker].Roots);
     }
+
+    [Fact]
+    public void Emits_the_runtime_json_v1_artifact()
+    {
+        var result = new HeapCollector().Collect(
+            _oracle.Pid, new[] { Watchlist, FixedWatchlist, Ticker, FixedTicker });
+
+        var json = RuntimeReport.ToJson(result, "oracle leak scenario", OracleFixture.Screens,
+            expected: new Dictionary<string, int>
+            {
+                [Watchlist] = 0, [FixedWatchlist] = 0, [Ticker] = 0, [FixedTicker] = 0,
+            });
+
+        using var doc = System.Text.Json.JsonDocument.Parse(json);
+        var root = doc.RootElement;
+
+        Assert.Equal("ownAudit/runtime/v1", root.GetProperty("schema").GetString());
+        Assert.Equal("oracle leak scenario", root.GetProperty("scenario").GetString());
+        Assert.Equal(OracleFixture.Screens, root.GetProperty("iterations").GetInt32());
+
+        var stats = root.GetProperty("heapStats");
+        Assert.True(stats.GetProperty("reachableObjects").GetInt64() > 0);
+        Assert.True(stats.GetProperty("reachableObjects").GetInt64() <= stats.GetProperty("objects").GetInt64());
+
+        var retained = root.GetProperty("retained").EnumerateArray()
+            .ToDictionary(e => e.GetProperty("type").GetString()!);
+
+        Assert.Equal(OracleFixture.Screens, retained[Watchlist].GetProperty("count").GetInt32());
+        Assert.Equal(0, retained[Watchlist].GetProperty("expected").GetInt32());
+        Assert.Equal(0, retained[FixedWatchlist].GetProperty("count").GetInt32());
+
+        // The classified roots come through in contract shape, chain included.
+        var watchlistRoots = retained[Watchlist].GetProperty("roots").EnumerateArray().ToList();
+        Assert.Contains(watchlistRoots, r =>
+            r.GetProperty("kind").GetString() == "static-event"
+            && r.GetProperty("holder").GetString()!.Contains("MarketDataService")
+            && r.GetProperty("member").GetString() == "QuoteReceived"
+            && r.GetProperty("chain").GetArrayLength() > 0);
+        Assert.Contains(retained[Ticker].GetProperty("roots").EnumerateArray(),
+            r => r.GetProperty("kind").GetString() == "timer");
+    }
 }
