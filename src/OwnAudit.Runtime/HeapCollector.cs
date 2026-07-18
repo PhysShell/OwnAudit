@@ -59,14 +59,25 @@ public sealed class HeapCollector
 
         // 2. Mark from the GC roots, breadth-first, recording each object's predecessor —
         //    one traversal yields the retained census AND shortest root→suspect chains.
+        //    Non-stack roots are drained to exhaustion FIRST: a suspect reachable both from
+        //    a static handle and from a live stack slot must be attributed to the static —
+        //    that is what still pins it after the current frame returns (and what a
+        //    production leak looks like); a stack root is only the truth of last resort.
         var wanted = new HashSet<string>(suspectTypes, StringComparer.Ordinal);
         var pred = new Dictionary<ulong, ulong>();      // child -> parent; 0 marks a root object
         var rootKind = new Dictionary<ulong, string>(); // root object -> its GC-root kind
         var queue = new Queue<ulong>();
+        var stackRoots = new List<(ulong Addr, string Kind)>();
         foreach (var root in heap.EnumerateRoots())
         {
             var o = root.Object;
-            if (!o.IsValid || pred.ContainsKey(o.Address)) continue;
+            if (!o.IsValid) continue;
+            if (root.RootKind == ClrRootKind.Stack)
+            {
+                stackRoots.Add((o.Address, root.RootKind.ToString()));
+                continue;
+            }
+            if (pred.ContainsKey(o.Address)) continue;
             pred[o.Address] = 0;
             rootKind[o.Address] = root.RootKind.ToString();
             queue.Enqueue(o.Address);
@@ -78,52 +89,137 @@ public sealed class HeapCollector
         var sizes = suspectTypes.ToDictionary(t => t, _ => 0L, StringComparer.Ordinal);
         var samples = suspectTypes.ToDictionary(t => t, _ => new List<ulong>(), StringComparer.Ordinal);
 
-        while (queue.Count > 0)
+        void Drain()
         {
-            var addr = queue.Dequeue();
-            var obj = heap.GetObject(addr);
-            if (!obj.IsValid || obj.Type is null) continue;
-            liveObjs++;
-            liveBytes += (long)obj.Size;
-
-            var name = obj.Type.Name;
-            if (name is not null && wanted.Contains(name))
+            while (queue.Count > 0)
             {
-                counts[name]++;
-                sizes[name] += (long)obj.Size;
-                var s = samples[name];
-                if (s.Count < maxChainsPerType) s.Add(addr);
-            }
+                var addr = queue.Dequeue();
+                var obj = heap.GetObject(addr);
+                if (!obj.IsValid || obj.Type is null) continue;
+                liveObjs++;
+                liveBytes += (long)obj.Size;
 
-            foreach (var child in obj.EnumerateReferences())
-            {
-                if (!child.IsValid || pred.ContainsKey(child.Address)) continue;
-                pred[child.Address] = addr;
-                queue.Enqueue(child.Address);
+                var name = obj.Type.Name;
+                if (name is not null && wanted.Contains(name))
+                {
+                    counts[name]++;
+                    sizes[name] += (long)obj.Size;
+                    var s = samples[name];
+                    if (s.Count < maxChainsPerType) s.Add(addr);
+                }
+
+                foreach (var child in obj.EnumerateReferences())
+                {
+                    if (!child.IsValid || pred.ContainsKey(child.Address)) continue;
+                    pred[child.Address] = addr;
+                    queue.Enqueue(child.Address);
+                }
             }
         }
 
-        // 3. Reconstruct the sampled chains by walking predecessors back to a root.
+        Drain();
+        foreach (var (addr, kind) in stackRoots)
+        {
+            if (pred.ContainsKey(addr)) continue;
+            pred[addr] = 0;
+            rootKind[addr] = kind;
+            queue.Enqueue(addr);
+            rootCount++;
+        }
+        Drain();
+
+        // 3. Reconstruct the sampled chains root→suspect (with the field on every
+        //    parent→child edge) and classify what pins each suspect (collector-plan.md D4).
         var retained = new List<RetainedType>(suspectTypes.Count);
         foreach (var type in suspectTypes)
         {
             var chains = new List<RetentionChain>(samples[type].Count);
+            var roots = new List<ClassifiedRoot>(samples[type].Count);
             foreach (var suspect in samples[type])
             {
-                var hops = new List<string>();
+                var addrs = new List<ulong>();
                 for (var cur = suspect; cur != 0; cur = pred[cur])
+                    addrs.Add(cur);
+                addrs.Reverse();
+
+                var hops = new List<ChainHop>(addrs.Count);
+                var labels = new List<string>(addrs.Count);
+                for (var i = 0; i < addrs.Count; i++)
                 {
-                    var name = heap.GetObject(cur).Type?.Name ?? "?";
-                    hops.Add(pred[cur] == 0 ? $"[{rootKind[cur]}] {name}" : name);
+                    var obj = heap.GetObject(addrs[i]);
+                    var name = obj.Type?.Name ?? "?";
+                    var field = i == 0 ? null : FieldFor(heap.GetObject(addrs[i - 1]), addrs[i]);
+                    hops.Add(new ChainHop(name, field, IsDelegateType(obj.Type)));
+                    labels.Add(i == 0 ? $"[{rootKind[addrs[i]]}] {name}" : name);
                 }
-                hops.Reverse();
-                chains.Add(new RetentionChain(hops));
+
+                var chain = new RetentionChain(labels);
+                chains.Add(chain);
+                roots.Add(Classify(rootKind[addrs[0]], hops, chain));
             }
-            retained.Add(new RetainedType(type, counts[type], sizes[type], chains,
-                Array.Empty<ClassifiedRoot>()));
+            retained.Add(new RetainedType(type, counts[type], sizes[type], chains, roots));
         }
 
         return new CollectionResult(
             new HeapStats(heapObjs, heapBytes, liveObjs, liveBytes, rootCount), retained);
+    }
+
+    private sealed record ChainHop(string Type, string? FieldFromParent, bool IsDelegate);
+
+    /// Which of `parent`'s reference fields holds `childAddr`? Names the edge — for the
+    /// holder→delegate edge this is the event's backing field, i.e. the OWN001 member.
+    private static string? FieldFor(ClrObject parent, ulong childAddr)
+    {
+        foreach (var reference in parent.EnumerateReferencesWithFields(carefully: true))
+            if (reference.Object.Address == childAddr)
+                return reference.Field?.Name;
+        return null;
+    }
+
+    private static bool IsDelegateType(ClrType? type)
+    {
+        for (var t = type; t is not null; t = t.BaseType)
+            if (t.Name == "System.MulticastDelegate")
+                return true;
+        return false;
+    }
+
+    private static ClassifiedRoot Classify(string rootKindName, IReadOnlyList<ChainHop> hops, RetentionChain chain)
+    {
+        // Statics live in pinned/strong handle tables; a Stack root is a live local, not a leak shape.
+        var staticRoot = rootKindName is "PinnedHandle" or "StrongHandle" or "StrongPinnedHandle";
+
+        // Timer first: a TimerQueue chain also contains the callback delegate, and the
+        // queue — not the delegate's owner — is what actually pins the suspect.
+        if (hops.Any(h => h.Type.StartsWith("System.Threading.TimerQueue", StringComparison.Ordinal)))
+            return new ClassifiedRoot("timer", "System.Threading.TimerQueue", null, "timer-callback", chain);
+
+        var delegateIdx = -1;
+        for (var i = 0; i < hops.Count; i++)
+            if (hops[i].IsDelegate) { delegateIdx = i; break; }
+        if (delegateIdx > 0)
+        {
+            // The holder is the nearest non-infrastructure hop above the delegate (skip
+            // multicast invocation lists and nested delegates).
+            var holderIdx = delegateIdx - 1;
+            while (holderIdx >= 0 && (hops[holderIdx].IsDelegate || hops[holderIdx].Type == "System.Object[]"))
+                holderIdx--;
+            var holder = holderIdx >= 0 ? hops[holderIdx].Type : null;
+            var member = holderIdx >= 0 ? hops[holderIdx + 1].FieldFromParent : null;
+            return new ClassifiedRoot(staticRoot ? "static-event" : "other", holder, member, "delegate", chain);
+        }
+
+        if (staticRoot)
+        {
+            // A static field holds the graph plainly: the holder is the first real object
+            // under the statics table.
+            var i = 0;
+            while (i < hops.Count && hops[i].Type == "System.Object[]") i++;
+            var holder = i < hops.Count ? hops[i].Type : null;
+            var member = i + 1 < hops.Count ? hops[i + 1].FieldFromParent : null;
+            return new ClassifiedRoot("static-field", holder, member, "field", chain);
+        }
+
+        return new ClassifiedRoot("other", null, null, rootKindName, chain);
     }
 }
