@@ -1,0 +1,26 @@
+IDISP001	Dispose created
+IDISP002	Dispose member
+IDISP003	Dispose previous before re-assigning
+IDISP004	Don't ignore created IDisposable
+IDISP005	Return type should indicate that the value should be disposed
+IDISP006	Implement IDisposable
+IDISP007	Don't dispose injected
+IDISP008	Don't assign member with injected and created disposables
+IDISP009	Add IDisposable interface
+IDISP010	Call base.Dispose(disposing)
+IDISP011	Don't return disposed instance
+IDISP012	Property should not return created disposable
+IDISP013	Await in using
+IDISP014	Use a single instance of HttpClient
+IDISP015	Member should not return created and cached instance
+IDISP016	Don't use disposed instance
+IDISP017	Prefer using
+IDISP018	Call SuppressFinalize
+IDISP019	Call SuppressFinalize
+IDISP020	Call SuppressFinalize(this)
+IDISP021	Call this.Dispose(true)
+IDISP022	Call this.Dispose(false)
+IDISP023	Don't use reference types in finalizer context
+IDISP024	Don't call GC.SuppressFinalize(this) when the type is sealed and has no finalizer
+IDISP025	Class with no virtual dispose method should be sealed
+IDISP026	Class with no virtual DisposeAsyncCore method should be sealed
