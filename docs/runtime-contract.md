@@ -63,7 +63,14 @@ pinning the instances.
 This is the FP-rate / blind-spot triage of `docs/audit-data-leverage.md`, made concrete: the
 runtime is ground truth for "is this leak real".
 
-## Stand-side collector — sketch (not in this repo)
+## Stand-side collector — lands in `src/OwnAudit.Runtime` (`docs/collector-plan.md`)
+
+> **Update 2026-07-18:** no longer a sketch-outside-the-repo. The collector is being built
+> here by porting `stackpeek` (proven on a real STS leak — live ClrMD attach, reachability
+> mark, root-chain walk). Primary mode is **live-attach** (`AttachToProcess(pid,
+> suspend: true)`), not gcdump/procdump; the scenario is driven manually or by an external
+> script, then the collector attaches once and emits `runtime.json` (plus an optional
+> `heapStats` reachability block). The sketch below is kept as the original contract.
 
 Needs the CLR + the running app, so it lives on the stand. Contract it must satisfy:
 

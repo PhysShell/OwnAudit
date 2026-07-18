@@ -1,0 +1,40 @@
+# The heap-collector contract job (docs/collector-plan.md D9): build the LeakyOracle
+# target, run the xunit contract tests — they launch the headless leak scenario with a
+# hold, live-attach ClrMD, and assert the planted leaks (and only them) come back
+# classified. Windows-only by nature (the collector targets net8.0-windows), so it runs
+# apart from the ubuntu Python CI. Non-required while attach stability on hosted
+# runners is being proven; promote once it holds.
+name: collector
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/**"
+      - "oracle/LeakyOracle/**"
+      - ".github/workflows/collector.yml"
+  pull_request:
+    paths:
+      - "src/**"
+      - "oracle/LeakyOracle/**"
+      - ".github/workflows/collector.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: collector-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  contract:
+    name: heap-collector contract (windows)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
+      - name: build the oracle target
+        run: dotnet build -c Release oracle/LeakyOracle/LeakyOracle.csproj
+      - name: contract tests (launch oracle, live-attach, assert)
+        run: dotnet test src/OwnAudit.Runtime.Tests/OwnAudit.Runtime.Tests.csproj
