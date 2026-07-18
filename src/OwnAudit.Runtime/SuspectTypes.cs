@@ -28,10 +28,17 @@ public static class SuspectTypes
             if (category is null || !leakCategories.Contains(category))
                 continue;
 
+            // Decode before the space test: own-check also emits percent-encoded report
+            // labels ("%D0%9E%D1%82%D1%87%D0%B5%D1%82%20…") whose raw form has no literal
+            // space and would otherwise pass as a plausible type identifier.
             var resource = (finding.TryGetProperty("resource", out var res) ? res.GetString() : null)?.Trim();
-            if (!string.IsNullOrEmpty(resource) && !resource.Contains(' ')
-                && !string.Equals(resource, "none", StringComparison.OrdinalIgnoreCase))
-                suspects.Add(resource);
+            if (!string.IsNullOrEmpty(resource))
+            {
+                var decoded = Uri.UnescapeDataString(resource);
+                if (!decoded.Contains(' ')
+                    && !string.Equals(decoded, "none", StringComparison.OrdinalIgnoreCase))
+                    suspects.Add(decoded);
+            }
 
             var stem = Stem(finding.TryGetProperty("path", out var p) ? p.GetString() : null);
             if (!string.IsNullOrEmpty(stem))
