@@ -37,6 +37,10 @@ HISTORY = os.path.join(ROOT, "viz", "history.jsonl")
 sys.path.insert(0, os.path.join(ROOT, "fix"))
 from fixarm.tiers import tier_of, gate_for_tier, T1, T2, T3, T4   # noqa: E402
 
+# the rules-map catalog: rule id -> human title (+ Russian for OWN rules) + doc link.
+sys.path.insert(0, ROOT)
+from report.rules_map import load_rules_map, describe   # noqa: E402
+
 TIERS = [T1, T2, T3, T4]
 
 # FP-judge triage classes, real-first / judged_fp-last (matches apply_verdicts._ORDER).
@@ -222,6 +226,15 @@ def collect() -> dict:
                 "tiers": {t: tier_counts[t] for t in TIERS}}
     history = _update_history(snapshot)
 
+    # human explanations parallel to the interned rule list: harvested titles for
+    # third-party analyzers, hand-written Russian for OWN rules, doc link when known.
+    catalog = load_rules_map()
+    rule_meta = []
+    for r in rules.items:
+        d = describe(r, catalog)
+        rule_meta.append({"t": d.get("title"), "h": d.get("help"),
+                          "ru": d.get("title_ru")})
+
     return {
         "total": len(findings),
         "modules": mods,
@@ -237,11 +250,38 @@ def collect() -> dict:
         "verdict_summary": doc.get("verdict_summary") if triaged else None,
         "dims": {"paths": paths.items, "rules": rules.items, "tools": tools.items,
                  "cats": cats.items, "sources": sources, "modules": [*mod_names, "(other)"],
-                 "tiers": TIERS, "triage": TRIAGE if triaged else [], "reasons": reasons.items},
+                 "tiers": TIERS, "triage": TRIAGE if triaged else [], "reasons": reasons.items,
+                 "rule_meta": rule_meta},
         "rule_src": rule_src,
         "rows": rows,
         "history": history,
+        "runtime": _runtime_block(STS),
     }
+
+
+def _runtime_block(sts_dir: str):
+    """The heap-collector artifact (runtime-sts.json / runtime.json), condensed for the
+    runtime-confirmed panel: retained types with their most damning root. None = the
+    panel is hidden (no runtime run for this data dir yet)."""
+    path = next((p for n in ("runtime-sts.json", "runtime.json")
+                 if os.path.isfile(p := os.path.join(sts_dir, n))), None)
+    if not path:
+        return None
+    with open(path, encoding="utf-8") as fh:
+        doc = json.load(fh)
+    kind_rank = {"static-event": 0, "timer": 1, "static-field": 2}
+    entries = []
+    for rec in doc.get("retained", []):
+        if not rec.get("count"):
+            continue
+        roots = rec.get("roots") or []
+        best = min(roots, key=lambda r: kind_rank.get(r.get("kind"), 9)) if roots else {}
+        entries.append({"type": rec["type"], "count": rec["count"],
+                        "bytes": rec.get("bytes", 0), "kind": best.get("kind"),
+                        "holder": best.get("holder"), "member": best.get("member")})
+    entries.sort(key=lambda e: -e["count"])
+    return {"scenario": doc.get("scenario"), "iterations": doc.get("iterations"),
+            "heap": doc.get("heapStats") or {}, "retained": entries[:24]}
 
 
 def _update_history(snapshot: dict) -> list:
@@ -381,6 +421,7 @@ HTML = r"""<!doctype html>
   <div class="card"><h2>By analyzer source — does it ship a fix?</h2><p>Green = an analyzer with a CodeFixProvider → wire, don't build.</p><div id="src" class="plot"></div></div>
   <div class="card"><h2>By tool</h2><p>Who flagged it.</p><div id="tool" class="plot"></div></div>
   <div class="card"><h2>Top rules</h2><p>The most frequent diagnostics.</p><div id="rules" class="plot"></div></div>
+  <div class="card wide" id="runtime-card" style="display:none"><h2>Runtime-confirmed retention — the heap agrees</h2><p id="runtime-sub">Live ClrMD collect after a scenario: reachable instances per suspect type, coloured by what pins them (hover for the owner). This is ground truth, not a lint.</p><div id="runtime" class="plot"></div></div>
   <div class="card wide"><h2>OWN fixer — shape coverage</h2><p>The leak shapes own-check flags that no off-the-shelf tool fixes — and how the bespoke T4 fixer remediates each.</p><div id="own" class="plot"></div></div>
   <div class="card wide"><h2>Trend across runs</h2><p>Total findings and per-tier split over time — one point per audit run (from <code>viz/history.jsonl</code>).</p><div id="trend" class="plot"></div></div>
   <div class="card wide tablecard"><h2 id="tbl-h">Findings</h2><p id="tbl-p">Filtered findings. Apply a filter or click a module to narrow this down.</p><div id="tablewrap"></div></div>
@@ -611,8 +652,10 @@ function drawTable(rows){
         triCell=`<td><span class="tg" style="background:${cssv(m.c)};color:#0b0f17"`+
           `${reason?` title="${esc(reason)}"`:''}>${esc(m.lbl)}</span></td>`; }
     }
+    const meta=D_.rule_meta[r[RU]]||{};
+    const ruleTip=[meta.t,meta.ru].filter(v=>v&&v!==D_.rules[r[RU]]).join(' — ');
     return `<tr><td>${fileCell}</td><td>${esc(line)}</td>`+
-      `<td><code>${esc(D_.rules[r[RU]])}</code></td>`+
+      `<td><code${ruleTip?` title="${esc(ruleTip)}"`:''}>${esc(D_.rules[r[RU]])}</code></td>`+
       `<td><span class="tg" style="background:${cssv(TG_COL[tier])};color:#0b0f17">${esc(tier)}</span></td>`+
       triCell+
       `<td>${esc(D_.cats[r[CA]])}</td><td>${esc(D_.tools[r[TO]])}</td></tr>`;
@@ -621,6 +664,40 @@ function drawTable(rows){
     `<table><thead><tr><th>File</th><th>Line</th><th>Rule</th><th>Tier</th>`+
     `${D.triaged?'<th>Triage</th>':''}<th>Category</th><th>Tool</th></tr></thead>`+
     `<tbody>${rowsHtml}</tbody></table>`;
+}
+
+// Top rules with the rules-map explanation in the hover: "what is OWN001" answered
+// where the id is shown, not in a separate doc.
+function drawRules(rows){
+  const m=aggCount(rows,RU);
+  const pairs=[...m.entries()].sort((a,b)=>b[1]-a[1]).slice(0,18);
+  const idx=pairs.map(p=>p[0]);
+  Plotly.react('rules',[{type:'bar',orientation:'h',
+    y:idx.map(i=>D_.rules[i]), x:pairs.map(p=>p[1]), marker:{color:cssv('--c4')},
+    customdata:idx.map(i=>{const meta=D_.rule_meta[i]||{};
+      let s=meta.t||D_.rules[i];
+      if(meta.ru) s+=' · '+meta.ru;
+      return s;}),
+    hovertemplate:'<b>%{y}</b> — %{customdata}<br>%{x} findings<extra></extra>'}],
+    base({margin:{l:170,r:16,t:6,b:24}}),CFG);
+}
+
+function drawRuntime(){
+  const R=D.runtime;
+  if(!R||!R.retained||!R.retained.length) return;
+  document.getElementById('runtime-card').style.display='';
+  const gate=R.heap&&R.heap.bytes?` · heap ${(R.heap.reachableBytes/1048576).toFixed(0)} of ${(R.heap.bytes/1048576).toFixed(0)} MB genuinely retained (${(100*R.heap.reachableBytes/R.heap.bytes).toFixed(1)}%)`:'';
+  document.getElementById('runtime-sub').textContent=
+    `${R.scenario||'scenario'}${R.iterations?` (${R.iterations}×)`:''}${gate}. Bars = reachable instances per suspect; hover names the pinning owner.`;
+  const KC={'static-event':'--c3','timer':'--c4','static-field':'--c1'};
+  const rt=[...R.retained].reverse();
+  Plotly.react('runtime',[{type:'bar',orientation:'h',
+    y:rt.map(e=>e.type.split('.').pop()), x:rt.map(e=>e.count),
+    marker:{color:rt.map(e=>cssv(KC[e.kind]||'--mute'))},
+    customdata:rt.map(e=>[e.kind||'?', (e.holder||'')+(e.member?'.'+e.member:''), e.type]),
+    hovertemplate:'<b>%{customdata[2]}</b><br>%{x} retained · %{customdata[0]}'+
+      '<br>pinned by %{customdata[1]}<extra></extra>'}],
+    base({margin:{l:210,r:16,t:6,b:24}}),CFG);
 }
 
 function drawTrend(){
@@ -644,7 +721,7 @@ function update(){
     `<b>${rows.length.toLocaleString()}</b> / ${D.total.toLocaleString()} findings`;
   bar('cat', topPairs(aggCount(rows,CA), D_.cats), true, '--c1');
   bar('tool', topPairs(aggCount(rows,TO), D_.tools), false, '--c3');
-  bar('rules', topPairs(aggCount(rows,RU), D_.rules, 18), true, '--c4');
+  drawRules(rows);
   // source: group rows by analyzer family via rule_src
   const sm=new Map();
   for(const r of rows){const s=D.rule_src[r[RU]]; sm.set(s,(sm.get(s)||0)+1);}
@@ -662,6 +739,7 @@ function update(){
 function renderAll(){
   drawTreemap();
   bar('own', D.own_shapes, true, '--ok');     // static narrative, filter-independent
+  drawRuntime();                              // ground truth, filter-independent
   drawTrend();
   update();
 }
