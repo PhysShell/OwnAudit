@@ -54,7 +54,13 @@ def build(runtime_path: str, health_path: str, out_path: str,
           title: str = "STS — сводка аудита памяти") -> None:
     with open(runtime_path, encoding="utf-8") as fh:
         runtime = json.load(fh)
-    retained = [r for r in runtime.get("retained", []) if r.get("count")]
+    # only EXCESS retention is a leak: `expected` survivors (contract default 1 — a
+    # singleton that should stay alive) are the scenario's design, not a finding.
+    retained = []
+    for r in runtime.get("retained", []):
+        excess = (r.get("count") or 0) - r.get("expected", 1)
+        if excess > 0:
+            retained.append(dict(r, excess=excess))
     heap = runtime.get("heapStats") or {}
     catalog = load_rules_map()
 
@@ -66,9 +72,9 @@ def build(runtime_path: str, health_path: str, out_path: str,
 
     # the most PROVEN retention first: an event/timer root names a real product owner,
     # a bare static list may be the measuring scenario's own bookkeeping.
-    retained.sort(key=lambda r: (kind_rank.get(best_root(r).get("kind"), 9), -r["count"]))
+    retained.sort(key=lambda r: (kind_rank.get(best_root(r).get("kind"), 9), -r["excess"]))
 
-    total_instances = sum(r["count"] for r in retained)
+    total_instances = sum(r["excess"] for r in retained)
     out = ["# %s" % title, ""]
     out += ["**Главное:** куча подтверждает утечку по **%d** типам — суммарно **%d** экземпляров, "
             "которые обязаны были собраться сборщиком мусора, но удерживаются живыми."
@@ -92,7 +98,7 @@ def build(runtime_path: str, health_path: str, out_path: str,
         holder = (root.get("holder") or "?") + (("." + root["member"]) if root.get("member") else "")
         generic_holder = holder.startswith("System.Collections.")
         out.append("| `%s` | %d | %s | `%s`%s |"
-                   % (rec["type"], rec["count"], _KIND_RU.get(kind, kind), holder,
+                   % (rec["type"], rec["excess"], _KIND_RU.get(kind, kind), holder,
                       " ¹" if generic_holder else ""))
         rule = _KIND_RULE.get(kind)
         if rule and rule not in advice_rules:

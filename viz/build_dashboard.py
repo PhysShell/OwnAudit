@@ -272,11 +272,14 @@ def _runtime_block(sts_dir: str):
     kind_rank = {"static-event": 0, "timer": 1, "static-field": 2}
     entries = []
     for rec in doc.get("retained", []):
-        if not rec.get("count"):
+        # only EXCESS retention (count above the contract's `expected` allowance,
+        # default 1) is a leak — an expected singleton must not plot as one.
+        excess = (rec.get("count") or 0) - rec.get("expected", 1)
+        if excess <= 0:
             continue
         roots = rec.get("roots") or []
         best = min(roots, key=lambda r: kind_rank.get(r.get("kind"), 9)) if roots else {}
-        entries.append({"type": rec["type"], "count": rec["count"],
+        entries.append({"type": rec["type"], "count": excess,
                         "bytes": rec.get("bytes", 0), "kind": best.get("kind"),
                         "holder": best.get("holder"), "member": best.get("member")})
     entries.sort(key=lambda e: -e["count"])

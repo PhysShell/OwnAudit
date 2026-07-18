@@ -46,8 +46,10 @@ with tempfile.TemporaryDirectory() as td:
     # pain map carried over from the health report.
     check("pain-module", "Acme.Portfolio" in text)
 
-    # zero-count control types stay out of the executive view.
+    # zero-count control types stay out of the executive view, and an expected
+    # survivor (count == expected) is design, not a leak.
     check("no-clean-types", "FixedWatchlistViewModel" not in text)
+    check("honors-expected", "SingletonMarketService" not in text)
 
 print("%d/%d passed" % (PASS, PASS + len(FAIL)))
 if FAIL:

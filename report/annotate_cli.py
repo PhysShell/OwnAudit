@@ -82,7 +82,12 @@ def main(argv=None):
     ap.add_argument("--out", default=None,
                     help="default: <report> with .md replaced by .annotated.md")
     args = ap.parse_args(argv)
-    out = args.out or re.sub(r"\.md$", ".annotated.md", args.report)
+    if args.out:
+        out = args.out
+    elif args.report.lower().endswith(".md"):
+        out = args.report[:-3] + ".annotated.md"
+    else:  # never silently overwrite the input
+        out = args.report + ".annotated.md"
     annotate(args.report, args.findings, out)
     print("annotated report written to %s" % out)
 

@@ -23,7 +23,14 @@ def check(name, cond, detail=""):
         FAIL.append("%s %s" % (name, detail))
 
 
+# keep the fixture build out of the real trend history (a tracked file)
+import tempfile  # noqa: E402
+_hist = tempfile.NamedTemporaryFile(suffix=".jsonl", delete=False)
+_hist.close()
+build_dashboard.HISTORY = _hist.name
+
 build_dashboard.main(["viz/fixtures"])
+os.unlink(_hist.name)
 out = os.path.join(ROOT, "viz", "sts-dashboard.html")
 with open(out, encoding="utf-8") as fh:
     html = fh.read()
@@ -41,8 +48,10 @@ check("runtime-key", '"runtime"' in html)
 check("runtime-holder", "MarketDataService" in html)
 check("runtime-scenario", "open+close 50 screens (fixture)" in html)
 
-# 3. Zero-count entries do not clutter the panel data.
+# 3. Zero-count entries do not clutter the panel data, and an EXPECTED survivor
+#    (count == expected, the contract's allowed singleton) is not plotted as a leak.
 check("runtime-skips-clean", "FixedWatchlistViewModel" not in html)
+check("runtime-honors-expected", "SingletonMarketService" not in html)
 
 print("%d/%d passed" % (PASS, PASS + len(FAIL)))
 if FAIL:

@@ -35,6 +35,16 @@
       "expected": 0,
       "bytes": 0,
       "roots": []
+    },
+    {
+      "type": "LeakyOracle.Services.SingletonMarketService",
+      "count": 1,
+      "expected": 1,
+      "bytes": 4096,
+      "roots": [
+        { "kind": "static-field", "holder": "LeakyOracle.App", "member": "Current", "via": "field",
+          "chain": ["[StrongHandle] System.Object[]", "LeakyOracle.App", "LeakyOracle.Services.SingletonMarketService"] }
+      ]
     }
   ]
 }
