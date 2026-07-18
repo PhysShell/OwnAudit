@@ -63,7 +63,18 @@ public sealed class HeapCollector
         //    a static handle and from a live stack slot must be attributed to the static —
         //    that is what still pins it after the current frame returns (and what a
         //    production leak looks like); a stack root is only the truth of last resort.
-        var wanted = new HashSet<string>(suspectTypes, StringComparer.Ordinal);
+        // Full-name suspects match exactly; dotless suspects (findings.json file stems)
+        // match the last segment of the full CLR name — exactly there too, so
+        // FixedWatchlistViewModel never folds into WatchlistViewModel.
+        var wantedFull = new HashSet<string>(suspectTypes.Where(t => t.Contains('.')), StringComparer.Ordinal);
+        var wantedShort = new HashSet<string>(suspectTypes.Where(t => !t.Contains('.')), StringComparer.Ordinal);
+        string? MatchSuspect(string name)
+        {
+            if (wantedFull.Contains(name)) return name;
+            var last = LastSegment(name);
+            return wantedShort.Contains(last) ? last : null;
+        }
+
         var pred = new Dictionary<ulong, ulong>();      // child -> parent; 0 marks a root object
         var rootKind = new Dictionary<ulong, string>(); // root object -> its GC-root kind
         var queue = new Queue<ulong>();
@@ -99,12 +110,12 @@ public sealed class HeapCollector
                 liveObjs++;
                 liveBytes += (long)obj.Size;
 
-                var name = obj.Type.Name;
-                if (name is not null && wanted.Contains(name))
+                var key = obj.Type.Name is { } name ? MatchSuspect(name) : null;
+                if (key is not null)
                 {
-                    counts[name]++;
-                    sizes[name] += (long)obj.Size;
-                    var s = samples[name];
+                    counts[key]++;
+                    sizes[key] += (long)obj.Size;
+                    var s = samples[key];
                     if (s.Count < maxChainsPerType) s.Add(addr);
                 }
 
@@ -174,6 +185,16 @@ public sealed class HeapCollector
             if (reference.Object.Address == childAddr)
                 return reference.Field?.Name;
         return null;
+    }
+
+    /// Last segment of a full CLR name, generic arguments kept out of the scope split:
+    /// "A.B.Type" -> "Type"; "System.EventHandler&lt;System.String&gt;" stays one segment.
+    private static string LastSegment(string name)
+    {
+        var generic = name.IndexOf('<');
+        var scope = generic >= 0 ? name[..generic] : name;
+        var dot = scope.LastIndexOf('.');
+        return dot >= 0 ? name[(dot + 1)..] : name;
     }
 
     private static bool IsDelegateType(ClrType? type)

@@ -1,3 +1,5 @@
+using System.Text.Json;
+
 namespace OwnAudit.Runtime;
 
 /// Derives the collector's suspect-type list from a static `findings.json`
@@ -14,6 +16,38 @@ public static class SuspectTypes
 
     public static IReadOnlyList<string> FromFindingsJson(string path)
     {
-        throw new NotImplementedException("collector-plan.md step 5: derive suspects from findings.json");
+        using var doc = JsonDocument.Parse(File.ReadAllText(path));
+        var leakCategories = new HashSet<string>(LeakCategories, StringComparer.Ordinal);
+        var suspects = new SortedSet<string>(StringComparer.Ordinal);
+
+        foreach (var finding in doc.RootElement.GetProperty("findings").EnumerateArray())
+        {
+            if (finding.TryGetProperty("suppressed", out var sup) && sup.GetBoolean())
+                continue;
+            var category = finding.TryGetProperty("category_name", out var cat) ? cat.GetString() : null;
+            if (category is null || !leakCategories.Contains(category))
+                continue;
+
+            var resource = (finding.TryGetProperty("resource", out var res) ? res.GetString() : null)?.Trim();
+            if (!string.IsNullOrEmpty(resource) && !resource.Contains(' ')
+                && !string.Equals(resource, "none", StringComparison.OrdinalIgnoreCase))
+                suspects.Add(resource);
+
+            var stem = Stem(finding.TryGetProperty("path", out var p) ? p.GetString() : null);
+            if (!string.IsNullOrEmpty(stem))
+                suspects.Add(stem);
+        }
+        return suspects.ToList();
+    }
+
+    /// Owning type guessed from a source path: AmountWindow.xaml.cs -> AmountWindow.
+    private static string Stem(string? path)
+    {
+        var name = Path.GetFileName(path ?? "");
+        foreach (var suffix in new[] { ".xaml.cs", ".cs", ".vb" })
+            if (name.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
+                return name[..^suffix.Length];
+        var dot = name.LastIndexOf('.');
+        return dot > 0 ? name[..dot] : name;
     }
 }
