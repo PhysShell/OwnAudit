@@ -5,11 +5,15 @@
   </ItemGroup>
 
   <PropertyGroup>
-    <!-- -windows TFM: Arm 2 uses FlaUI (UI Automation) + ClrMD, both Windows-only.
-         Package refs are added in the Arm-2 build-out phase, not at scaffold time. -->
+    <!-- -windows TFM: the runtime arm uses ClrMD live-attach (and later FlaUI), Windows-only. -->
     <TargetFramework>net8.0-windows</TargetFramework>
+    <PlatformTarget>x64</PlatformTarget>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Diagnostics.Runtime" Version="3.1.512801" />
+  </ItemGroup>
 
 </Project>

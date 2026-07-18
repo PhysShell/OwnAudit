@@ -21,7 +21,7 @@ namespace LeakyOracle;
 /// </summary>
 public static class LeakScenario
 {
-    public static int Run(int screens = 50)
+    public static int Run(int screens = 50, bool hold = false)
     {
         var service = new MarketDataService();
 
@@ -43,6 +43,19 @@ public static class LeakScenario
         Console.WriteLine(ok
             ? "ORACLE OK: leaks as designed — a valid target for the heap/lifetime audit."
             : "ORACLE BROKEN: leak signature is wrong; fix the oracle, not the auditor.");
+
+        if (ok && hold)
+        {
+            // Attach point for the ClrMD collector (docs/collector-plan.md): the scenario is done,
+            // the leaked objects are in their steady state, and the process blocks here until the
+            // driver writes a line to stdin (or closes it). SCENARIO-READY is the handshake.
+            Console.WriteLine("SCENARIO-READY");
+            Console.Out.Flush();
+            Console.ReadLine();
+            // `service` must stay rooted through the hold — it is what pins the leaky
+            // WatchlistViewModels; without this the JIT may drop the local before the attach.
+            GC.KeepAlive(service);
+        }
 
         return ok ? 0 : 1;
     }

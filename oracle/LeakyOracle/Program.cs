@@ -12,7 +12,7 @@ internal static class Program
     public static int Main(string[] args)
     {
         if (args.Contains("--leak-scenario"))
-            return LeakScenario.Run();
+            return LeakScenario.Run(hold: args.Contains("--hold"));
 
         BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
         return 0;

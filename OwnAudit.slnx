@@ -3,5 +3,6 @@
     <Project Path="src/OwnAudit.Cli/OwnAudit.Cli.csproj" />
     <Project Path="src/OwnAudit.Core/OwnAudit.Core.csproj" />
     <Project Path="src/OwnAudit.Runtime/OwnAudit.Runtime.csproj" />
+    <Project Path="src/OwnAudit.Runtime.Tests/OwnAudit.Runtime.Tests.csproj" />
   </Folder>
 </Solution>
