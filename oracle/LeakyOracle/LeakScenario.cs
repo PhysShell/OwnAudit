@@ -21,6 +21,8 @@ namespace LeakyOracle;
 /// </summary>
 public static class LeakScenario
 {
+    private static object? s_holdRoot;
+
     public static int Run(int screens = 50, bool hold = false)
     {
         var service = new MarketDataService();
@@ -49,12 +51,13 @@ public static class LeakScenario
             // Attach point for the ClrMD collector (docs/collector-plan.md): the scenario is done,
             // the leaked objects are in their steady state, and the process blocks here until the
             // driver writes a line to stdin (or closes it). SCENARIO-READY is the handshake.
+            // The service is rooted STATICALLY for the hold — production leaks hang off a static
+            // publisher (STS `AppData.Properties`), so the collector must see a static-handle
+            // root, not this method's stack slot.
+            s_holdRoot = service;
             Console.WriteLine("SCENARIO-READY");
             Console.Out.Flush();
             Console.ReadLine();
-            // `service` must stay rooted through the hold — it is what pins the leaky
-            // WatchlistViewModels; without this the JIT may drop the local before the attach.
-            GC.KeepAlive(service);
         }
 
         return ok ? 0 : 1;

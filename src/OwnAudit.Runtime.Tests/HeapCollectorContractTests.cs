@@ -49,5 +49,19 @@ public sealed class HeapCollectorContractTests : IClassFixture<OracleFixture>
         // Collected types carry no chains — nothing roots them.
         Assert.Empty(byType[FixedWatchlist].Chains);
         Assert.Empty(byType[FixedTicker].Chains);
+
+        // Classification (collector-plan.md D4). The subscription leak is the OWN001 smoking
+        // gun: a delegate on a statically-rooted publisher, named down to the event member.
+        Assert.Contains(byType[Watchlist].Roots, r =>
+            r.Kind == "static-event"
+            && r.Holder is not null && r.Holder.Contains("MarketDataService")
+            && r.Member == "QuoteReceived");
+
+        // The timer leak pins through the runtime's TimerQueue.
+        Assert.Contains(byType[Ticker].Roots, r => r.Kind == "timer");
+
+        // Nothing retained → nothing to classify.
+        Assert.Empty(byType[FixedWatchlist].Roots);
+        Assert.Empty(byType[FixedTicker].Roots);
     }
 }

@@ -12,10 +12,22 @@ public sealed record HeapStats(
 /// prefixed with its root kind, e.g. "[Pinned] System.Object[]") down to the suspect.
 public sealed record RetentionChain(IReadOnlyList<string> Hops);
 
+/// A classified GC root (docs/runtime-contract.md `roots[]`, docs/collector-plan.md D4):
+/// what kind of thing pins the suspect, who owns it and through which member.
+///  • static-event — a delegate reachable from a static/pinned handle; Holder = the type
+///    owning the delegate field, Member = that field (the smoking gun for OWN001);
+///  • timer — the chain runs through the runtime's TimerQueue;
+///  • static-field — a static/pinned handle holds the suspect with no delegate involved;
+///  • other — anything else, with the verbatim chain for a human to read.
+public sealed record ClassifiedRoot(
+    string Kind, string? Holder, string? Member, string Via, RetentionChain Chain);
+
 /// A suspect type's retention evidence: how many instances are reachable from GC roots
-/// (not merely on the heap) and sample chains proving who holds them.
+/// (not merely on the heap), sample chains proving who holds them, and the classified
+/// root per chain.
 public sealed record RetainedType(
-    string Type, int Count, long Bytes, IReadOnlyList<RetentionChain> Chains);
+    string Type, int Count, long Bytes, IReadOnlyList<RetentionChain> Chains,
+    IReadOnlyList<ClassifiedRoot> Roots);
 
 public sealed record CollectionResult(HeapStats HeapStats, IReadOnlyList<RetainedType> Retained);
 
@@ -107,7 +119,8 @@ public sealed class HeapCollector
                 hops.Reverse();
                 chains.Add(new RetentionChain(hops));
             }
-            retained.Add(new RetainedType(type, counts[type], sizes[type], chains));
+            retained.Add(new RetainedType(type, counts[type], sizes[type], chains,
+                Array.Empty<ClassifiedRoot>()));
         }
 
         return new CollectionResult(
