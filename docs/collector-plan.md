@@ -51,7 +51,8 @@ architectural piece of the runtime arm — the **stand-side heap collector** tha
 5. **CLI verb** (D5, D6).
 6. **`collector.yml`** (D9).
 7. **STS acceptance** (D10) — **done 2026-07-18**, artifacts: `artifacts/runtime-sts.json`
-   + `artifacts/runtime-sts-report.md`. Scenario: SerializerSim `leaktest --hold` (94 docs,
+   + `artifacts/runtime-sts-report.md` (local — `artifacts/*` is gitignored; `git add -f`
+   them to publish). Scenario: SerializerSim `leaktest --hold` (94 docs,
    shipping build `d753747b` rebuilt into an `STS_shipping` worktree — the Jul-15 Setup
    rebuild had made documents unconstructible on the research DBs). Result: **250 high +
    58 medium confirmed, 2465 static-only, 0 runtime-only**. The LEAK.md chain reproduced
