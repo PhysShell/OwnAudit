@@ -105,4 +105,18 @@ public sealed class HeapCollectorContractTests : IClassFixture<OracleFixture>
         Assert.Contains(retained[Ticker].GetProperty("roots").EnumerateArray(),
             r => r.GetProperty("kind").GetString() == "timer");
     }
+
+    [Fact]
+    public void Matches_short_suspect_names_against_the_last_segment()
+    {
+        // findings.json yields SHORT names (file stems). A dotless suspect matches the last
+        // segment of the full CLR name — and stays exact there: FixedWatchlistViewModel
+        // must still not fold into WatchlistViewModel.
+        var result = new HeapCollector().Collect(
+            _oracle.Pid, new[] { "WatchlistViewModel", "FixedWatchlistViewModel" });
+
+        var byType = result.Retained.ToDictionary(r => r.Type);
+        Assert.Equal(OracleFixture.Screens, byType["WatchlistViewModel"].Count);
+        Assert.Equal(0, byType["FixedWatchlistViewModel"].Count);
+    }
 }
