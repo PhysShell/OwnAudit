@@ -37,6 +37,8 @@ jobs:
           PYTHONPATH=.   python3 report/tests/test_sarif.py
           PYTHONPATH=.   python3 report/tests/test_baseline.py
           PYTHONPATH=.   python3 report/tests/test_rules_map.py
+          PYTHONPATH=.   python3 report/tests/test_annotate.py
+          PYTHONPATH=.   python3 report/tests/test_exec.py
           PYTHONPATH=.   python3 viz/tests/test_dashboard_rules.py
           PYTHONPATH=.   python3 arch/tests/test_arch.py
           PYTHONPATH=.   python3 oracle/fixtures/test_oracle_arch.py
@@ -53,6 +55,8 @@ jobs:
           PYTHONPATH=.   python3 -O report/tests/test_sarif.py
           PYTHONPATH=.   python3 -O report/tests/test_baseline.py
           PYTHONPATH=.   python3 -O report/tests/test_rules_map.py
+          PYTHONPATH=.   python3 -O report/tests/test_annotate.py
+          PYTHONPATH=.   python3 -O report/tests/test_exec.py
           PYTHONPATH=.   python3 -O viz/tests/test_dashboard_rules.py
           PYTHONPATH=.   python3 -O arch/tests/test_arch.py
           PYTHONPATH=.   python3 -O oracle/fixtures/test_oracle_arch.py

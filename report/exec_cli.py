@@ -55,7 +55,6 @@ def build(runtime_path: str, health_path: str, out_path: str,
     with open(runtime_path, encoding="utf-8") as fh:
         runtime = json.load(fh)
     retained = [r for r in runtime.get("retained", []) if r.get("count")]
-    retained.sort(key=lambda r: -r["count"])
     heap = runtime.get("heapStats") or {}
     catalog = load_rules_map()
 
@@ -64,6 +63,10 @@ def build(runtime_path: str, health_path: str, out_path: str,
     def best_root(rec):
         roots = rec.get("roots") or []
         return min(roots, key=lambda r: kind_rank.get(r.get("kind"), 9)) if roots else {}
+
+    # the most PROVEN retention first: an event/timer root names a real product owner,
+    # a bare static list may be the measuring scenario's own bookkeeping.
+    retained.sort(key=lambda r: (kind_rank.get(best_root(r).get("kind"), 9), -r["count"]))
 
     total_instances = sum(r["count"] for r in retained)
     out = ["# %s" % title, ""]
@@ -87,12 +90,16 @@ def build(runtime_path: str, health_path: str, out_path: str,
         root = best_root(rec)
         kind = root.get("kind") or "other"
         holder = (root.get("holder") or "?") + (("." + root["member"]) if root.get("member") else "")
-        out.append("| `%s` | %d | %s | `%s` |"
-                   % (rec["type"], rec["count"], _KIND_RU.get(kind, kind), holder))
+        generic_holder = holder.startswith("System.Collections.")
+        out.append("| `%s` | %d | %s | `%s`%s |"
+                   % (rec["type"], rec["count"], _KIND_RU.get(kind, kind), holder,
+                      " ¹" if generic_holder else ""))
         rule = _KIND_RULE.get(kind)
         if rule and rule not in advice_rules:
             advice_rules.append(rule)
 
+    out += ["", "¹ Держатель — обобщённый список: возможно, внутренняя структура сценария измерения, "
+            "а не продуктовый код; уточняется расширенной выборкой цепочек (`--max-chains`).", ""]
     out += ["", "## Почему это течёт и как чинить", ""]
     for rule in advice_rules:
         d = catalog.get(rule, {})
