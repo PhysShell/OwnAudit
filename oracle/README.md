@@ -6,10 +6,11 @@ run here, so phases 3–5 get exercised on real data instead of synthetic fixtur
 [`docs/wpf-audit-coverage.md`](../docs/wpf-audit-coverage.md)).
 
 This is **слой 1** of the oracle plan. It is *not* part of the auditor — it is a thing the auditor
-runs against. The **слой 2** Roslyn graph-extractor (and the ClrMD heap collector) that read this app
-are **Own.NET-canonical** and land there, not in OwnAudit — same repo boundary as the XAML analyzer
-(`docs/xaml-analyzer-design.md`). Until then, the app stands on its own and *proves it leaks*
-headlessly.
+runs against. The **слой 2** Roslyn graph-extractor stays Own.NET-side (pure static), but the
+**ClrMD heap collector is OwnAudit-canonical** and lands in `src/OwnAudit.Runtime`
+(`docs/collector-plan.md` — the 2026-07-18 canonicality reversal supersedes the old boundary
+note here). The app stands on its own and *proves it leaks* headlessly; it is the collector's
+red/green contract target.
 
 ## Why Avalonia
 

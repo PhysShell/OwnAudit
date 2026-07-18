@@ -2,8 +2,8 @@
 
 This file provides guidance to agents when working with code in this repository.
 
-- OwnAudit is mostly a lift-out/orchestration repo: the canonical audit engine remains in external `Own.NET/audit/`; do not reimplement aggregation/reporting/runtime harness logic here.
-- `src/OwnAudit.Cli` and `src/OwnAudit.Runtime` intentionally target `net8.0-windows` because runtime work depends on FlaUI/ClrMD; Linux work here is mainly the Python tooling/tests.
+- **OwnAudit is the canonical audit repo** (since 2026-07-18): the lift-out from `Own.NET/audit/` happened and the direction reversed — `Own.NET/audit/` is deprecated and Own.NET stays a pure SAST engine that emits findings. New aggregation/reporting/runtime/fix work lands here, not there. (Older docs in both repos may still state the pre-reversal boundary; `docs/collector-plan.md` is the current word.)
+- `src/OwnAudit.Cli` and `src/OwnAudit.Runtime` intentionally target `net8.0-windows` because runtime work depends on FlaUI/ClrMD; Linux work here is mainly the Python tooling/tests. `OwnAudit.Runtime` is the home of the ClrMD heap collector (`docs/collector-plan.md`).
 - Python tests are designed to run as bare scripts because `pytest` is not guaranteed in the dev shell: `PYTHONUTF8=1 python3 arch/tests/test_arch.py` or any `*/tests/test_*.py` file directly.
 - Full Linux-safe regression sweep: `PYTHONUTF8=1 python3 arch/tests/test_arch.py && PYTHONUTF8=1 python3 fix/tests/test_orchestrate.py && PYTHONUTF8=1 python3 fix/tests/test_own_fix.py && PYTHONUTF8=1 python3 fix/tests/test_ai_fix.py && PYTHONUTF8=1 python3 leakmine/tests/test_leakmine.py && PYTHONUTF8=1 python3 report/tests/test_baseline.py && PYTHONUTF8=1 python3 report/tests/test_sarif.py && PYTHONUTF8=1 python3 runtime/tests/test_runtime.py && PYTHONUTF8=1 python3 oracle/fixtures/test_oracle_arch.py && PYTHONUTF8=1 python3 oracle/fixtures/test_oracle_runtime.py`.
 - `Run-Audit.ps1` is Windows-stand oriented and drives external Own.NET worktrees; it sets `PYTHONUTF8=1`, emits SARIF into `artifacts/`, and clusters optional Infer#/Roslyn results only if their SARIF files already exist.

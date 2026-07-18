@@ -1,5 +1,11 @@
 # OwnAudit — Plan
 
+> **Update 2026-07-18 — canonicality reversed.** The lift-out happened: OwnAudit is now
+> the **canonical** audit repo and `Own.NET/audit/` is deprecated. Own.NET stays a pure
+> SAST engine. The paragraphs below describe the pre-reversal state and are kept for
+> history; current direction: `docs/collector-plan.md` (ClrMD heap collector into
+> `src/OwnAudit.Runtime`, `runtime.json` → `runtime/correlate.py`, STS acceptance).
+
 OwnAudit is the **lift-out home** for Own.NET's audit pipeline. The pipeline is
 **canonical in `Own.NET/audit/`**; this repo is its eventual standalone destination
 (Own.NET `Plan.md §7`), and today it carries the separate-repo boundary, the STS
