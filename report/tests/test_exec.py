@@ -32,7 +32,7 @@ with tempfile.TemporaryDirectory() as td:
 
     # Russian, audience = management/team: headline numbers up top.
     check("title", "STS — сводка аудита (фикстура)" in text)
-    check("confirmed-count", "2" in text.split("\n", 6)[-1][:400], "expects 2 confirmed types near the top")
+    check("confirmed-count", "**2**" in text[:400], "expects 2 confirmed types in the headline")
 
     # every confirmed leak: type, count, the pinning owner in Russian terms.
     check("watchlist-row", "WatchlistViewModel" in text)
