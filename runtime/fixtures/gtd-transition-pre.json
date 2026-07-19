@@ -1,0 +1,13 @@
+{
+  "_comment": "Static findings BEFORE Own.NET #278: GTD.cs carries OTHER OWN001 subscription findings (Regime/Currency events), but NOT the GBProperty.PropertyChanged site at GTD.cs:5192 — the release-path blind spot. Type-level correlation would wrongly confirm these against the GBProperty retention.",
+  "findings": [
+    { "tool": "own-check", "rule": "OWN001", "category_name": "subscription-leak",
+      "resource": "subscription token", "path": "BrokerDataClasses/GTD.cs", "line": 2466,
+      "message": "event 'Regime.PropertyChanged' is subscribed (handler 'Regime_PropertyChanged') but never unsubscribed; its source is an injected dependency whose lifetime is unknown, so it may outlive and keep 'GTD' alive (possible leak) [resource: subscription token]",
+      "suppressed": false },
+    { "tool": "own-check", "rule": "OWN001", "category_name": "subscription-leak",
+      "resource": "subscription token", "path": "BrokerDataClasses/GTD.cs", "line": 2489,
+      "message": "event 'CurrencyRate.Changed' is subscribed (handler 'CurrencyRate_Changed') but never unsubscribed; its source is an injected dependency whose lifetime is unknown, so it may outlive and keep 'GTD' alive (possible leak) [resource: subscription token]",
+      "suppressed": false }
+  ]
+}
