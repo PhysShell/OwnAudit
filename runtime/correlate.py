@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 
 TOOL = "own-runtime"
 CONFIRMED = "runtime-confirmed-leak"
@@ -88,6 +89,37 @@ def _rooted_by_event(rec: dict) -> dict | None:
     return None
 
 
+_EVENT_RE = re.compile(r"event '([^']+)'")
+
+
+def _event_key(f: dict):
+    """(receiver-tail, member) from the canonical own-check message form
+    `event 'AppData.Properties.GBProperty.PropertyChanged'` — the last segment is the
+    event member, the one before it the holder's short name. None when the message
+    carries no parseable identity: identity is never guessed (conservative)."""
+    m = _EVENT_RE.search(f.get("message") or "")
+    if not m:
+        return None
+    parts = m.group(1).split(".")
+    if len(parts) < 2:
+        return None
+    return (parts[-2], parts[-1])
+
+
+def _identified_event_roots(rec: dict) -> list:
+    """static-event roots that carry a full (holder, member) identity."""
+    return [r for r in rec.get("roots", [])
+            if r.get("kind") == "static-event" and r.get("holder") and r.get("member")]
+
+
+def _match_event_root(key, roots) -> dict | None:
+    """The root whose (short holder, member) equals the finding's event key."""
+    for root in roots:
+        if (_short(root["holder"]), root["member"]) == key:
+            return root
+    return None
+
+
 def _confidence(excess: int, rec: dict, cfg: dict) -> str:
     """high = lots of retained instances, OR held by a static-event delegate and still growing
     (the smoking gun for an event leak). Otherwise the retention is real but modest → medium."""
@@ -105,24 +137,31 @@ def _bytes_note(rec: dict) -> str:
     return f"; ~{round(mb / 1048576)} MB retained" if mb else ""
 
 
-def _held_note(rec: dict) -> str:
-    root = _rooted_by_event(rec)
+def _held_note(rec: dict, root: dict | None = None) -> str:
+    root = root or _rooted_by_event(rec)
     return f" held by static {root.get('holder')}.{root.get('member')}" if root else ""
 
 
-def _confirmed_finding(f: dict, rec: dict, count: int, expected: int, conf: str) -> dict:
+def _confirmed_finding(f: dict, rec: dict, count: int, expected: int, conf: str,
+                       matched_root: dict | None = None) -> dict:
     """A confirmed leak in findings.json shape (tool own-runtime). `resource` becomes the leaked
     CLR type (from the dump), while path/line stay the static fix site; the static rule and its
-    original resource are kept for traceability."""
+    original resource are kept for traceability. When the member-aware contract matched a
+    specific static-event root, THAT root is reported (message + structured fields), not
+    whichever happened to be first in the array."""
     t = rec.get("type", "")
     msg = (f"runtime-confirmed leak: {count} retained {t} instance(s) "
-           f"(expected {expected}){_held_note(rec)}{_bytes_note(rec)} "
+           f"(expected {expected}){_held_note(rec, matched_root)}{_bytes_note(rec)} "
            f"[confirms static {f.get('rule')} at {f.get('path')}:{f.get('line', '')}]")
-    return {"tool": TOOL, "rule": f.get("rule"), "category_name": CONFIRMED,
-            "resource": t, "path": f.get("path", ""), "line": f.get("line", 0),
-            "message": msg, "suppressed": False,
-            "confidence": conf, "static_rule": f.get("rule"),
-            "static_resource": f.get("resource"), "retained": count, "expected": expected}
+    out = {"tool": TOOL, "rule": f.get("rule"), "category_name": CONFIRMED,
+           "resource": t, "path": f.get("path", ""), "line": f.get("line", 0),
+           "message": msg, "suppressed": False,
+           "confidence": conf, "static_rule": f.get("rule"),
+           "static_resource": f.get("resource"), "retained": count, "expected": expected}
+    if matched_root is not None:
+        out["root_holder"] = matched_root.get("holder")
+        out["root_member"] = matched_root.get("member")
+    return out
 
 
 def _runtime_only_finding(t: str, rec: dict, count: int, expected: int, high_count: int) -> dict:
@@ -161,6 +200,20 @@ def correlate(static_findings, dump: dict, cfg: dict | None = None) -> dict:
         if rec is None:
             static_only.append(f)
             continue
+        # Member-aware contract (collector-plan step-7 follow-up): a subscription-leak
+        # finding facing a retention with IDENTIFIED static-event roots confirms only when
+        # its event identity (event 'A.B.Holder.Member') matches a root's (holder, member).
+        # Type identity alone no longer transfers the root onto unrelated event findings —
+        # and an unparseable identity is never guessed (conservative: static-only).
+        # Non-event categories and retentions without root identity keep type-level matching.
+        matched_root = None
+        ev_roots = _identified_event_roots(rec)
+        if f.get("category_name") == "subscription-leak" and ev_roots:
+            key = _event_key(f)
+            matched_root = _match_event_root(key, ev_roots) if key else None
+            if matched_root is None:
+                static_only.append(f)
+                continue
         associated.add(rec["type"])
         count = rec.get("count", 0)
         expected = rec.get("expected", default_expected)
@@ -168,7 +221,8 @@ def correlate(static_findings, dump: dict, cfg: dict | None = None) -> dict:
             static_only.append(f)
             continue
         confirmed.append(_confirmed_finding(f, rec, count, expected,
-                                            _confidence(count - expected, rec, cfg)))
+                                            _confidence(count - expected, rec, cfg),
+                                            matched_root))
 
     runtime_only = []
     high_count = cfg.get("high_count", 10)

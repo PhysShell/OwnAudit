@@ -26,9 +26,14 @@ def _expect(cond, msg):
         raise AssertionError(msg)
 
 
-def _sf(resource, cat="subscription-leak", rule="OWN001"):
+def _sf(resource, cat="subscription-leak", rule="OWN001", event=None):
+    # subscription findings carry the canonical own-check event identity so the
+    # member-aware contract can match them against a static-event root; passing
+    # event=None models a message with no parseable identity (never guessed).
+    msg = (f"event '{event}' is subscribed but never unsubscribed"
+           if event else "no matching unsubscribe")
     return {"tool": "own-check", "rule": rule, "category_name": cat, "resource": resource,
-            "path": f"Broker/{resource}.cs", "line": 10, "message": "no matching unsubscribe"}
+            "path": f"Broker/{resource}.cs", "line": 10, "message": msg}
 
 
 def _retained(t, count, expected=1, bytes_=None, event_holder=None):
@@ -51,7 +56,7 @@ CFG = {"leak_categories": ["subscription-leak", "idisposable-leak", "region-esca
 
 
 def test_confirmed_event_leak_is_high_and_rooted():
-    static = [_sf("DocumentsViewModel")]
+    static = [_sf("DocumentsViewModel", event="DocumentStore.Changed")]
     dump = _dump(_retained("DocumentsViewModel", 132, expected=1, bytes_=88080384,
                            event_holder="Sts.Broker.Documents.DocumentStore"))
     res = C.correlate(static, dump, CFG)
@@ -71,7 +76,7 @@ def test_confirmed_modest_retention_is_medium():
 
 def test_rooted_event_small_growth_is_high():
     # held by a static event delegate and growing -> high even at small counts (classic leak)
-    static = [_sf("PopupVm")]
+    static = [_sf("PopupVm", event="Shell.Changed")]
     dump = _dump(_retained("PopupVm", 3, expected=1, event_holder="App.Shell"))
     _expect(C.correlate(static, dump, CFG)["confirmed"][0]["confidence"] == "high", "rooted->high")
 
@@ -102,7 +107,7 @@ def test_matches_owner_type_from_path_not_resource():
     # real own-check shape: resource is a DESCRIPTION, the leaked type is the code-behind class.
     static = [{"tool": "own-check", "rule": "OWN001", "category_name": "subscription-leak",
                "resource": "subscription token", "path": "Broker/AmountWindow.xaml.cs", "line": 72,
-               "message": "event 'fGoods.PropertyChanged' subscribed but never unsubscribed"}]
+               "message": "event 'GoodsStore.Changed' subscribed but never unsubscribed"}]
     dump = _dump(_retained("Sts.Broker.AmountWindow", 64, expected=0,
                            event_holder="Sts.Broker.GoodsStore"))
     res = C.correlate(static, dump, CFG)
@@ -135,7 +140,7 @@ def test_non_leak_category_ignored():
 
 
 def test_gate_blocks_confirmed_at_level():
-    static = [_sf("LeakVm")]
+    static = [_sf("LeakVm", event="Y.Changed")]
     res = C.correlate(static, _dump(_retained("LeakVm", 50, event_holder="X.Y")), CFG)
     _expect(not C.gate(res, "high")[0], "high confirmed blocks")
     # a medium-only confirmed passes a high gate but fails a medium gate
@@ -149,7 +154,7 @@ def test_shipped_config_loads():
 
 
 def test_confirmed_findings_have_canonical_shape():
-    res = C.correlate([_sf("Vm")], _dump(_retained("Vm", 20, event_holder="H.E")), CFG)
+    res = C.correlate([_sf("Vm", event="E.Changed")], _dump(_retained("Vm", 20, event_holder="H.E")), CFG)
     f = res["confirmed"][0]
     for k in ("tool", "rule", "category_name", "resource", "path", "line", "message", "suppressed"):
         _expect(k in f, f"missing {k}")
@@ -167,7 +172,7 @@ def test_cli_writes_outputs_and_gates():
         fp = os.path.join(d, "findings.json")
         rp = os.path.join(d, "runtime.json")
         out = os.path.join(d, "out")
-        _write(fp, {"findings": [_sf("DocumentsViewModel")]})
+        _write(fp, {"findings": [_sf("DocumentsViewModel", event="DocumentStore.Changed")]})
         _write(rp, _dump(_retained("DocumentsViewModel", 132, bytes_=88080384,
                                    event_holder="Sts.Broker.Documents.DocumentStore")))
         # report-only -> exit 0
