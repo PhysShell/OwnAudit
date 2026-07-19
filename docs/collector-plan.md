@@ -64,6 +64,9 @@ architectural piece of the runtime arm — the **stand-side heap collector** tha
      (`GBProperty.PropertyChanged`) got attributed to *different* event findings; the
      5192 site itself is still unflagged. Follow-up: **member-aware matching** (root
      holder+member vs the finding's event name) would expose it as the true blind spot.
+     **CLOSED 2026-07-19**: member-aware correlation landed in `runtime/correlate.py`;
+     the three-snapshot STS acceptance proves the runtime-only → confirmed transition
+     at exactly `GTD.cs:5192` — `docs/evidence/gtd-runtime-transition.md`.
    - The harness's own prototype/parents statics show up as legitimate `static-field`
      chains; wide sampling (`--max-chains 40`) was needed for the event chains to appear
      among the samples. Follow-up: prefer diverse root-kind sampling per type.
