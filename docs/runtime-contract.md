@@ -54,6 +54,15 @@ pinning the instances.
 
 ## What the correlation produces
 
+**Member-aware matching (2026-07-19).** For `subscription-leak` findings facing a
+retention with identified `static-event` roots, agreement means more than the type:
+the finding's canonical event identity (`event 'A.B.Holder.Member'` in the message)
+must equal a root's `(short(holder), member)` key. The matched root — not the array's
+first — is reported (`root_holder`/`root_member` on the confirmed finding). Unparseable
+identity is conservative (static-only); non-event categories and retentions without
+root identity keep type-level matching. Evidence:
+`docs/evidence/gtd-runtime-transition.md`.
+
 | Bucket | Meaning | Value |
 |---|---|---|
 | **confirmed** | a static leak finding AND runtime retention agree | highest-signal, low-FP — gate on these |

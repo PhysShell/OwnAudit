@@ -1,0 +1,17 @@
+{
+  "_comment": "Static findings AFTER Own.NET #278: the same unrelated OWN001s PLUS the target site — GTD.cs:5192, subscription to the static AppData.Properties.GBProperty.PropertyChanged whose '-=' hides behind a flagged parameter / uncalled method. Member-aware correlation must confirm exactly this finding against the GBProperty retention.",
+  "findings": [
+    { "tool": "own-check", "rule": "OWN001", "category_name": "subscription-leak",
+      "resource": "subscription token", "path": "BrokerDataClasses/GTD.cs", "line": 2466,
+      "message": "event 'Regime.PropertyChanged' is subscribed (handler 'Regime_PropertyChanged') but never unsubscribed; its source is an injected dependency whose lifetime is unknown, so it may outlive and keep 'GTD' alive (possible leak) [resource: subscription token]",
+      "suppressed": false },
+    { "tool": "own-check", "rule": "OWN001", "category_name": "subscription-leak",
+      "resource": "subscription token", "path": "BrokerDataClasses/GTD.cs", "line": 2489,
+      "message": "event 'CurrencyRate.Changed' is subscribed (handler 'CurrencyRate_Changed') but never unsubscribed; its source is an injected dependency whose lifetime is unknown, so it may outlive and keep 'GTD' alive (possible leak) [resource: subscription token]",
+      "suppressed": false },
+    { "tool": "own-check", "rule": "OWN001", "category_name": "subscription-leak",
+      "resource": "subscription token", "path": "BrokerDataClasses/GTD.cs", "line": 5192,
+      "message": "event 'AppData.Properties.GBProperty.PropertyChanged' is subscribed (handler 'GBProperty_PropertyChanged') but its unsubscribe is unreachable on the discard path (release gated by 'UnregOnlyGoodys' / uncalled method); the static source outlives and keeps 'GTD' alive (leak) [resource: subscription token]",
+      "suppressed": false }
+  ]
+}

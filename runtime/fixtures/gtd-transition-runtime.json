@@ -1,0 +1,22 @@
+{
+  "_comment": "Synthetic-but-faithful GTD heap record (shape of the real STS collect, docs/evidence/gtd-runtime-transition.md): GTD instances pinned by the static GBProperty.PropertyChanged delegate. One artifact serves both transition snapshots so the analyzer version is the only variable.",
+  "schema": "ownAudit/runtime/v1",
+  "scenario": "deserialize GTD documents (SerializerSim leaktest --hold)",
+  "iterations": 94,
+  "retained": [
+    {
+      "type": "BrokerDataClasses.GTD",
+      "count": 76,
+      "expected": 0,
+      "bytes": 76800,
+      "roots": [
+        { "kind": "static-event", "holder": "BrokerDataClasses.Property.GBProperty",
+          "member": "PropertyChanged", "via": "delegate",
+          "chain": ["[PinnedHandle] System.Object[]", "BrokerDataClasses.Property.KernelProperty",
+                    "BrokerDataClasses.Property.GBProperty",
+                    "System.ComponentModel.PropertyChangedEventHandler", "System.Object[]",
+                    "System.ComponentModel.PropertyChangedEventHandler", "BrokerDataClasses.GTD"] }
+      ]
+    }
+  ]
+}
