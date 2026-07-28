@@ -1,0 +1,98 @@
+{
+  "contract": "finding-pattern/v1",
+  "owner": "OwnAudit (domain)",
+  "issue": "PhysShell/Own.NET#266",
+  "recipe": "sha1(path + \"\\u001f\" + rule + \"\\u001f\" + message).hexdigest()[:16]",
+  "id_length": 16,
+  "encoding": "utf-8",
+  "separator": "\u001f",
+  "notes": [
+    "These vectors are the executable half of the contract. A change to any expected id is a BREAKING change: every stored fp-verdicts.json overlay is keyed by these bytes, and an overlay that stops matching produces an empty report, not an error.",
+    "Fields are joined VERBATIM. No case folding, no path-separator rewriting, no digit or whitespace collapsing. The vectors below pin each of those individually so that a well-meant normalization fails a test instead of silently re-keying every stored verdict.",
+    "`line` is deliberately absent from the recipe: it drifts. Two physical findings sharing (path, rule, message) share a pattern_id on purpose — one judged verdict covers the repeated pattern. Distinguishing the physical occurrences is occurrence_id's job, not this one.",
+    "NOT the same value as report/sarif.py's partialFingerprints['ownAudit/v1'], which normalizes the message, joins with newlines, keeps the full digest and appends an ordinal for repeats. That one is a legacy GitHub-correlation key; identity must not depend on presentation order."
+  ],
+  "vectors": [
+    {
+      "name": "windows-style-path",
+      "why": "a producer that emitted backslashes keeps them; the separator is part of the identity",
+      "path": "src\\App\\DocumentWindow.xaml.cs",
+      "rule": "OWN001",
+      "message": "event 'AppSettings.PropertyChanged' subscribed, handler never released",
+      "pattern_id": "9323408c303bd2cf"
+    },
+    {
+      "name": "posix-style-path",
+      "why": "the same file spelled with forward slashes is a DIFFERENT id — identity follows the emitted record, not a guess about the filesystem",
+      "path": "src/App/DocumentWindow.xaml.cs",
+      "rule": "OWN001",
+      "message": "event 'AppSettings.PropertyChanged' subscribed, handler never released",
+      "pattern_id": "bf5dae4e2ebff293"
+    },
+    {
+      "name": "path-case-upper",
+      "why": "no case folding, even though Windows filesystems are case-insensitive",
+      "path": "Src/App/DocumentWindow.xaml.cs",
+      "rule": "OWN001",
+      "message": "event 'AppSettings.PropertyChanged' subscribed, handler never released",
+      "pattern_id": "8125b290fa225510"
+    },
+    {
+      "name": "unicode-path-and-message",
+      "why": "non-ASCII paths and messages hash as UTF-8, not as escapes or a lossy encoding",
+      "path": "src/Документы/Окно.cs",
+      "rule": "OWN001",
+      "message": "событие 'Настройки.Изменено' подписано, обработчик не освобождён",
+      "pattern_id": "99ecde19649f7ae8"
+    },
+    {
+      "name": "message-with-digits",
+      "why": "digits are NOT collapsed (the SARIF fingerprint does collapse them; this contract must not)",
+      "path": "src/Pool.cs",
+      "rule": "OWN003",
+      "message": "buffer of 4096 bytes rented but never returned",
+      "pattern_id": "f98bf75335d7458d"
+    },
+    {
+      "name": "message-with-other-digits",
+      "why": "same sentence, different number: a different pattern, therefore a different id",
+      "path": "src/Pool.cs",
+      "rule": "OWN003",
+      "message": "buffer of 8192 bytes rented but never returned",
+      "pattern_id": "dbeece167c805d43"
+    },
+    {
+      "name": "whitespace-differs",
+      "why": "whitespace is NOT collapsed either — the message is taken as emitted",
+      "path": "src/Pool.cs",
+      "rule": "OWN003",
+      "message": "buffer  of 4096 bytes rented but never returned",
+      "pattern_id": "58ad38785c931022"
+    },
+    {
+      "name": "repeated-identical",
+      "why": "a second physical finding with identical (path, rule, message) — the intentional collision one verdict is meant to cover",
+      "path": "src/App/DocumentWindow.xaml.cs",
+      "rule": "OWN001",
+      "message": "event 'AppSettings.PropertyChanged' subscribed, handler never released",
+      "pattern_id": "bf5dae4e2ebff293"
+    },
+    {
+      "name": "empty-message",
+      "why": "an empty field is hashed as empty rather than rejected; only a MISSING key is an error",
+      "path": "src/Empty.cs",
+      "rule": "OWN050",
+      "message": "",
+      "pattern_id": "ab023777f5fe8ea7"
+    }
+  ],
+  "same_pattern": [
+    ["posix-style-path", "repeated-identical"]
+  ],
+  "distinct_patterns": [
+    ["windows-style-path", "posix-style-path"],
+    ["posix-style-path", "path-case-upper"],
+    ["message-with-digits", "message-with-other-digits"],
+    ["message-with-digits", "whitespace-differs"]
+  ]
+}

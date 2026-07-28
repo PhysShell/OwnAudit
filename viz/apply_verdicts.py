@@ -28,6 +28,10 @@ import json
 import os
 import sys
 
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from identity.pattern import pattern_id_of                                        # noqa: E402
+
 # A false_positive at >= this confidence is dropped from the primary triage into the
 # counted "judged-FP" section. A LOWER-confidence FP stays visible as `uncertain` — we
 # only retire a CONFIDENT false positive.
@@ -44,9 +48,15 @@ class StaleOverlayError(RuntimeError):
 def finding_id(f: dict) -> str:
     """Line-independent fingerprint (verdict-contract.md §1): sha1(path\\x1f rule\\x1f
     message)[:16]. NOT keyed on `line` (it drifts). Identical (path,rule,message) share
-    an id on purpose — one verdict covers a repeated pattern."""
-    key = f"{f['path']}\x1f{f['rule']}\x1f{f['message']}"
-    return hashlib.sha1(key.encode("utf-8")).hexdigest()[:16]
+    an id on purpose — one verdict covers a repeated pattern.
+
+    The recipe now lives in `identity/pattern.py` as `finding-pattern/v1`, with
+    canonical vectors in `contracts/finding-pattern-v1.json`; this name stays as
+    the overlay-facing alias. The bytes are unchanged, so every existing
+    `fp-verdicts.json` keeps matching — that is the whole point of moving it
+    rather than reimplementing it.
+    """
+    return pattern_id_of(f)
 
 
 def sha256_file(path: str) -> str:
