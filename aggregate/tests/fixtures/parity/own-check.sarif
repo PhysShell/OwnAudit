@@ -1,0 +1,364 @@
+{
+  "version": "2.1.0",
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "own-check",
+          "rules": [
+            {
+              "id": "OWN001"
+            }
+          ]
+        }
+      },
+      "results": [
+        {
+          "ruleId": "OWN001",
+          "message": {
+            "text": "event 'fGoods.PropertyChanged' is subscribed (handler 'new PropertyChangedEventHandler(GoodsPropertyChanged)') but never unsubscribed [resource: subscription token]"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "Broker/AmountWindow.xaml.cs"
+                },
+                "region": {
+                  "startLine": 72
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "OWN001",
+          "message": {
+            "text": "timer started but never stopped [resource: timer]"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "Broker/Poller.cs"
+                },
+                "region": {
+                  "startLine": 31
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "OWN001",
+          "message": {
+            "text": "field never disposed [resource: disposable field]"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "Broker/Report.cs"
+                },
+                "region": {
+                  "startLine": 7
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "OWN001",
+          "message": {
+            "text": "pooled buffer never returned [resource: pooled buffer]"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "Broker/Pool.cs"
+                },
+                "region": {
+                  "startLine": 18
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "OWN001",
+          "message": {
+            "text": "local IDisposable never disposed"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "Broker/Io.cs"
+                },
+                "region": {
+                  "startLine": 9
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "OWN001",
+          "message": {
+            "text": "tag case and spacing must not matter [Resource:  Subscription Token ]"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "Broker/CaseTag.cs"
+                },
+                "region": {
+                  "startLine": 11
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "OWN014",
+          "message": {
+            "text": "region escape: view-model promoted to App lifetime"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "Broker/Escape.cs"
+                },
+                "region": {
+                  "startLine": 50
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "OWN050",
+          "message": {
+            "text": "cannot verify 'Sec.Api.Load' - unresolved reference"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "Broker/Unknown.cs"
+                },
+                "region": {
+                  "startLine": 3
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "XAML203",
+          "message": {
+            "text": "view subscribes from Loaded but never releases"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "Broker/View.xaml.cs"
+                },
+                "region": {
+                  "startLine": 44
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "XAML999",
+          "message": {
+            "text": "not yet mapped - the XAML1* net must not catch this"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "Broker/Odd.xaml"
+                },
+                "region": {
+                  "startLine": 2
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "OWN001",
+          "message": {
+            "text": "windows separators [resource: timer]"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "Broker\\Sub\\Windows.cs"
+                },
+                "region": {
+                  "startLine": 5
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "OWN001",
+          "message": {
+            "text": "file scheme + strip prefix [resource: timer]"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "file:///work/target/Broker/Scheme.cs"
+                },
+                "region": {
+                  "startLine": 6
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "OWN001",
+          "message": {
+            "text": "dot-slash prefix [resource: timer]"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "./Broker/Dotted.cs"
+                },
+                "region": {
+                  "startLine": 7
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "OWN001",
+          "message": {
+            "text": "overlapping strip prefixes: the LONGEST must win [resource: timer]"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "/work/target/Broker/Longest.cs"
+                },
+                "region": {
+                  "startLine": 8
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "OWN001",
+          "message": {
+            "text": "no startLine -> line 0 [resource: timer]"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "Broker/NoLine.cs"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "OWN001",
+          "message": {
+            "text": "non-integer startLine -> line 0 [resource: timer]"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "Broker/BadLine.cs"
+                },
+                "region": {
+                  "startLine": "seventeen"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "OWN001",
+          "message": {
+            "text": "no location at all - silently dropped (known gap, pinned here)"
+          }
+        },
+        {
+          "rule": {
+            "id": "OWN001"
+          },
+          "message": {
+            "text": "ruleId absent, rule.id present [resource: timer]"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "Broker/RuleObj.cs"
+                },
+                "region": {
+                  "startLine": 12
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "OWN001",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "Broker/NoMessage.cs"
+                },
+                "region": {
+                  "startLine": 13
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "",
+          "message": {
+            "text": "empty ruleId -> uncategorized"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "Broker/EmptyRule.cs"
+                },
+                "region": {
+                  "startLine": 14
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

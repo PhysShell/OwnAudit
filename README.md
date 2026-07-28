@@ -20,16 +20,19 @@ pwsh ./Run-Audit.ps1
 # -> artifacts/health-report.md (+ .html, .json)
 ```
 
-It drives the canonical pipeline — OwnSharp (build-free) → SARIF → `audit/aggregate`
-normalize → score → report. Needs `dotnet` + `python` on PATH; uses a worktree of
-Own.NET `main` (where `audit/` lives). `PYTHONUTF8=1` is set to dodge the cp1251
-console crash on the Russian-locale Windows target.
+It drives the canonical pipeline — OwnSharp (build-free) → SARIF →
+[`aggregate/normalize.py`](docs/normalization.md) → score → report. Normalization
+runs from this repo; scoring and reporting still run from a worktree of Own.NET
+`main`, so `dotnet` + `python` on PATH and that worktree are both required.
+`PYTHONUTF8=1` is set to dodge the cp1251 console crash on the Russian-locale
+Windows target.
 
 ## Where things live
 
 | concern | home | status |
 |---|---|---|
-| static aggregation, taxonomy, scoring, reporters | `Own.NET/audit/aggregate` + `audit/static` | **canonical** |
+| SARIF normalization + category taxonomy | `aggregate/` (this repo, [docs](docs/normalization.md)) | **canonical** |
+| scoring + reporters | `Own.NET/audit/aggregate` | canonical, port pending |
 | runtime LeakHarness / DuplicateDetector / storm profiler | `Own.NET/audit/runtime` | **canonical** |
 | boundary + STS runner + artifacts + lift-out home | `OwnAudit/` (this repo) | active |
 | fix arm — wire mass appliers + safety wrapper + OWN fixer | `OwnAudit/` ([docs/fix-arm.md](docs/fix-arm.md)) | design |

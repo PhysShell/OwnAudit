@@ -1,14 +1,17 @@
 <#
 .SYNOPSIS
-  Reproduce the STS health report through Own.NET's CANONICAL audit/ pipeline.
+  Reproduce the STS health report: Own.NET analyzes, OwnAudit aggregates and reports.
 
 .DESCRIPTION
-  OwnAudit does not analyze code itself — the audit lives in Own.NET/audit/. This
-  runner drives it end-to-end over STS:
-    1. ensure a worktree of Own.NET main (audit/ + scripts/ + ownlang live there);
+  Own.NET is the SAST engine (it emits SARIF); the audit pipeline is here. This
+  runner drives the whole thing end-to-end over STS:
+    1. ensure a worktree of Own.NET main (scripts/ + ownlang live there);
     2. OwnSharp over the target (build-free, no MSBuild/feed) -> SARIF;
     3. optionally CodeQL (--build-mode=none, also build-free) -> SARIF  [-Codeql];
-    4. audit/aggregate: normalize -> score -> report -> markdown + HTML + json.
+    4. aggregate/normalize.py (LOCAL) -> findings.json, then score -> report.
+  Normalization no longer runs out of the Own.NET worktree: it was ported into
+  aggregate/ (Own.NET#266 slice 1A) and produces byte-identical findings.json.
+  Scoring/reporting still run from the worktree until they are ported too.
   Two build-free tools means cross-tool AGREEMENT: a site both flag becomes a
   high-confidence cluster (audit/ §3.5). PYTHONUTF8=1 dodges the cp1251 console crash.
 
@@ -46,9 +49,11 @@ if (Test-Path (Join-Path $Worktree ".git")) {
     New-Item -ItemType Directory -Force -Path (Split-Path $Worktree) | Out-Null
     git -C $OwnNet worktree add --detach $Worktree $Ref
 }
-if (-not (Test-Path (Join-Path $Worktree "audit\aggregate\normalize.py"))) {
+if (-not (Test-Path (Join-Path $Worktree "audit\aggregate\report.py"))) {
     throw "audit/ not found in $Worktree — is '$Ref' the branch that has audit/?"
 }
+# pyyaml is for the WORKTREE's report.py (it still reads the YAML taxonomy through
+# its own normalize.py). The local aggregate/normalize.py is stdlib-only.
 python -m pip install --quiet pyyaml 2>&1 | Out-Null
 
 $leaf = Split-Path $Target -Leaf
@@ -104,8 +109,9 @@ if (Test-Path (Join-Path $Out "roslyn.sarif")) {
     $sarifInputs += "roslyn=$(Join-Path $Out 'roslyn.sarif')"
 }
 
-# 4. audit/ aggregation -> report (markdown + html + json). Cross-tool agreement happens
+# 4. aggregation -> report (markdown + html + json). Cross-tool agreement happens
 #    automatically when both own-check and codeql findings cluster at the same site.
+#    normalize is LOCAL (aggregate/); report.py still comes from the worktree.
 $findings = Join-Path $Out "findings.json"
 $commit   = (git -C $Target rev-parse --short HEAD 2>$null)
 $nargs = @()
@@ -116,7 +122,7 @@ foreach ($s in $sarifInputs) { $nargs += @("--sarif", $s) }
 # norm_path strips file:// FIRST, so roslyn 'file:///C:/...' becomes '/C:/...'. Pass all
 # three shapes ('<leaf>/...', 'C:/.../<leaf>', '/C:/.../<leaf>') so every tool's modules align.
 $absStrip = ($Target -replace '\\', '/').TrimEnd('/')
-python "$Worktree\audit\aggregate\normalize.py" @nargs --strip "$leaf" --strip $absStrip --strip "/$absStrip" --json $findings
+python "$PSScriptRoot\aggregate\normalize.py" @nargs --strip "$leaf" --strip $absStrip --strip "/$absStrip" --json $findings
 foreach ($fmt in @(@{f='markdown';e='md'}, @{f='html';e='html'}, @{f='json';e='json'})) {
     python "$Worktree\audit\aggregate\report.py" --findings $findings --format $fmt.f --target $leaf --commit $commit --line-tol $LineTol |
         Set-Content -LiteralPath (Join-Path $Out "health-report.$($fmt.e)") -Encoding utf8
