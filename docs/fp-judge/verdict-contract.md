@@ -42,6 +42,41 @@ identical. So a `finding_id` may map to **≥1 physical findings**:
 
 No ordinal / tiebreaker — that would reintroduce line-order fragility for zero gain.
 
+### Where the recipe lives now (`finding-pattern/v1`)
+
+The implementation is [`identity/pattern.py`](../../identity/pattern.py) and the
+canonical vectors are
+[`contracts/finding-pattern-v1.json`](../../contracts/finding-pattern-v1.json).
+`viz/apply_verdicts.finding_id` imports it and survives as the overlay-facing
+alias; the bytes are unchanged, which is the point — every stored
+`fp-verdicts.json` is keyed by them, and an overlay that stops matching
+produces an **empty report rather than an error**. That failure is silent, so
+it is pinned by a test (`identity/tests/test_pattern.py`), not by a comment.
+
+The vectors pin what is deliberately *not* normalized: path separator, path
+case, digits and whitespace in the message. A future cleanup that folds any of
+them fails a test instead of quietly re-keying every stored verdict.
+
+### `ownAudit/v1` in SARIF is a different value
+
+`report/sarif.py` emits `partialFingerprints["ownAudit/v1"]`. It is **not**
+`finding-pattern/v1` and must not be used as one:
+
+| | `finding-pattern/v1` | SARIF `ownAudit/v1` |
+|---|---|---|
+| basis | `path \x1f rule \x1f message` | `rule \n path \n normalize(message)` |
+| message | verbatim | lower-cased, digits → `#`, spaces collapsed |
+| digest | SHA-1, first 16 hex | SHA-1, full |
+| repeats | share an id (intentional) | disambiguated with a `/ordinal` suffix |
+
+`ownAudit/v1` is a **legacy GitHub-correlation key**: it keeps code-scanning
+alerts stitched together across commits. Its ordinal suffix alone disqualifies
+it as an identity — the value would depend on the order results happen to be
+emitted in, and presentation order must never change identity. When
+occurrence/pattern fingerprints are exported to SARIF they go in *alongside*
+this key, never in place of it, or the migration would reset every alert's
+history while claiming to improve correlation.
+
 ---
 
 ## 2. `fp-verdicts.json` — required fields
