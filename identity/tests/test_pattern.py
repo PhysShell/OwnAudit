@@ -1,6 +1,6 @@
 """`finding-pattern/v1` contract tests. Bare python3 or pytest:
 
-    PYTHONPATH=. python3 identity/tests/test_pattern.py
+    PYTHONUTF8=1 PYTHONPATH=. python3 identity/tests/test_pattern.py
 
 Proves the identity recipe is frozen: the canonical vectors reproduce exactly,
 the deliberate non-normalizations hold (path separator, path case, digits,
@@ -10,7 +10,7 @@ still returns the same bytes it always did.
 
 That last one is the compatibility guarantee in executable form: every stored
 `fp-verdicts.json` is keyed by those bytes, and an overlay that stops matching
-yields an empty report rather than an error — a silent failure, so it gets a
+yields an empty report rather than an error - a silent failure, so it gets a
 test rather than a comment. -O-safe (explicit raises, no bare assert).
 """
 import hashlib
@@ -65,10 +65,10 @@ def main() -> int:
     # 3. The deliberate non-normalizations.
     for a, b in doc["distinct_patterns"]:
         check(pattern_id_of(by_name[a]) != pattern_id_of(by_name[b]),
-              f"{a} and {b} must NOT share a pattern_id — a normalization crept in")
+              f"{a} and {b} must NOT share a pattern_id - a normalization crept in")
     for a, b in doc["same_pattern"]:
         check(pattern_id_of(by_name[a]) == pattern_id_of(by_name[b]),
-              f"{a} and {b} must share a pattern_id — the repeated-pattern collision is intentional")
+              f"{a} and {b} must share a pattern_id - the repeated-pattern collision is intentional")
 
     # 4. A missing field raises; an EMPTY field does not.
     for missing in ("path", "rule", "message"):
@@ -84,7 +84,7 @@ def main() -> int:
           == by_name["empty-message"]["pattern_id"],
           "an empty message must hash as empty, not raise")
 
-    # 5. Extra keys on the record change nothing — identity reads three fields.
+    # 5. Extra keys on the record change nothing - identity reads three fields.
     check(pattern_id_of({**by_name["posix-style-path"], "line": 42, "tool": "own-check"})
           == by_name["posix-style-path"]["pattern_id"],
           "line/tool leaked into the identity")
@@ -95,16 +95,16 @@ def main() -> int:
               f"{v['name']}: apply_verdicts.finding_id drifted from the contract")
 
     # 7. The SARIF fingerprint is a DIFFERENT value and must not be mistaken for
-    #    this one — it normalizes the message and appends an ordinal.
+    #    this one - it normalizes the message and appends an ordinal.
     from report.sarif import _fingerprint                                         # noqa: E402
     v = by_name["message-with-digits"]
     check(_fingerprint(v) != v["pattern_id"],
-          "the SARIF ownAudit/v1 fingerprint must not equal pattern_id — it is a legacy "
+          "the SARIF ownAudit/v1 fingerprint must not equal pattern_id - it is a legacy "
           "GitHub-correlation key with different rules")
 
     for f in fails:
         print(f"FAIL: {f}")
-    print(f"identity/pattern: {'OK' if not fails else 'FAIL'} — {len(vectors)} vectors, "
+    print(f"identity/pattern: {'OK' if not fails else 'FAIL'} - {len(vectors)} vectors, "
           f"{len(doc['distinct_patterns'])} distinctness pairs, "
           f"{len(doc['same_pattern'])} collision pairs, alias byte-identical")
     return 1 if fails else 0

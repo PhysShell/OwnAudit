@@ -1,22 +1,22 @@
 #!/usr/bin/env python3
 """
-`finding-pattern/v1` — the ONE implementation of Own's pattern-level finding
+`finding-pattern/v1` - the ONE implementation of Own's pattern-level finding
 identity, and the domain's canonical definition of it (issue Own.NET#266).
 
     pattern_id = sha1( path + "\\x1f" + rule + "\\x1f" + message )[:16]
 
 This is the recipe `viz/apply_verdicts.finding_id` has always used
-(`docs/fp-judge/verdict-contract.md` §1); it moves here unchanged so that every
+(`docs/fp-judge/verdict-contract.md` section 1); it moves here unchanged so that every
 producer and consumer computes identity from one place instead of from one
 place each. `apply_verdicts` now imports it, and its `finding_id` name survives
-as an alias — the bytes are identical, so existing overlays keep matching.
+as an alias - the bytes are identical, so existing overlays keep matching.
 
 WHY IT IS NOT "IMPROVED" HERE
 -----------------------------
 SHA-1 is not a security choice in this role; it is a *compatibility* one. Every
 `fp-verdicts.json` overlay in existence is keyed by these exact 16 hex
 characters, and the overlay's freshness guard only proves the verdicts were
-judged against the same findings file — not that the ids can be recomputed
+judged against the same findings file - not that the ids can be recomputed
 differently. Changing the algorithm, the separator, the truncation, or the
 field order silently orphans every stored verdict: the overlay would simply
 stop matching, and a clean report would be indistinguishable from a correct
@@ -26,11 +26,11 @@ WHAT IS DELIBERATELY *NOT* NORMALIZED
 -------------------------------------
 `path`, `rule` and `message` are joined **verbatim**, as UTF-8:
 
-  * no case folding — `Src\\App.cs` and `src\\app.cs` are different findings;
-  * no path-separator rewriting — a Windows-style and a POSIX-style spelling of
+  * no case folding - `Src\\App.cs` and `src\\app.cs` are different findings;
+  * no path-separator rewriting - a Windows-style and a POSIX-style spelling of
     the same file are different ids, because the producer chose the spelling
     and identity follows the emitted record, not a guess about the filesystem;
-  * no digit or whitespace collapsing in `message` — two findings whose
+  * no digit or whitespace collapsing in `message` - two findings whose
     messages differ only by a number are different patterns.
 
 The `contracts/finding-pattern-v1.json` vectors pin each of those, so a future
@@ -42,12 +42,12 @@ NOT TO BE CONFUSED WITH THE SARIF FINGERPRINT
 DIFFERENT value computed a DIFFERENT way (rule/path/normalized-message joined
 with newlines, full SHA-1, plus a `/ordinal` suffix for repeats). It exists to
 keep GitHub code-scanning alerts correlated across commits and it is a legacy
-GitHub-correlation key — **it is not `finding-pattern/v1`**. Its ordinal suffix
+GitHub-correlation key - **it is not `finding-pattern/v1`**. Its ordinal suffix
 alone disqualifies it: identity must not depend on presentation order.
 
 Line is never part of identity: it drifts, and it travels as data for locating
 a finding, never for keying one. Two physical findings that share
-`(path, rule, message)` share a `pattern_id` ON PURPOSE — one judged verdict
+`(path, rule, message)` share a `pattern_id` ON PURPOSE - one judged verdict
 covers the repeated pattern. Telling those physical occurrences apart is the
 job of `occurrence_id`, a different identity with different rules.
 """
@@ -100,12 +100,15 @@ def pattern_id_of(finding: Mapping[str, Any]) -> str:
 
 
 def load_vectors(path: str | Path | None = None) -> dict[str, Any]:
-    """The canonical vector file — the contract's executable half."""
+    """The canonical vector file - the contract's executable half."""
     return json.loads(Path(path or CONTRACT_FILE).read_text(encoding="utf-8"))
 
 
 def _selftest() -> int:
-    """Run the canonical vectors. Bare `python3 identity/pattern.py --selftest`."""
+    """Run the canonical vectors.
+
+    `PYTHONUTF8=1 PYTHONPATH=. python3 identity/pattern.py --selftest`
+    """
     fails: list[str] = []
     doc = load_vectors()
 
@@ -155,5 +158,6 @@ if __name__ == "__main__":
         print(pattern_id(sys.argv[1], sys.argv[2], sys.argv[3]))
         raise SystemExit(0)
     print(__doc__)
-    print("usage: pattern.py --selftest | pattern.py <path> <rule> <message>")
+    print("usage: PYTHONUTF8=1 PYTHONPATH=. python3 identity/pattern.py --selftest")
+    print("       PYTHONUTF8=1 PYTHONPATH=. python3 identity/pattern.py <path> <rule> <message>")
     raise SystemExit(2)
