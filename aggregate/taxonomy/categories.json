@@ -1,0 +1,267 @@
+{
+  "_doc": {
+    "about": [
+      "OwnAudit category taxonomy (knowledge base). Maps each analyzer's ruleId",
+      "(exact, or a glob like `IDISP0*` / `*RESOURCE_LEAK`) to one of the problem",
+      "categories. aggregate/normalize.py reads this and labels every SARIF result.",
+      "Rules with NO mapping are NOT dropped - they land in `uncategorized` and are",
+      "surfaced in the coverage ledger, so the taxonomy grows deliberately instead of",
+      "swallowing findings.",
+      "",
+      "Precedence: an exact ruleId match wins over a glob; among globs, the most",
+      "specific (longest non-wildcard run) wins.",
+      "",
+      "JSON, not YAML: OwnAudit's Python tooling is stdlib-only (CI installs no",
+      "packages), and the audit must not gain a PyYAML dependency to read its own",
+      "taxonomy. The mapping is a mechanical transcription of the YAML this was ported",
+      "from - the prose that lived in YAML comments moved into this `_doc` block, and",
+      "aggregate/tests/test_normalize.py can re-verify the transcription against the",
+      "reference file when a Own.NET checkout is present (OWNNET_REF)."
+    ],
+    "OWN001": [
+      "own-check OWN001 is an UMBRELLA leak code: one ruleId covers IDisposable",
+      "fields/locals, subscription tokens and timers, and the `[resource: ...]` tag in",
+      "the message text distinguishes them. A flat OWN001 -> category 1 would collapse",
+      "subscription/timer leaks (categories 2/3) into the IDisposable bucket and",
+      "undercount them, so normalize splits on the tag. The `*` arm is the fallback",
+      "(disposable / disposable field / pooled buffer, or no tag at all)."
+    ],
+    "OWN014": [
+      "Escape to a longer-lived region (vm -> App, SystemEvents) - NOT a generic",
+      "subscription-leak."
+    ],
+    "XAML": [
+      "The XAML pass is a SECOND fact source, not a parallel linter: each rule maps to",
+      "one of the same categories so a markup finding rides the same fingerprint ->",
+      "baseline -> ratchet path as a .cs finding. Exact ids win over the `XAML1*` glob,",
+      "which is a safety net so a not-yet-mapped XAML rule never lands in",
+      "`uncategorized`.",
+      "",
+      "XAML203 is anchored at the code-behind subscription site so it lands at the same",
+      "file+line as own-check's OWN001 and CLUSTERS with it into one high-confidence",
+      "finding, rather than double-reporting on a separate .xaml line."
+    ],
+    "RUNTIME": [
+      "RUNTIME-PROPCHANGED-STORM is raise-frequency (category 6), NOT INPC0xx",
+      "correctness (category 5) - a storm in the same file as an INPC0xx hit clusters",
+      "with it into a high-confidence finding."
+    ],
+    "category_severity": [
+      "Baseline P-level per category. Confidence (cross-tool agreement) is a SEPARATE",
+      "axis handled by scoring; this is severity only. Category 0 (uncategorized) is P3."
+    ],
+    "suppress": [
+      "Third-party baseline-suppress. Findings whose path OR message contains one of",
+      "these tokens are third-party noise: dropped from the main report but COUNTED and",
+      "reported in the coverage ledger - nothing is hidden silently. This is an honest",
+      "third-party-namespace filter, not a regex heuristic over our own code."
+    ],
+    "coverage_notes": [
+      "Analysis-skipped / coverage NOTES - diagnostics that are NOT verdicts. own-check",
+      "emits OWN050 (\"cannot verify X - unresolved\") when it cannot analyze something.",
+      "These must NOT be scored as findings: left in, they would show up as",
+      "uncategorized P3 candidates and add phantom pain. Instead they are routed to the",
+      "coverage ledger (analysis-skipped count) - the honest \"we didn't see here\"."
+    ]
+  },
+  "rules": {
+    "CA2000": {
+      "category": 1,
+      "name": "idisposable-leak"
+    },
+    "CA2213": {
+      "category": 1,
+      "name": "idisposable-leak"
+    },
+    "IDISP0*": {
+      "category": 1,
+      "name": "idisposable-leak"
+    },
+    "cs/local-not-disposed": {
+      "category": 1,
+      "name": "idisposable-leak"
+    },
+    "cs/missing-dispose": {
+      "category": 1,
+      "name": "idisposable-leak"
+    },
+    "cs/dispose-not-called-on-throw": {
+      "category": 1,
+      "name": "idisposable-leak"
+    },
+    "*RESOURCE_LEAK": {
+      "category": 1,
+      "name": "idisposable-leak"
+    },
+    "*MEMORY_LEAK": {
+      "category": 1,
+      "name": "idisposable-leak"
+    },
+    "OWN001": {
+      "by_resource": {
+        "subscription token": {
+          "category": 2,
+          "name": "subscription-leak"
+        },
+        "timer": {
+          "category": 3,
+          "name": "timer-leak"
+        },
+        "*": {
+          "category": 1,
+          "name": "idisposable-leak"
+        }
+      }
+    },
+    "OWN014": {
+      "category": 2,
+      "name": "region-escape"
+    },
+    "XAML203": {
+      "category": 2,
+      "name": "xaml-subscription-leak"
+    },
+    "INPC0*": {
+      "category": 5,
+      "name": "inpc-correctness"
+    },
+    "WPF0*": {
+      "category": 9,
+      "name": "wpf-freezable"
+    },
+    "XAML100": {
+      "category": 9,
+      "name": "resource-hoist"
+    },
+    "XAML107": {
+      "category": 8,
+      "name": "broken-virtualization"
+    },
+    "XAML109": {
+      "category": 8,
+      "name": "template-complexity"
+    },
+    "XAML108": {
+      "category": 6,
+      "name": "binding-update-frequency"
+    },
+    "XAML106": {
+      "category": 9,
+      "name": "wpf-freezable"
+    },
+    "XAML101": {
+      "category": 9,
+      "name": "per-instance-resource"
+    },
+    "XAML102": {
+      "category": 9,
+      "name": "dynamic-resource-misuse"
+    },
+    "XAML103": {
+      "category": 9,
+      "name": "per-instance-resource"
+    },
+    "XAML104": {
+      "category": 9,
+      "name": "merged-dictionary-waste"
+    },
+    "XAML105": {
+      "category": 9,
+      "name": "merged-dictionary-shadowing"
+    },
+    "XAML110": {
+      "category": 9,
+      "name": "image-decode"
+    },
+    "XAML111": {
+      "category": 8,
+      "name": "layout-cost"
+    },
+    "XAML112": {
+      "category": 9,
+      "name": "template-binding-opportunity"
+    },
+    "XAML113": {
+      "category": 9,
+      "name": "per-instance-resource"
+    },
+    "XAML1*": {
+      "category": 9,
+      "name": "xaml-markup-perf"
+    },
+    "CA1*": {
+      "category": 14,
+      "name": "general-quality"
+    },
+    "CA2*": {
+      "category": 14,
+      "name": "general-quality"
+    },
+    "S*": {
+      "category": 14,
+      "name": "general-quality"
+    },
+    "RCS*": {
+      "category": 14,
+      "name": "general-quality"
+    },
+    "MA0*": {
+      "category": 14,
+      "name": "general-quality"
+    },
+    "AsyncFixer*": {
+      "category": 14,
+      "name": "general-quality"
+    },
+    "cs/*": {
+      "category": 14,
+      "name": "general-quality"
+    },
+    "RCS1*": {
+      "category": 15,
+      "name": "architecture"
+    },
+    "RUNTIME-LEAK-SUBSCRIPTION": {
+      "category": 2,
+      "name": "subscription-leak"
+    },
+    "RUNTIME-LEAK-TIMER": {
+      "category": 3,
+      "name": "timer-leak"
+    },
+    "RUNTIME-DPD-ADDVALUECHANGED": {
+      "category": 4,
+      "name": "dpd-addvaluechanged-leak"
+    },
+    "RUNTIME-DUP-IMMUTABLE": {
+      "category": 11,
+      "name": "duplicate-immutable"
+    },
+    "RUNTIME-PROPCHANGED-STORM": {
+      "category": 6,
+      "name": "propertychanged-storm"
+    }
+  },
+  "category_severity": {
+    "1": "P1",
+    "2": "P1",
+    "3": "P1",
+    "4": "P1",
+    "5": "P2",
+    "6": "P2",
+    "8": "P2",
+    "9": "P2",
+    "11": "P2",
+    "14": "P2",
+    "15": "P3",
+    "0": "P3"
+  },
+  "suppress": {
+    "path_or_message_contains": [
+      "DevExpress."
+    ]
+  },
+  "coverage_notes": [
+    "OWN050"
+  ]
+}

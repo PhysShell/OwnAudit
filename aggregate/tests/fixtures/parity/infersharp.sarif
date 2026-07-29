@@ -1,0 +1,104 @@
+{
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "Infer#"
+        }
+      },
+      "results": [
+        {
+          "ruleId": "PULSE_RESOURCE_LEAK",
+          "message": {
+            "text": "resource leak"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "Broker/Io.cs"
+                },
+                "region": {
+                  "startLine": 9
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "DOTNET_RESOURCE_LEAK",
+          "message": {
+            "text": "resource leak"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "Broker/Stream.cs"
+                },
+                "region": {
+                  "startLine": 40
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "PULSE_MEMORY_LEAK",
+          "message": {
+            "text": "memory leak"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "Broker/Cache.cs"
+                },
+                "region": {
+                  "startLine": 61
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "THREAD_SAFETY_VIOLATION",
+          "message": {
+            "text": "read without synchronization"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "Broker/Race.cs"
+                },
+                "region": {
+                  "startLine": 12
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "NULLPTR_DEREFERENCE",
+          "message": {
+            "text": "null deref"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "Broker/Null.cs"
+                },
+                "region": {
+                  "startLine": 88
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
