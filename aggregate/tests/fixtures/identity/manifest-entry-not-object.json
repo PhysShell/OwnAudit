@@ -1,0 +1,25 @@
+{
+  "schema_version": "producer-provenance/v1",
+  "_doc": [
+    "Malformed on purpose: an inputs entry is a string, not an object."
+  ],
+  "inputs": {
+    "own-check": "audit-20260729T100000Z/own-check",
+    "codeql": {
+      "producer_run_id": "audit-20260729T100000Z/codeql",
+      "producer_name": "codeql",
+      "producer_version": null,
+      "input_digest": "sha256:67c419aa1ce5a4f6228b207b65196663e03dafd630038d9879b40301ddce5d65",
+      "config_digest": null,
+      "source_commit": "0123456789abcdef0123456789abcdef01234567"
+    },
+    "infersharp": {
+      "producer_run_id": "audit-20260729T100000Z/infersharp",
+      "producer_name": "infersharp",
+      "producer_version": null,
+      "input_digest": null,
+      "config_digest": null,
+      "source_commit": null
+    }
+  }
+}

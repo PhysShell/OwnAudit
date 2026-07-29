@@ -49,6 +49,13 @@ class RawFinding:
     line: int        # 0 when the result carries no startLine
     rule: str        # OWN001 / cs/local-not-disposed / PULSE_RESOURCE_LEAK / ...
     message: str
+    #: `region.startColumn`, or None when the producer did not report one.
+    #: NULLABLE ON PURPOSE (Own.NET#266 slice 1B): a missing column stays missing.
+    #: In the recorded STS corpus own-check emits a column for exactly 0 of its
+    #: 613 results while CodeQL, Infer# and Roslyn emit one for all of theirs, so
+    #: this is the common case, not an edge. It does not enter the normalized
+    #: record's ten legacy fields; it feeds the physical anchor.
+    column: int | None = None
 
 
 def norm_path(raw: str, strips: list[str]) -> str:
@@ -74,26 +81,68 @@ def norm_path(raw: str, strips: list[str]) -> str:
     return p.lstrip("/")
 
 
-def _first_location(res: dict[str, Any]) -> tuple[str, int] | None:
-    """The primary (uri, startLine) of a SARIF result, or None if it has none.
+def _first_location(res: dict[str, Any]) -> tuple[str, int, int | None] | None:
+    """The primary (uri, startLine, startColumn) of a result, or None if it has none.
 
     The first location carrying an artifact uri wins; a missing/!int `startLine`
     reads as 0 rather than failing, because a locationless line is a presentation
     problem and dropping the whole finding for it would be a reporting lie.
+
+    `startColumn` is different: it reads as **None**, never 0 and never 1. SARIF
+    columns are 1-based, so there is no in-band value that means "not reported",
+    and a substituted 1 would be indistinguishable from a real first-column
+    finding - a fabricated coordinate that the physical anchor would then treat
+    as evidence.
     """
     for loc in res.get("locations", []):
         phys = loc.get("physicalLocation") or {}
         uri = (phys.get("artifactLocation") or {}).get("uri")
         if not uri:
             continue
-        line = (phys.get("region") or {}).get("startLine")
-        return uri, line if isinstance(line, int) else 0
+        region = phys.get("region") or {}
+        line = region.get("startLine")
+        col = region.get("startColumn")
+        return (uri,
+                line if isinstance(line, int) else 0,
+                col if isinstance(col, int) and col >= 1 else None)
     return None
+
+
+def driver_version(data: dict[str, Any]) -> str | None:
+    """The version the SARIF driver declares for itself, or None.
+
+    `semanticVersion` is preferred over `version` because it is the one SARIF
+    defines as machine-comparable. Only CodeQL declares anything at all in the
+    recorded corpus; the rest report nothing, and nothing is what they get - a
+    version invented here would be provenance about the reader, not the producer.
+    """
+    for run in data.get("runs", []):
+        drv = (run.get("tool") or {}).get("driver") or {}
+        for key in ("semanticVersion", "version"):
+            v = drv.get(key)
+            if isinstance(v, str) and v:
+                return v
+    return None
+
+
+def parse_sarif_with_driver(text: str, tool: str,
+                            strips: list[str]) -> tuple[list[RawFinding], str | None]:
+    """`parse_sarif`, plus the driver version, from a SINGLE parse.
+
+    Separate entry point rather than a changed signature: the corpus SARIF runs to
+    35 MB a file, and re-reading one just to look at `tool.driver` would double the
+    cost of the whole stage for six bytes of metadata.
+    """
+    data = json.loads(text)
+    return _results(data, tool, strips), driver_version(data)
 
 
 def parse_sarif(text: str, tool: str, strips: list[str]) -> list[RawFinding]:
     """Parse a SARIF log (own-check, CodeQL, Infer#, Roslyn) into RawFindings."""
-    data = json.loads(text)
+    return _results(json.loads(text), tool, strips)
+
+
+def _results(data: dict[str, Any], tool: str, strips: list[str]) -> list[RawFinding]:
     out: list[RawFinding] = []
     for run in data.get("runs", []):
         for res in run.get("results", []):
@@ -102,6 +151,6 @@ def parse_sarif(text: str, tool: str, strips: list[str]) -> list[RawFinding]:
             loc = _first_location(res)
             if loc is None:
                 continue
-            uri, line = loc
-            out.append(RawFinding(tool, norm_path(uri, strips), line, rule, msg))
+            uri, line, col = loc
+            out.append(RawFinding(tool, norm_path(uri, strips), line, rule, msg, col))
     return out

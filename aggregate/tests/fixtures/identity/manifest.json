@@ -1,0 +1,35 @@
+{
+  "schema_version": "producer-provenance/v1",
+  "_doc": [
+    "Fixture manifest. Written by the runner BEFORE each producer starts, so the",
+    "run id names the analysis rather than the normalization. producer_version /",
+    "config_digest / source_commit are explicitly null where unknown -- absent",
+    "would read as 'there is no such thing'."
+  ],
+  "inputs": {
+    "own-check": {
+      "producer_run_id": "audit-20260729T100000Z/own-check",
+      "producer_name": "own-check",
+      "producer_version": null,
+      "input_digest": "sha256:a0569f8f6c71569d006db1bb280389a432dbf78ad46379b9aa16a6edffbfb6dc",
+      "config_digest": null,
+      "source_commit": "0123456789abcdef0123456789abcdef01234567"
+    },
+    "codeql": {
+      "producer_run_id": "audit-20260729T100000Z/codeql",
+      "producer_name": "codeql",
+      "producer_version": null,
+      "input_digest": "sha256:67c419aa1ce5a4f6228b207b65196663e03dafd630038d9879b40301ddce5d65",
+      "config_digest": null,
+      "source_commit": "0123456789abcdef0123456789abcdef01234567"
+    },
+    "infersharp": {
+      "producer_run_id": "audit-20260729T100000Z/infersharp",
+      "producer_name": "infersharp",
+      "producer_version": null,
+      "input_digest": null,
+      "config_digest": null,
+      "source_commit": null
+    }
+  }
+}

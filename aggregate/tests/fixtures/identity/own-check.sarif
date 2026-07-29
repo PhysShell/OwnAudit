@@ -1,0 +1,104 @@
+{
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "own-check"
+        }
+      },
+      "results": [
+        {
+          "ruleId": "OWN001",
+          "message": {
+            "text": "event 'A.PropertyChanged' never unsubscribed [resource: subscription token]"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "Broker/Vm.cs"
+                },
+                "region": {
+                  "startLine": 12
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "OWN001",
+          "message": {
+            "text": "event 'A.PropertyChanged' never unsubscribed [resource: subscription token]"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "Broker/Vm.cs"
+                },
+                "region": {
+                  "startLine": 40
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "OWN001",
+          "message": {
+            "text": "event 'B.PropertyChanged' never unsubscribed [resource: subscription token]"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "Broker/Dup.cs"
+                },
+                "region": {
+                  "startLine": 7
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "OWN001",
+          "message": {
+            "text": "event 'B.PropertyChanged' never unsubscribed [resource: subscription token]"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "Broker/Dup.cs"
+                },
+                "region": {
+                  "startLine": 7
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "OWN001",
+          "message": {
+            "text": "timer never stopped [resource: timer]"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "Broker/NoLine.cs"
+                },
+                "region": {
+                  "startLine": 0
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

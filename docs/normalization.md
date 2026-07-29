@@ -89,6 +89,22 @@ category-14 findings and a handful of Roslyn CS diagnostics). That is an input
 provenance gap in the recorded run, not a normalization difference; the two
 implementations agree exactly whenever they are given the same inputs.
 
+## Identity and provenance (slice 1B)
+
+Since `normalized-findings/v2` each record also carries `pattern_id`,
+`occurrence_id`, `physical_anchor` and `identity_limitations`, and the payload
+carries a top-level `provenance` map. The rules — especially when an
+`occurrence_id` is *refused* — are in [`docs/finding-identity.md`](finding-identity.md).
+
+Two things matter here:
+
+- `--provenance manifest.json` supplies the run identity SARIF does not carry.
+  Without it every `occurrence_id` is `null` and every record says why. The
+  normalizer never mints a run id of its own.
+- The ten v1 fields did not move. `aggregate/tests/test_normalize.py` projects a
+  v2 payload back to v1 and diffs it against the slice-1A golden byte for byte —
+  on the full STS corpus too.
+
 ## What is deliberately still missing
 
 - **A SARIF result with no usable location is dropped and counted nowhere.** That
@@ -96,10 +112,13 @@ implementations agree exactly whenever they are given the same inputs.
   it is a real hole in a ledger that otherwise refuses to lose a finding silently.
   It is pinned by a test (`20` results read as `19`) so it cannot drift, and it
   gets fixed in a change that owns the payload difference rather than under a port.
-- **No identity or provenance fields.** `pattern_id`, `occurrence_id`,
-  `schema_version` and provenance belong to slice 1B. The test asserts the record
-  has exactly ten keys, because a field that ships before it means anything is a
-  field consumers start depending on anyway.
+- **No `lineage_id`.** Following one finding across runs is slice 2 and needs
+  occurrence identity to exist first. The record's key set is pinned exhaustively
+  in both directions, because a field that appears quietly is a field consumers
+  start depending on before anyone decided it should exist.
+- **Own.NET reports no source column**, so its anchors are line-only. That is a
+  precision limit rather than a blocker — see `docs/finding-identity.md` for the
+  measured effect (it costs this corpus nothing).
 - **`score.py` / `report.py` have not moved.** `Run-Audit.ps1` still runs those
   from the Own.NET worktree. Normalization is the stage that had to come first —
   everything downstream reads its output.
