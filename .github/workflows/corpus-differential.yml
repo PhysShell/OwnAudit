@@ -1,0 +1,149 @@
+name: corpus differential
+
+# The LONG contour. Own.NET's own CI gates every PR on a frozen mini corpus that
+# finishes in minutes; this is the one that runs a real corpus and takes hours, so
+# it is deliberately NOT on the PR path:
+#
+#   * workflow_dispatch - the manual, evidence-producing run. This is the tier the
+#     process trusts: a named base and head SHA, the input digest, and artifacts.
+#   * schedule - nightly against main, to catch a regression nobody's PR touched.
+#
+# A run here is not a checkbox, it is EVIDENCE, and evidence has to be
+# re-derivable: `run.json` records both commit SHAs, both SARIF digests, the
+# corpus digest and the expectation used, and every intermediate is uploaded. A
+# verdict whose inputs cannot be named again later is an opinion.
+#
+# WHY IT IS NOT AUTOMATIC ON PULL REQUESTS
+# A seven-hour job on the PR path holds the change hostage to the hardware, and a
+# job people wait on is a job people learn to bypass. The short gate lives in
+# Own.NET; this one runs on request and before merge, which is when its answer is
+# actually needed.
+
+on:
+  workflow_dispatch:
+    inputs:
+      own_net_ref:
+        description: "Own.NET candidate ref or SHA (the head side)"
+        required: true
+        default: "main"
+      base_ref:
+        description: "Own.NET baseline ref (merge-base is taken against the head)"
+        required: true
+        default: "main"
+      corpus:
+        description: "Repo-relative corpus path inside Own.NET"
+        required: true
+        default: "corpus/mini"
+      expectation:
+        description: "corpus-delta/v1 expectation, or empty for the strict default"
+        required: false
+        default: "corpusdiff/expectations/own-check-start-column.json"
+      gate:
+        description: "Fail the run on a violation (false = report only)"
+        type: boolean
+        required: false
+        default: false
+  schedule:
+    # 02:30 UTC. Nightly against main, where a slow regression that no single PR
+    # introduced still gets a name.
+    - cron: "30 2 * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  # One corpus run at a time: two of these would contend for the same runner for
+  # hours and neither would finish sooner.
+  group: corpus-differential
+  cancel-in-progress: false
+
+jobs:
+  differential:
+    name: own-check base vs head over a corpus
+    runs-on: ubuntu-latest
+    # Generous but bounded. A corpus run that has not finished in six hours has
+    # stopped being a measurement and become a hung process.
+    timeout-minutes: 360
+    steps:
+      - name: Check out OwnAudit (the comparator)
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
+
+      - name: Check out Own.NET (the producer)
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          repository: PhysShell/Own.NET
+          # Full history: the runner takes a merge base and checks out two
+          # commits as worktrees. A shallow clone has neither.
+          fetch-depth: 0
+          path: own-net
+          persist-credentials: false
+
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.12"
+
+      - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Resolve the two sides
+        id: sides
+        env:
+          HEAD_REF: ${{ github.event.inputs.own_net_ref || 'main' }}
+          BASE_REF: ${{ github.event.inputs.base_ref || 'main' }}
+        run: |
+          set -euo pipefail
+          cd own-net
+          # A ref that is not a local branch (a PR head, a bare SHA) needs
+          # fetching before it can be checked out as a worktree.
+          git fetch --quiet origin "$HEAD_REF" || true
+          head_sha=$(git rev-parse "$HEAD_REF" 2>/dev/null || git rev-parse "origin/$HEAD_REF")
+          base_sha=$(git rev-parse "$BASE_REF" 2>/dev/null || git rev-parse "origin/$BASE_REF")
+          echo "head=$head_sha" >> "$GITHUB_OUTPUT"
+          echo "base=$base_sha" >> "$GITHUB_OUTPUT"
+          echo "Resolved head=$head_sha base=$base_sha"
+
+      - name: Run the differential
+        id: diff
+        env:
+          CORPUS: ${{ github.event.inputs.corpus || 'corpus/mini' }}
+          EXPECTATION: ${{ github.event.inputs.expectation || 'corpusdiff/expectations/own-check-start-column.json' }}
+          GATE: ${{ github.event.inputs.gate || 'false' }}
+        run: |
+          set -euo pipefail
+          args=(--repo own-net
+                --base "${{ steps.sides.outputs.base }}"
+                --head "${{ steps.sides.outputs.head }}"
+                --merge-base
+                --corpus "$CORPUS"
+                --out artifacts/corpus-diff
+                --run-label "gha-${GITHUB_RUN_ID}")
+          [ -n "$EXPECTATION" ] && args+=(--expect "$EXPECTATION")
+          # Report-only by default. The gate that blocks a merge is the short one
+          # in Own.NET's CI; this run's job is to produce the evidence, and a
+          # six-hour red X that nobody can act on teaches people to ignore it.
+          [ "$GATE" != "true" ] && args+=(--no-gate)
+          PYTHONUTF8=1 PYTHONPATH=. python3 -m corpusdiff.run_differential "${args[@]}"
+
+      - name: Job summary
+        if: always()
+        run: |
+          if [ -f artifacts/corpus-diff/report.md ]; then
+            cat artifacts/corpus-diff/report.md >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "The differential did not produce a report - see the step log." \
+              >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      # Uploaded on failure too: a run that ended in violations is exactly the one
+      # whose intermediates someone needs to read.
+      - name: Upload the differential artifacts
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: corpus-differential-${{ github.run_id }}
+          path: artifacts/corpus-diff/
+          if-no-files-found: warn
+          retention-days: 30

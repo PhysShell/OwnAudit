@@ -1,0 +1,229 @@
+{
+  "contract": "corpus-delta/v1",
+  "_doc": [
+    "The executable half of corpus-delta/v1 (corpusdiff/delta.py). It freezes the",
+    "vocabularies a differential expectation may draw on, and pins the loader's",
+    "accept/reject behaviour with documents rather than prose.",
+    "",
+    "Each `reject` case carries `because`: a substring the raised DeltaError must",
+    "contain. A test that only checked THAT the load failed would pass on a loader",
+    "that rejected every document for the wrong reason, including the valid ones.",
+    "",
+    "There is no `allow_any_difference` and there is no wildcard producer. Both are",
+    "rejected by name below, because both are what this file decays into under",
+    "deadline pressure and neither is distinguishable from deleting the gate."
+  ],
+
+  "change_kinds": [
+    "new_pattern",
+    "removed_pattern",
+    "path_change",
+    "line_change",
+    "multiplicity_change",
+    "start_column_change",
+    "pattern_attribute_change",
+    "ambiguity_increase",
+    "locationless_increase",
+    "occurrence_coverage_decrease",
+    "suppression_census_change",
+    "advisory_census_change",
+    "fabricated_column_uniform",
+    "fabricated_column_collision"
+  ],
+  "unchanged_keys": ["pattern_population", "finding_count", "start_line", "start_column"],
+  "transitions": [
+    "null-to-positive-integer",
+    "positive-integer-to-null",
+    "positive-integer-to-positive-integer"
+  ],
+  "never_allowable": ["fabricated_column_uniform", "fabricated_column_collision"],
+  "allowable_fields": ["start_column"],
+
+  "accept": [
+    {
+      "name": "the startColumn slice's expectation",
+      "_doc": "The canonical intentional delta: own-check gains a real column, and nothing else moves.",
+      "document": {
+        "schema": "corpus-delta/v1",
+        "unchanged": {
+          "pattern_population": true,
+          "finding_count": true,
+          "start_line": true
+        },
+        "allowed_changes": [
+          {
+            "field": "start_column",
+            "producer": "own-check",
+            "transition": "null-to-positive-integer"
+          }
+        ],
+        "forbidden": [
+          "new_pattern",
+          "removed_pattern",
+          "path_change",
+          "line_change",
+          "ambiguity_increase"
+        ]
+      }
+    },
+    {
+      "name": "schema only - equivalent to the strict default",
+      "document": {"schema": "corpus-delta/v1"}
+    },
+    {
+      "name": "pins with no allowances",
+      "document": {
+        "schema": "corpus-delta/v1",
+        "unchanged": {"pattern_population": true, "start_column": true}
+      }
+    },
+    {
+      "name": "prohibitions with no allowances",
+      "document": {
+        "schema": "corpus-delta/v1",
+        "forbidden": ["removed_pattern", "occurrence_coverage_decrease"]
+      }
+    },
+    {
+      "name": "a _doc block is documentation, not data",
+      "document": {
+        "schema": "corpus-delta/v1",
+        "_doc": "why this slice changes output",
+        "allowed_changes": [
+          {
+            "field": "start_column",
+            "producer": "roslyn",
+            "transition": "positive-integer-to-positive-integer",
+            "_doc": "the extractor re-anchored from the statement to the event name"
+          }
+        ]
+      }
+    }
+  ],
+
+  "reject": [
+    {
+      "name": "the blanket allowlist",
+      "because": "allow_any_difference",
+      "document": {"schema": "corpus-delta/v1", "allow_any_difference": true}
+    },
+    {
+      "name": "the blanket allowlist, set to false",
+      "_doc": "Present-and-false is still the key being in the vocabulary. Accepting it would make the spelling available, and the next edit flips the value.",
+      "because": "allow_any_difference",
+      "document": {"schema": "corpus-delta/v1", "allow_any_difference": false}
+    },
+    {
+      "name": "wrong contract name",
+      "because": "'schema' must be",
+      "document": {"schema": "corpus-delta/v2"}
+    },
+    {
+      "name": "no contract name at all",
+      "because": "'schema' must be",
+      "document": {"unchanged": {"finding_count": true}}
+    },
+    {
+      "name": "an unknown top-level key",
+      "because": "unknown corpus-delta/v1 key(s)",
+      "document": {"schema": "corpus-delta/v1", "allowed": []}
+    },
+    {
+      "name": "a misspelled unchanged key",
+      "because": "unknown 'unchanged' key",
+      "document": {"schema": "corpus-delta/v1", "unchanged": {"finding_counts": true}}
+    },
+    {
+      "name": "a non-boolean unchanged flag",
+      "because": "must be true or false",
+      "document": {"schema": "corpus-delta/v1", "unchanged": {"finding_count": "yes"}}
+    },
+    {
+      "name": "an unknown transition",
+      "because": "is not a corpus-delta/v1 transition",
+      "document": {
+        "schema": "corpus-delta/v1",
+        "allowed_changes": [
+          {"field": "start_column", "producer": "own-check", "transition": "anything-goes"}
+        ]
+      }
+    },
+    {
+      "name": "an allowance for a field that may never be allowed",
+      "because": "cannot be allowed",
+      "document": {
+        "schema": "corpus-delta/v1",
+        "allowed_changes": [
+          {"field": "start_line", "producer": "own-check",
+           "transition": "positive-integer-to-positive-integer"}
+        ]
+      }
+    },
+    {
+      "name": "a wildcard producer",
+      "because": "must name ONE producer",
+      "document": {
+        "schema": "corpus-delta/v1",
+        "allowed_changes": [
+          {"field": "start_column", "producer": "*",
+           "transition": "null-to-positive-integer"}
+        ]
+      }
+    },
+    {
+      "name": "an allowance with no producer",
+      "because": "must be a non-empty string",
+      "document": {
+        "schema": "corpus-delta/v1",
+        "allowed_changes": [
+          {"field": "start_column", "transition": "null-to-positive-integer"}
+        ]
+      }
+    },
+    {
+      "name": "an allowance with an unknown key",
+      "because": "unknown key(s)",
+      "document": {
+        "schema": "corpus-delta/v1",
+        "allowed_changes": [
+          {"field": "start_column", "producer": "own-check",
+           "transition": "null-to-positive-integer", "unless": "inconvenient"}
+        ]
+      }
+    },
+    {
+      "name": "an unknown forbidden kind",
+      "because": "unknown forbidden change kind",
+      "document": {"schema": "corpus-delta/v1", "forbidden": ["everything_bad"]}
+    },
+    {
+      "name": "allowing and forbidding the same column move",
+      "because": "contradicts itself",
+      "document": {
+        "schema": "corpus-delta/v1",
+        "allowed_changes": [
+          {"field": "start_column", "producer": "own-check",
+           "transition": "null-to-positive-integer"}
+        ],
+        "forbidden": ["start_column_change"]
+      }
+    },
+    {
+      "name": "pinning the column unchanged while allowing it to change",
+      "because": "contradicts itself",
+      "document": {
+        "schema": "corpus-delta/v1",
+        "unchanged": {"start_column": true},
+        "allowed_changes": [
+          {"field": "start_column", "producer": "own-check",
+           "transition": "null-to-positive-integer"}
+        ]
+      }
+    },
+    {
+      "name": "not an object at all",
+      "because": "must be a JSON object",
+      "document": ["schema", "corpus-delta/v1"]
+    }
+  ]
+}

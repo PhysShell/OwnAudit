@@ -1,0 +1,59 @@
+{
+  "schema": "corpus-delta/v1",
+  "_doc": [
+    "The intentional delta for the Own.NET startColumn producer slice.",
+    "",
+    "WHAT THE SLICE DOES: the Roslyn extractor now stamps the 1-based column of a",
+    "subscription's event access onto the OwnIR fact, the core carries it on",
+    "Finding.column, and SARIF emits it as region.startColumn. Nothing about WHICH",
+    "findings exist changes - only where each one is anchored, and only in the",
+    "coordinate that was previously absent.",
+    "",
+    "SO THE EXPECTATION IS NARROW ON PURPOSE. One producer (own-check), one field",
+    "(start_column), one transition (absent -> a real positive integer). A column",
+    "that MOVES from one integer to another is not this slice and is not signed off",
+    "here; neither is a line moving, a path moving, or a finding appearing or",
+    "disappearing.",
+    "",
+    "WHAT IS DELIBERATELY NOT PINNED: occurrence coverage. A richer anchor can only",
+    "help it, but it may legitimately stay flat - a corpus run without a provenance",
+    "manifest earns no occurrence ids at all, and a line-only anchor that was",
+    "already unique in its run earns one either way. Pinning it unchanged would fail",
+    "honest runs; pinning it to increase would assert an improvement the slice does",
+    "not promise. It is reported, and `occurrence_coverage_decrease` is a change",
+    "kind, so a REGRESSION still surfaces without a pin.",
+    "",
+    "Ambiguity is in `forbidden` rather than merely reported: the whole argument for",
+    "a column is that it discriminates. A slice that added columns AND left more",
+    "anchors indistinguishable than it found has disproved its own premise."
+  ],
+
+  "unchanged": {
+    "pattern_population": true,
+    "finding_count": true,
+    "start_line": true
+  },
+
+  "allowed_changes": [
+    {
+      "field": "start_column",
+      "producer": "own-check",
+      "transition": "null-to-positive-integer",
+      "_doc": "own-check reported a column for 0 of 613 results in the recorded STS corpus; every one of these is that absence being filled in."
+    }
+  ],
+
+  "forbidden": [
+    "new_pattern",
+    "removed_pattern",
+    "path_change",
+    "line_change",
+    "multiplicity_change",
+    "ambiguity_increase",
+    "locationless_increase",
+    "occurrence_coverage_decrease",
+    "suppression_census_change",
+    "advisory_census_change",
+    "pattern_attribute_change"
+  ]
+}
