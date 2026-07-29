@@ -37,6 +37,7 @@ jobs:
           PYTHONPATH=.   python3 identity/tests/test_pattern.py
           PYTHONPATH=.   python3 identity/tests/test_occurrence.py
           PYTHONPATH=.   python3 aggregate/tests/test_normalize.py
+          PYTHONPATH=.   python3 aggregate/tests/test_anchor_ab.py
           PYTHONPATH=.   python3 report/tests/test_sarif.py
           PYTHONPATH=.   python3 report/tests/test_baseline.py
           PYTHONPATH=.   python3 report/tests/test_rules_map.py
@@ -59,6 +60,7 @@ jobs:
           PYTHONPATH=.   python3 -O identity/tests/test_pattern.py
           PYTHONPATH=.   python3 -O identity/tests/test_occurrence.py
           PYTHONPATH=.   python3 -O aggregate/tests/test_normalize.py
+          PYTHONPATH=.   python3 -O aggregate/tests/test_anchor_ab.py
           PYTHONPATH=.   python3 -O report/tests/test_sarif.py
           PYTHONPATH=.   python3 -O report/tests/test_baseline.py
           PYTHONPATH=.   python3 -O report/tests/test_rules_map.py
