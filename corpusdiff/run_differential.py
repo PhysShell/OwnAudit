@@ -185,6 +185,11 @@ def _side(repo: Path, out: Path, label: str, commit: str, corpus: list[str],
     worktree = out / label
     if worktree.exists():
         shutil.rmtree(worktree, ignore_errors=True)
+    # Removing the directory does NOT deregister the worktree, so a re-run into the
+    # same --out would hit "already registered" on a path that no longer exists.
+    # Prune first: it is idempotent, and a differ that only worked on a clean
+    # directory would be a differ nobody ran twice.
+    _git(repo, "worktree", "prune")
     _git(repo, "worktree", "add", "--detach", str(worktree), commit)
     try:
         sarif = out / f"{label}.sarif"

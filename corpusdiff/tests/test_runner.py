@@ -24,7 +24,8 @@ WHAT IS PINNED
   * a producer in the hard-error tier ABORTS instead of yielding an empty side;
   * the run record carries the SHAs and the input digest, so the verdict is
     re-derivable from the artifacts;
-  * the worktrees are gone afterwards unless the caller asked to keep them.
+  * the worktrees are gone afterwards unless the caller asked to keep them, and no
+    stale registration survives to break the next run into the same directory.
 
 -O-safe (explicit raises, no bare assert). ASCII-only output.
 """
@@ -245,6 +246,28 @@ def test_producer_hard_error_aborts(tmp: str) -> None:
           "an aborted run must not leave a report that reads as a verdict")
 
 
+def test_rerun_into_the_same_out_dir(tmp: str) -> None:
+    """A second run into the same --out must work.
+
+    Deleting a worktree DIRECTORY does not deregister the worktree, so without a
+    `git worktree prune` the second run fails with "already registered" on a path
+    that no longer exists. A differ that only worked on a clean directory is a
+    differ nobody runs twice — and the second run is the one you do while
+    debugging the first.
+    """
+    repo = os.path.join(tmp, "rerun")
+    os.makedirs(repo)
+    base, head, _ = build_repo(repo)
+    out = os.path.join(tmp, "out-rerun")
+    args = ["--repo", repo, "--base", base, "--head", head,
+            "--corpus", "corpus/mini", "--out", out, "--expect", EXPECTATION]
+    first, second = main(args), main(args)
+    check(first == 0 and second == 0,
+          f"a re-run into the same --out must succeed: first={first}, second={second}")
+    check(git(repo, "worktree", "list", "--porcelain").count("worktree ") == 1,
+          "no stale worktree registration may survive a re-run")
+
+
 def test_corpus_digest_sees_content(tmp: str) -> None:
     """The digest must change when the corpus changes, and not otherwise."""
     root = Path(tmp, "digest")
@@ -270,10 +293,11 @@ def main_test() -> int:
         test_pass_and_records(tmp)
         test_strict_default_fails(tmp)
         test_producer_hard_error_aborts(tmp)
+        test_rerun_into_the_same_out_dir(tmp)
         test_corpus_digest_sees_content(tmp)
     for f in fails:
         print(f"FAIL: {f}")
-    print(f"corpusdiff/tests/test_runner: {'OK' if not fails else 'FAIL'} - 4 cases")
+    print(f"corpusdiff/tests/test_runner: {'OK' if not fails else 'FAIL'} - 5 cases")
     return 1 if fails else 0
 
 
