@@ -25,7 +25,34 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(
 
 from aggregate.anchor_ab import (  # noqa: E402
     STS_317_LEDGER, STS_317_TOTAL, AcceptanceInputError, build, column_coverage,
-    differential, main, occurrence_coverage, read_anchored)
+    differential, main, occurrence_coverage, read_anchored, sha256_file)
+
+
+def _normalized(sarif: str, commit: str, n: int, covered: int | None = None,
+                producer: str = "own-check", **override) -> str:
+    """A real `normalized-findings/v2` payload, bound to `sarif` by its digest.
+
+    Acceptance mode refuses a bare `{"findings": [...]}`, and rightly: an unbound
+    payload is a separate file that merely arrived at the same time. `override`
+    lets a case corrupt exactly one provenance field, so each binding check is
+    tested in isolation rather than by a wholesale-wrong fixture.
+    """
+    covered = n if covered is None else covered
+    prov = {"producer_name": producer,
+            "producer_run_id": "audit-20260729T000000Z-0000/own-check",
+            "producer_version": None,
+            "input_digest": sha256_file(sarif),
+            "config_digest": None,
+            "source_commit": commit,
+            "digest_verified": True,
+            "producer_version_source": None,
+            "note": None}
+    prov.update(override)
+    return _write({"schema_version": "normalized-findings/v2",
+                   "provenance": {producer: prov},
+                   "findings": [{"tool": producer,
+                                 "occurrence_id": (f"{i:032x}" if i < covered else None)}
+                                for i in range(n)]})
 
 _FAILS: list[str] = []
 _CHECKS = 0
@@ -293,11 +320,13 @@ def run() -> int:
         #     must NOT be an acceptance of #317 - nothing here saw the corpus.
         check(build(bp, cp, "0ded835", "bdb3307", "ddf99b9")["pass"],
               "one clean finding is a valid diagnostic PASS")
-        norm = _write({"findings": [{"tool": "own-check", "occurrence_id": "a" * 32}]})
+        norm = _normalized(cp, "bdb3307", 1)
         try:
             rep = build(bp, cp, "0ded835", "bdb3307", "ddf99b9",
                         normalized=norm, acceptance=True)
             check(not rep["pass"], "one finding must NOT satisfy the #317 ledger")
+            check(rep["gates"]["occurrence_bound_to_candidate"] is True,
+                  "a correctly bound payload must satisfy the binding gate")
             for g in ("candidate_scored_is_ledger", "candidate_ledger_exact",
                       "baseline_ledger_exact", "occurrence_total_is_ledger"):
                 check(rep["gates"][g] is False, f"{g} must fail on a 1-row corpus")
@@ -322,8 +351,7 @@ def run() -> int:
                                      column=1 + (n % 40)))
     check(n == STS_317_TOTAL, f"the ledger must sum to {STS_317_TOTAL}, got {n}")
     bp, cp = _write(_sarif(base_rows)), _write(_sarif(cand_rows))
-    norm = _write({"findings": [{"tool": "own-check", "occurrence_id": f"{i:032x}"}
-                                for i in range(STS_317_TOTAL)]})
+    norm = _normalized(cp, "bdb3307", STS_317_TOTAL)
     try:
         rep = build(bp, cp, "0ded835", "bdb3307", "ddf99b9",
                     normalized=norm, acceptance=True)
@@ -333,9 +361,8 @@ def run() -> int:
               f"all {STS_317_TOTAL} must count as gained, got "
               f"{rep['differential']['column_added']}")
         # ...and one occurrence id short of the ledger is a FAIL, not a rounding.
-        short = _write({"findings": [{"tool": "own-check",
-                                      "occurrence_id": (f"{i:032x}" if i else None)}
-                                     for i in range(STS_317_TOTAL)]})
+        short = _normalized(cp, "bdb3307", STS_317_TOTAL,
+                            covered=STS_317_TOTAL - 1)
         try:
             rep2 = build(bp, cp, "0ded835", "bdb3307", "ddf99b9",
                          normalized=short, acceptance=True)
@@ -345,6 +372,76 @@ def run() -> int:
             os.remove(short)
     finally:
         for f in (bp, cp, norm):
+            os.remove(f)
+
+    # ---- 13. THE PAYLOAD MUST DESCRIBE THE CANDIDATE ---------------------
+    # Two inputs that merely arrived together are not evidence about the same
+    # bytes. Each case corrupts exactly ONE binding, and every one must REFUSE
+    # (exit 2) rather than vote - a mismatch is an unevaluable criterion, not a
+    # detected change in producer behaviour.
+    bp = _write(_sarif([_result("a.cs", 10)]))
+    cp = _write(_sarif([_result("a.cs", 10, column=13)]))
+    other = _write(_sarif([_result("zzz.cs", 99, column=7)]))
+    try:
+        good = _normalized(cp, "bdb3307", 1)
+        bad = {
+            "wrong producer": dict(producer="codeql"),
+            "digest of another SARIF": dict(input_digest=sha256_file(other)),
+            "digest_verified false": dict(digest_verified=False),
+            "source_commit mismatch": dict(source_commit="deadbee"),
+            "empty producer_run_id": dict(producer_run_id=""),
+        }
+        for label, override in bad.items():
+            kw = {"producer": override.pop("producer")} if "producer" in override else {}
+            n = _normalized(cp, "bdb3307", 1, **kw, **override)
+            try:
+                raised = False
+                try:
+                    build(bp, cp, "0ded835", "bdb3307", "ddf99b9",
+                          normalized=n, acceptance=True)
+                except AcceptanceInputError:
+                    raised = True
+                check(raised, f"{label}: must refuse, not decide")
+                check(main(["--baseline", bp, "--candidate", cp,
+                            "--baseline-commit", "0ded835",
+                            "--candidate-commit", "bdb3307",
+                            "--normalizer-commit", "z", "--normalized", n,
+                            "--acceptance-ownnet-317"]) == 2,
+                      f"{label}: the CLI must exit 2")
+            finally:
+                os.remove(n)
+
+        # A non-own-check producer cannot satisfy this criterion at all - the old
+        # gate compared the argument with itself and stayed green for any value.
+        #
+        # The payload here is CORRECTLY BOUND under `codeql`: digest, commit,
+        # run id and producer_name all agree. So nothing but the producer pin can
+        # reject it. An earlier version of this check reused the own-check payload
+        # and passed for the wrong reason - `bind_normalized` rejected it for a
+        # missing `codeql` provenance entry - which a negative control exposed by
+        # leaving the suite green with the pin disabled.
+        ql = _normalized(cp, "bdb3307", 1, producer="codeql")
+        try:
+            raised = False
+            try:
+                build(bp, cp, "0ded835", "bdb3307", "ddf99b9",
+                      normalized=ql, acceptance=True, producer="codeql")
+            except AcceptanceInputError as e:
+                raised = "acceptance-ownnet-317 is defined for" in str(e)
+            check(raised, "--producer codeql must be refused BY THE PIN, and a "
+                          "correctly bound codeql payload leaves nothing else to "
+                          "refuse it")
+        finally:
+            os.remove(ql)
+
+        # ...while the correctly bound payload still works, and diagnostic mode
+        # stays free of all of it.
+        rep = build(bp, cp, "0ded835", "bdb3307", "ddf99b9", normalized=good)
+        check(rep["pass"] and "normalized_provenance" not in rep,
+              "diagnostic mode must not require or perform the binding")
+        os.remove(good)
+    finally:
+        for f in (bp, cp, other):
             os.remove(f)
 
     for f in _FAILS:

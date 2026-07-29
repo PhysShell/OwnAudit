@@ -355,6 +355,64 @@ def column_coverage(records: list[Anchored]) -> dict[str, Any]:
             "total": sum(r["total"] for r in rows)}
 
 
+ACCEPTANCE_PRODUCER = "own-check"
+
+
+def bind_normalized(payload: dict[str, Any], candidate_digest: str,
+                    candidate_commit: str,
+                    producer: str = ACCEPTANCE_PRODUCER) -> dict[str, Any]:
+    """Prove the normalized payload describes THE CANDIDATE SARIF, and return its provenance.
+
+    Without this, the two `--candidate` and `--normalized` inputs are unrelated
+    files that merely arrived together: a real new SARIF alongside an old or
+    synthetic payload reporting 380/380 would satisfy every occurrence gate while
+    the coverage described different bytes.
+
+    The binding already exists - `producer-provenance/v1` records the SHA-256 of
+    the exact file the normalizer read, and whether it verified it - so this is a
+    matter of CHECKING it rather than inventing a new mechanism.
+
+    Every failure here raises rather than returning a verdict. A mismatch is not a
+    detected change in producer behaviour; it is an attempt to evaluate the
+    criterion over inputs that were never connected, and the two must not be
+    reported the same way.
+
+    It still does not prove `source_commit` produced the binary that emitted the
+    SARIF. Nothing downstream of capture can: that binding has to be observed by
+    the runner at capture time and carried in its own manifest.
+    """
+    got = payload.get("schema_version")
+    if got != "normalized-findings/v2":
+        raise AcceptanceInputError(
+            f"--normalized: schema_version is {got!r}, expected 'normalized-findings/v2'")
+    prov = (payload.get("provenance") or {}).get(producer)
+    if not isinstance(prov, dict):
+        raise AcceptanceInputError(
+            f"--normalized: no provenance entry for {producer!r}; without one the "
+            "payload cannot be shown to describe the candidate SARIF at all")
+    problems = []
+    if prov.get("producer_name") != producer:
+        problems.append(f"producer_name is {prov.get('producer_name')!r}, "
+                        f"expected {producer!r}")
+    if prov.get("input_digest") != candidate_digest:
+        problems.append(f"input_digest is {prov.get('input_digest')!r}, but the "
+                        f"candidate SARIF hashes to {candidate_digest}")
+    if prov.get("digest_verified") is not True:
+        problems.append("digest_verified is not true - the normalizer did not "
+                        "confirm it read those bytes")
+    if prov.get("source_commit") != candidate_commit:
+        problems.append(f"source_commit is {prov.get('source_commit')!r}, "
+                        f"expected the candidate commit {candidate_commit!r}")
+    if not prov.get("producer_run_id"):
+        problems.append("producer_run_id is empty - no run identity means no "
+                        "occurrence id could have been minted")
+    if problems:
+        raise AcceptanceInputError(
+            "--normalized does not describe the candidate SARIF:\n  "
+            + "\n  ".join(problems))
+    return prov
+
+
 def occurrence_coverage(payload: dict[str, Any], producer: str) -> dict[str, Any]:
     """Occurrence coverage for one producer, read from a `normalized-findings/v2` payload.
 
@@ -432,6 +490,16 @@ def build(baseline: str, candidate: str, baseline_commit: str,
           normalized: str | None = None,
           producer: str = "own-check",
           acceptance: bool = False) -> dict[str, Any]:
+    if acceptance and producer != ACCEPTANCE_PRODUCER:
+        # The occurrence gate used to compare `occ["producer"]` against this same
+        # argument - a value echoed straight back out of `occurrence_coverage`,
+        # so the check compared the argument with itself and stayed green for any
+        # producer. The criterion is about own-check; in acceptance mode that is
+        # not a parameter.
+        raise AcceptanceInputError(
+            f"--acceptance-ownnet-317 is defined for {ACCEPTANCE_PRODUCER!r}; "
+            f"--producer {producer!r} cannot satisfy it. Use diagnostic mode for "
+            "another producer.")
     if acceptance and not normalized:
         # Exit 2, not FAIL: a missing input is a misconfigured invocation, and a
         # gate that cannot be evaluated must never be reported as one that was.
@@ -459,7 +527,12 @@ def build(baseline: str, candidate: str, baseline_commit: str,
     }
     if normalized:
         with open(normalized, encoding="utf-8-sig") as fh:
-            report["occurrence_coverage"] = occurrence_coverage(json.load(fh), producer)
+            payload = json.load(fh)
+        if acceptance:
+            report["normalized_provenance"] = bind_normalized(
+                payload, report["inputs"]["candidate"]["digest"],
+                candidate_commit, producer)
+        report["occurrence_coverage"] = occurrence_coverage(payload, producer)
     report["baseline_column_coverage"] = base_cov
 
     # THE VERDICT
@@ -492,7 +565,12 @@ def build(baseline: str, candidate: str, baseline_commit: str,
             "column_added_is_ledger": diff["column_added"] == STS_317_TOTAL,
             "candidate_ledger_exact": led == STS_317_LEDGER,
             "baseline_ledger_exact": base_led == STS_317_LEDGER,
-            "occurrence_producer": bool(occ and occ["producer"] == producer),
+            # `occurrence_producer` used to live here and compared an argument
+            # with itself. What actually needed proving - that the payload
+            # describes the candidate SARIF and was minted for own-check - is
+            # `bind_normalized`, which runs before any gate is evaluated and
+            # raises instead of voting.
+            "occurrence_bound_to_candidate": "normalized_provenance" in report,
             "occurrence_total_is_ledger": bool(occ and occ["total"] == STS_317_TOTAL),
             "occurrence_fully_covered": bool(
                 occ and occ["total"] > 0
