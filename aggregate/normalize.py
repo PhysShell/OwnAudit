@@ -61,12 +61,30 @@ from typing import Any
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from aggregate.sarif_read import RawFinding, norm_path, parse_sarif             # noqa: E402,F401
+from aggregate import provenance as prov                                        # noqa: E402
+from aggregate.sarif_read import (                                              # noqa: E402,F401
+    RawFinding, norm_path, parse_sarif, parse_sarif_with_driver,
+)
+from identity import occurrence as occ                                          # noqa: E402
+from identity.pattern import pattern_id_of                                      # noqa: E402
 
 RESOURCE_RE = re.compile(r"\[resource:\s*([^\]]+)\]", re.IGNORECASE)
 
 #: The shipped knowledge base. Colocated with its only reader.
 DEFAULT_TAXONOMY = Path(__file__).resolve().parent / "taxonomy" / "categories.json"
+
+#: The payload contract. `normalized-findings/v1` is the retroactive name for the
+#: unversioned ten-field shape that slice 1A froze; v2 adds identity and
+#: provenance ON TOP of it, changing none of those ten fields. A consumer that
+#: only knows v1 can still read a v2 record - `aggregate/tests/test_normalize.py`
+#: proves that by projecting v2 back down and diffing it against the v1 golden
+#: byte for byte.
+SCHEMA_VERSION = "normalized-findings/v2"
+
+#: The ten fields slice 1A froze, in order. Kept as data so the projection test
+#: and `finding_to_dict` cannot drift apart.
+V1_FIELDS = ("tool", "path", "line", "rule", "category", "category_name",
+             "resource", "suppressed", "suppress_reason", "message")
 
 
 @dataclass
@@ -86,6 +104,9 @@ class AuditFinding:
     suppressed: bool = False
     suppress_reason: str = ""
     note: bool = False           # analysis-skipped coverage note (e.g. OWN050), not a verdict
+    #: `region.startColumn`, or None when the producer did not report one. Feeds
+    #: the physical anchor; deliberately NOT one of the ten emitted v1 fields.
+    column: int | None = None
     fkey: str = field(init=False, default="")
 
     def __post_init__(self) -> None:
@@ -197,7 +218,8 @@ def normalize_results(raw: list[Any], tax: Taxonomy) -> list[AuditFinding]:
         out.append(AuditFinding(
             tool=f.tool, path=f.path, line=f.line, rule=f.rule, message=f.message,
             category=category, category_name=name, resource=resource,
-            suppressed=bool(reason), suppress_reason=reason, note=is_note))
+            suppressed=bool(reason), suppress_reason=reason, note=is_note,
+            column=getattr(f, "column", None)))
     return out
 
 
@@ -222,16 +244,28 @@ def coverage(findings: list[AuditFinding]) -> dict[str, Any]:
     }
 
 
-def normalize(sarif_inputs: list[tuple[str, str]], tax: Taxonomy,
-              strips: list[str]) -> tuple[list[AuditFinding], dict[str, Any]]:
+def normalize(sarif_inputs: list[tuple[str, str]], tax: Taxonomy, strips: list[str],
+              ) -> tuple[list[AuditFinding], dict[str, Any], dict[str, str | None]]:
+    """Findings, coverage, and each producer's self-declared driver version.
+
+    The version rides along from the same parse rather than costing a second read
+    of a 35 MB file - and it is *observed*, not asserted: only CodeQL declares one
+    in the recorded corpus.
+    """
     raw: list[Any] = []
+    versions: dict[str, str | None] = {}
     for tool, path in sarif_inputs:
-        raw += parse_sarif(Path(path).read_text(encoding="utf-8"), tool, strips)
+        found, version = parse_sarif_with_driver(
+            Path(path).read_text(encoding="utf-8"), tool, strips)
+        raw += found
+        versions[tool] = version
     findings = normalize_results(raw, tax)
-    return findings, coverage(findings)
+    return findings, coverage(findings), versions
 
 
 def finding_to_dict(f: AuditFinding) -> dict[str, Any]:
+    """The ten fields slice 1A froze, in their frozen order. Do not extend this -
+    identity and provenance are added by `attach_identity`, on top and after."""
     return {
         "tool": f.tool, "path": f.path, "line": f.line, "rule": f.rule,
         "category": f.category, "category_name": f.category_name,
@@ -240,17 +274,130 @@ def finding_to_dict(f: AuditFinding) -> dict[str, Any]:
     }
 
 
-def build_payload(sarif_inputs: list[tuple[str, str]], tax: Taxonomy,
-                  strips: list[str]) -> dict[str, Any]:
-    """The `findings.json` document: the coverage ledger plus the scored findings.
+# --------------------------------------------------------------------------- #
+# Identity (Own.NET#266 slice 1B)                                              #
+# --------------------------------------------------------------------------- #
+
+def attach_identity(findings: list[AuditFinding],
+                    producers: dict[str, prov.ProducerProvenance]) -> list[dict[str, Any]]:
+    """Add `pattern_id`, `occurrence_id`, `physical_anchor` and
+    `identity_limitations` to each finding's record.
+
+    `pattern_id` is always computable here - every normalized finding carries
+    path, rule and message by construction. `occurrence_id` is not, and the
+    honest half of this function is the refusal path.
+
+    AMBIGUITY IS A WHOLE-POPULATION PROPERTY. The anchor census runs over EVERY
+    finding read, not only the ones that will be emitted, because whether an
+    anchor distinguishes a result is a fact about the producer's run - it does
+    not change because the report chose to suppress one of the colliders. Same
+    discipline as the runtime witness's root census: presentation limits never
+    reach back into classification.
+    """
+    keys = [
+        (f, pattern_id_of(finding_to_dict(f)), occ.anchor(f.path, f.line, f.column))
+        for f in findings
+    ]
+    seen = Counter(
+        occ.anchor_key(producers[f.tool].producer_run_id if f.tool in producers else None,
+                       f.tool, pid, phys)
+        for f, pid, phys in keys
+    )
+
+    out: list[dict[str, Any]] = []
+    for f, pid, phys in keys:
+        p = producers.get(f.tool) or prov.ProducerProvenance(producer_name=f.tool)
+        key = occ.anchor_key(p.producer_run_id, f.tool, pid, phys)
+        oid, limits = occ.resolve(pid, phys, p.producer_run_id, f.tool,
+                                  ambiguous=seen[key] > 1)
+        rec = finding_to_dict(f)
+        rec["pattern_id"] = pid
+        rec["occurrence_id"] = oid
+        rec["physical_anchor"] = phys
+        rec["identity_limitations"] = limits
+        out.append(rec)
+    return out
+
+
+def identity_coverage(records: list[dict[str, Any]]) -> dict[str, Any]:
+    """The identity half of the honesty ledger.
+
+    A schema whose flagship field is null for most of the corpus is not a
+    failure, but it must not read as a success either - so the counts are
+    reported next to the reasons, per producer. `with_occurrence_id` plus
+    `without_occurrence_id` always equals the number of emitted records.
+    """
+    with_id = sum(1 for r in records if r["occurrence_id"])
+    by_producer: dict[str, dict[str, int]] = {}
+    for r in records:
+        b = by_producer.setdefault(r["tool"], {"with_occurrence_id": 0,
+                                               "without_occurrence_id": 0})
+        b["with_occurrence_id" if r["occurrence_id"] else "without_occurrence_id"] += 1
+    return {
+        # No `schema_version` here: the payload states it once, at the top level.
+        # Two copies are two things to drift apart, and the ledger is not the place
+        # to re-declare the contract.
+        "with_pattern_id": sum(1 for r in records if r["pattern_id"]),
+        "with_occurrence_id": with_id,
+        "without_occurrence_id": len(records) - with_id,
+        "limitations_by": dict(Counter(
+            lim for r in records for lim in r["identity_limitations"]).most_common()),
+        "by_producer": by_producer,
+    }
+
+
+def build_payload(sarif_inputs: list[tuple[str, str]], tax: Taxonomy, strips: list[str],
+                  manifest_path: str | Path | None = None) -> dict[str, Any]:
+    """The `findings.json` document: schema version, the coverage ledger, resolved
+    provenance, and the scored findings with their identity.
 
     Suppressed and analysis-skipped findings are absent from `findings` and present
     in `coverage` - counted, not hidden. Consumers that need the count read the
     ledger; nothing has to infer it from a shortfall.
+
+    `provenance` is a top-level map keyed by producer name rather than a copy
+    inside each record: the six fields are identical for every finding of a
+    producer, and duplicating them across the 72 559 records of the STS corpus
+    would multiply the payload for no information. Each record's existing `tool`
+    IS the join key.
     """
-    findings, cov = normalize(sarif_inputs, tax, strips)
+    # Before a byte of SARIF is read: two inputs under one producer name cannot be
+    # represented, and a malformed manifest is worth finding out about now rather
+    # than after parsing 100 MB of input. The manifest is read ONCE here and handed
+    # to both consumers below; `prov.resolve` re-checks uniqueness for callers that
+    # reach it directly, which costs a loop over four items and keeps the invariant
+    # true no matter who calls.
+    prov.check_unique_producers(sarif_inputs)
+    entries = prov.load_manifest(manifest_path) if manifest_path else {}
+    findings, cov, versions = normalize(sarif_inputs, tax, strips)
+    producers = prov.resolve(sarif_inputs, manifest_path, versions, entries)
+    records = [r for r in attach_identity(findings, producers)
+               if not r["suppressed"] and r["rule"] not in tax.coverage_note_rules]
+    cov["identity"] = identity_coverage(records)
+    unused = prov.unused_entries(sarif_inputs, manifest_path, entries)
+    if unused:
+        cov["provenance_unused_entries"] = unused
+    return {
+        "schema_version": SCHEMA_VERSION,
+        "coverage": cov,
+        "provenance": {name: p.to_dict() for name, p in sorted(producers.items())},
+        "findings": records,
+    }
+
+
+def project_v1(payload: dict[str, Any]) -> dict[str, Any]:
+    """A v2 payload seen through v1 eyes: the ten frozen fields and the ledger the
+    port was pinned against.
+
+    This exists so the 1A parity golden - which was generated by the REFERENCE
+    implementation, not by this code - keeps meaning something after the schema
+    grew. If this projection ever stops matching those bytes, 1B changed
+    something it promised only to add to.
+    """
+    cov = {k: v for k, v in payload["coverage"].items()
+           if k not in ("identity", "provenance_unused_entries")}
     return {"coverage": cov,
-            "findings": [finding_to_dict(f) for f in findings if f.scored]}
+            "findings": [{k: r[k] for k in V1_FIELDS} for r in payload["findings"]]}
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -261,6 +408,9 @@ def main(argv: list[str] | None = None) -> int:
                     help="categories.json (default: the shipped taxonomy)")
     ap.add_argument("--strip", action="append", default=[], metavar="PREFIX",
                     help="path prefix to strip from finding paths (repeatable)")
+    ap.add_argument("--provenance", default=None, metavar="MANIFEST",
+                    help="producer-provenance/v1 manifest naming each producer's run "
+                         "(without it every occurrence_id is null, and says why)")
     ap.add_argument("--json", dest="json_out", default="",
                     help="write normalized findings + coverage as JSON")
     ap.add_argument("--selftest", action="store_true",
@@ -278,7 +428,14 @@ def main(argv: list[str] | None = None) -> int:
         inputs.append((tool, path))
 
     tax = load_taxonomy(args.taxonomy)
-    payload = build_payload(inputs, tax, args.strip)
+    try:
+        payload = build_payload(inputs, tax, args.strip, args.provenance)
+    except prov.ProvenanceError as e:
+        # Rejected, not degraded: falling back to "run unknown" on a mismatched
+        # manifest would turn a wrong claim into a slightly emptier report, and
+        # nobody investigates a slightly emptier report.
+        print(f"normalize: {e}", file=sys.stderr)
+        return 2
     if args.json_out:
         Path(args.json_out).write_text(json.dumps(payload, indent=2), encoding="utf-8")
     print(json.dumps(payload["coverage"], indent=2))

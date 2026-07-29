@@ -1,0 +1,347 @@
+{
+  "contract": "finding-occurrence/v1",
+  "id_length": 32,
+  "domain_prefix": "finding-occurrence/v1\u0000",
+  "null_column": "null",
+  "encoding": [
+    "Each field is length-prefixed: <byte length in decimal> ':' <utf-8 bytes>.",
+    "The six fields, in order: producer_run_id, producer_name, pattern_id, path,",
+    "start_line (canonical decimal), start_column ('null' when absent).",
+    "The concatenation is prefixed with domain_prefix and hashed with SHA-256; the",
+    "first id_length hex characters are the id.",
+    "NOT separator-joined. Under a raw <US> join, ('a', 'b<US>c') and ('a<US>b', 'c')",
+    "produce the SAME preimage -- two different occurrences under one id. That pair",
+    "is pinned below and really did collide under the recipe this replaces.",
+    "The digit-boundary pair is a guard rather than a past defect: (12, 3) and",
+    "(1, 23) were distinct while the numerics were separator-joined too, and would",
+    "collide the moment someone emitted them unframed. Framing removes the question",
+    "for every field at once, instead of forbidding a byte in a path."
+  ],
+  "notes": [
+    "The gate matters more than the hash. An occurrence id is computed only when the",
+    "run, the producer, the pattern and an UNAMBIGUOUS physical anchor are all known.",
+    "producer_version, config_digest and source_commit may be null without blocking.",
+    "A missing start_column is a degradation (physical-anchor-missing:start-column),",
+    "not automatically a blocker -- a line-only anchor still identifies an occurrence",
+    "while it stays unique within the producer run. It becomes a blocker exactly when",
+    "two records share it. There is no ordinal tiebreaker: an ordinal would make",
+    "identity depend on emission order, the same defect that disqualifies the SARIF",
+    "ownAudit/v1 fingerprint as an identity.",
+    "A digest of the SARIF bytes is NOT a run id -- that value is input_digest, a",
+    "provenance field. Two runs can serialize identically; two serializers of one run",
+    "can differ."
+  ],
+  "vectors": [
+    {
+      "name": "full-anchor",
+      "producer_run_id": "audit-20260729T100000Z-3f0c1d2e4b5a6789abcdef0123456789/own-check",
+      "producer_name": "own-check",
+      "pattern_id": "9323408c303bd2cf",
+      "path": "Broker/AmountWindow.xaml.cs",
+      "start_line": 72,
+      "start_column": 17,
+      "occurrence_id": "6da64152b16850b47436e8238fce8dd7"
+    },
+    {
+      "name": "line-only",
+      "producer_run_id": "audit-20260729T100000Z-3f0c1d2e4b5a6789abcdef0123456789/own-check",
+      "producer_name": "own-check",
+      "pattern_id": "9323408c303bd2cf",
+      "path": "Broker/AmountWindow.xaml.cs",
+      "start_line": 72,
+      "start_column": null,
+      "occurrence_id": "1ca3ae7bbaa41f0eb3b910f8bc990b14"
+    },
+    {
+      "name": "column-one",
+      "producer_run_id": "audit-20260729T100000Z-3f0c1d2e4b5a6789abcdef0123456789/own-check",
+      "producer_name": "own-check",
+      "pattern_id": "9323408c303bd2cf",
+      "path": "Broker/AmountWindow.xaml.cs",
+      "start_line": 72,
+      "start_column": 1,
+      "occurrence_id": "f9d269dd244f5c93e9d7c5dfcc93e03d"
+    },
+    {
+      "name": "different-line",
+      "producer_run_id": "audit-20260729T100000Z-3f0c1d2e4b5a6789abcdef0123456789/own-check",
+      "producer_name": "own-check",
+      "pattern_id": "9323408c303bd2cf",
+      "path": "Broker/AmountWindow.xaml.cs",
+      "start_line": 130,
+      "start_column": 17,
+      "occurrence_id": "5a670e0d5e30ae59d805ca13f4c28a7a"
+    },
+    {
+      "name": "different-pattern",
+      "producer_run_id": "audit-20260729T100000Z-3f0c1d2e4b5a6789abcdef0123456789/own-check",
+      "producer_name": "own-check",
+      "pattern_id": "bf5dae4e2ebff293",
+      "path": "Broker/AmountWindow.xaml.cs",
+      "start_line": 72,
+      "start_column": 17,
+      "occurrence_id": "5fdfc8afdef3716c580ce73befeaff0c"
+    },
+    {
+      "name": "different-producer",
+      "producer_run_id": "audit-20260729T100000Z-3f0c1d2e4b5a6789abcdef0123456789/own-check",
+      "producer_name": "codeql",
+      "pattern_id": "9323408c303bd2cf",
+      "path": "Broker/AmountWindow.xaml.cs",
+      "start_line": 72,
+      "start_column": 17,
+      "occurrence_id": "79db6f5a0b9fd2246207b0bad1d3079b"
+    },
+    {
+      "name": "different-run",
+      "producer_run_id": "audit-20260730T090000Z-9e8d7c6b5a4938271605f4e3d2c1b0a9/own-check",
+      "producer_name": "own-check",
+      "pattern_id": "9323408c303bd2cf",
+      "path": "Broker/AmountWindow.xaml.cs",
+      "start_line": 72,
+      "start_column": 17,
+      "occurrence_id": "2b8c33fc5351badefc9322a1291c515d"
+    },
+    {
+      "name": "unicode-path",
+      "producer_run_id": "audit-20260729T100000Z-3f0c1d2e4b5a6789abcdef0123456789/own-check",
+      "producer_name": "own-check",
+      "pattern_id": "9323408c303bd2cf",
+      "path": "src/Отчёт/Форма.cs",
+      "start_line": 8,
+      "start_column": 4,
+      "occurrence_id": "4565d248c3c8c78c05144a40486ec019"
+    },
+    {
+      "name": "large-line",
+      "producer_run_id": "audit-20260729T100000Z-3f0c1d2e4b5a6789abcdef0123456789/own-check",
+      "producer_name": "own-check",
+      "pattern_id": "9323408c303bd2cf",
+      "path": "Broker/GTD.cs",
+      "start_line": 5192,
+      "start_column": null,
+      "occurrence_id": "d3ce269d659d53a468b87c011bb7ae23"
+    },
+    {
+      "name": "separator-inside-producer-name",
+      "producer_run_id": "a",
+      "producer_name": "b\u001fc",
+      "pattern_id": "9323408c303bd2cf",
+      "path": "A.cs",
+      "start_line": 1,
+      "start_column": null,
+      "occurrence_id": "242cd5fa0ecaef97810954079b4f789d"
+    },
+    {
+      "name": "separator-shifted-into-run-id",
+      "producer_run_id": "a\u001fb",
+      "producer_name": "c",
+      "pattern_id": "9323408c303bd2cf",
+      "path": "A.cs",
+      "start_line": 1,
+      "start_column": null,
+      "occurrence_id": "d9305bce719e493da2d95c1cc6d8ab52"
+    },
+    {
+      "name": "digit-boundary-line-12-col-3",
+      "producer_run_id": "audit-20260729T100000Z-3f0c1d2e4b5a6789abcdef0123456789/own-check",
+      "producer_name": "own-check",
+      "pattern_id": "9323408c303bd2cf",
+      "path": "A.cs",
+      "start_line": 12,
+      "start_column": 3,
+      "occurrence_id": "ea7d5661f745a7b49da6267773bdba05"
+    },
+    {
+      "name": "digit-boundary-line-1-col-23",
+      "producer_run_id": "audit-20260729T100000Z-3f0c1d2e4b5a6789abcdef0123456789/own-check",
+      "producer_name": "own-check",
+      "pattern_id": "9323408c303bd2cf",
+      "path": "A.cs",
+      "start_line": 1,
+      "start_column": 23,
+      "occurrence_id": "6cb82a5d50fcf022e4cc27f614156a68"
+    }
+  ],
+  "gate": [
+    {
+      "name": "everything-known",
+      "pattern_id": "9323408c303bd2cf",
+      "physical_anchor": {
+        "path": "Broker/A.cs",
+        "start_line": 72,
+        "start_column": 17
+      },
+      "producer_run_id": "audit-20260729T100000Z-3f0c1d2e4b5a6789abcdef0123456789/own-check",
+      "producer_name": "own-check",
+      "ambiguous": false,
+      "occurrence_id": "8d08115c1c1dc74501c3159ba1bb3f4b",
+      "identity_limitations": []
+    },
+    {
+      "name": "line-only-unique-is-a-degradation-not-a-blocker",
+      "pattern_id": "9323408c303bd2cf",
+      "physical_anchor": {
+        "path": "Broker/A.cs",
+        "start_line": 72,
+        "start_column": null
+      },
+      "producer_run_id": "audit-20260729T100000Z-3f0c1d2e4b5a6789abcdef0123456789/own-check",
+      "producer_name": "own-check",
+      "ambiguous": false,
+      "occurrence_id": "9e55c08f23ced6a4dd9da461e130ec30",
+      "identity_limitations": [
+        "physical-anchor-missing:start-column"
+      ]
+    },
+    {
+      "name": "line-only-ambiguous-is-a-blocker",
+      "pattern_id": "9323408c303bd2cf",
+      "physical_anchor": {
+        "path": "Broker/A.cs",
+        "start_line": 72,
+        "start_column": null
+      },
+      "producer_run_id": "audit-20260729T100000Z-3f0c1d2e4b5a6789abcdef0123456789/own-check",
+      "producer_name": "own-check",
+      "ambiguous": true,
+      "occurrence_id": null,
+      "identity_limitations": [
+        "occurrence-id-unavailable:ambiguous-physical-anchor",
+        "physical-anchor-missing:start-column"
+      ]
+    },
+    {
+      "name": "ambiguous-even-with-a-column",
+      "pattern_id": "9323408c303bd2cf",
+      "physical_anchor": {
+        "path": "Broker/A.cs",
+        "start_line": 72,
+        "start_column": 17
+      },
+      "producer_run_id": "audit-20260729T100000Z-3f0c1d2e4b5a6789abcdef0123456789/own-check",
+      "producer_name": "own-check",
+      "ambiguous": true,
+      "occurrence_id": null,
+      "identity_limitations": [
+        "occurrence-id-unavailable:ambiguous-physical-anchor"
+      ]
+    },
+    {
+      "name": "no-run-id",
+      "pattern_id": "9323408c303bd2cf",
+      "physical_anchor": {
+        "path": "Broker/A.cs",
+        "start_line": 72,
+        "start_column": 17
+      },
+      "producer_run_id": null,
+      "producer_name": "own-check",
+      "ambiguous": false,
+      "occurrence_id": null,
+      "identity_limitations": [
+        "occurrence-id-unavailable:producer-run-id"
+      ]
+    },
+    {
+      "name": "no-run-id-and-no-column",
+      "pattern_id": "9323408c303bd2cf",
+      "physical_anchor": {
+        "path": "Broker/A.cs",
+        "start_line": 72,
+        "start_column": null
+      },
+      "producer_run_id": null,
+      "producer_name": "own-check",
+      "ambiguous": false,
+      "occurrence_id": null,
+      "identity_limitations": [
+        "occurrence-id-unavailable:producer-run-id",
+        "physical-anchor-missing:start-column"
+      ]
+    },
+    {
+      "name": "empty-run-id-is-not-a-run-id",
+      "pattern_id": "9323408c303bd2cf",
+      "physical_anchor": {
+        "path": "Broker/A.cs",
+        "start_line": 72,
+        "start_column": 17
+      },
+      "producer_run_id": "",
+      "producer_name": "own-check",
+      "ambiguous": false,
+      "occurrence_id": null,
+      "identity_limitations": [
+        "occurrence-id-unavailable:producer-run-id"
+      ]
+    },
+    {
+      "name": "no-start-line",
+      "pattern_id": "9323408c303bd2cf",
+      "physical_anchor": {
+        "path": "Broker/A.cs",
+        "start_line": null,
+        "start_column": null
+      },
+      "producer_run_id": "audit-20260729T100000Z-3f0c1d2e4b5a6789abcdef0123456789/own-check",
+      "producer_name": "own-check",
+      "ambiguous": false,
+      "occurrence_id": null,
+      "identity_limitations": [
+        "occurrence-id-unavailable:start-line",
+        "physical-anchor-missing:start-column"
+      ]
+    },
+    {
+      "name": "no-path",
+      "pattern_id": "9323408c303bd2cf",
+      "physical_anchor": {
+        "path": "",
+        "start_line": 72,
+        "start_column": 17
+      },
+      "producer_run_id": "audit-20260729T100000Z-3f0c1d2e4b5a6789abcdef0123456789/own-check",
+      "producer_name": "own-check",
+      "ambiguous": false,
+      "occurrence_id": null,
+      "identity_limitations": [
+        "occurrence-id-unavailable:path"
+      ]
+    }
+  ],
+  "distinct_occurrences": [
+    [
+      "full-anchor",
+      "different-line"
+    ],
+    [
+      "full-anchor",
+      "different-pattern"
+    ],
+    [
+      "full-anchor",
+      "different-producer"
+    ],
+    [
+      "full-anchor",
+      "different-run"
+    ],
+    [
+      "full-anchor",
+      "line-only"
+    ],
+    [
+      "line-only",
+      "column-one"
+    ],
+    [
+      "separator-inside-producer-name",
+      "separator-shifted-into-run-id"
+    ],
+    [
+      "digit-boundary-line-12-col-3",
+      "digit-boundary-line-1-col-23"
+    ]
+  ]
+}

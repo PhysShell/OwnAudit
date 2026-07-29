@@ -1,0 +1,91 @@
+{
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "CodeQL",
+          "semanticVersion": "2.25.6"
+        }
+      },
+      "results": [
+        {
+          "ruleId": "cs/local-not-disposed",
+          "message": {
+            "text": "not disposed"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "Broker/Io.cs"
+                },
+                "region": {
+                  "startLine": 9,
+                  "startColumn": 13
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "cs/local-not-disposed",
+          "message": {
+            "text": "not disposed"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "Broker/Io.cs"
+                },
+                "region": {
+                  "startLine": 9,
+                  "startColumn": 41
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "cs/missing-dispose",
+          "message": {
+            "text": "field not disposed"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "Broker/Same.cs"
+                },
+                "region": {
+                  "startLine": 4,
+                  "startColumn": 8
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "cs/missing-dispose",
+          "message": {
+            "text": "field not disposed"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "Broker/Same.cs"
+                },
+                "region": {
+                  "startLine": 4,
+                  "startColumn": 8
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
