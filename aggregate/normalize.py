@@ -334,7 +334,9 @@ def identity_coverage(records: list[dict[str, Any]]) -> dict[str, Any]:
                                                "without_occurrence_id": 0})
         b["with_occurrence_id" if r["occurrence_id"] else "without_occurrence_id"] += 1
     return {
-        "schema_version": SCHEMA_VERSION,
+        # No `schema_version` here: the payload states it once, at the top level.
+        # Two copies are two things to drift apart, and the ledger is not the place
+        # to re-declare the contract.
         "with_pattern_id": sum(1 for r in records if r["pattern_id"]),
         "with_occurrence_id": with_id,
         "without_occurrence_id": len(records) - with_id,
@@ -359,15 +361,20 @@ def build_payload(sarif_inputs: list[tuple[str, str]], tax: Taxonomy, strips: li
     would multiply the payload for no information. Each record's existing `tool`
     IS the join key.
     """
-    # Before anything is read: two inputs under one producer name cannot be
-    # represented, so say so instead of resolving one of them arbitrarily.
+    # Before a byte of SARIF is read: two inputs under one producer name cannot be
+    # represented, and a malformed manifest is worth finding out about now rather
+    # than after parsing 100 MB of input. The manifest is read ONCE here and handed
+    # to both consumers below; `prov.resolve` re-checks uniqueness for callers that
+    # reach it directly, which costs a loop over four items and keeps the invariant
+    # true no matter who calls.
     prov.check_unique_producers(sarif_inputs)
+    entries = prov.load_manifest(manifest_path) if manifest_path else {}
     findings, cov, versions = normalize(sarif_inputs, tax, strips)
-    producers = prov.resolve(sarif_inputs, manifest_path, versions)
+    producers = prov.resolve(sarif_inputs, manifest_path, versions, entries)
     records = [r for r in attach_identity(findings, producers)
                if not r["suppressed"] and r["rule"] not in tax.coverage_note_rules]
     cov["identity"] = identity_coverage(records)
-    unused = prov.unused_entries(sarif_inputs, manifest_path)
+    unused = prov.unused_entries(sarif_inputs, manifest_path, entries)
     if unused:
         cov["provenance_unused_entries"] = unused
     return {

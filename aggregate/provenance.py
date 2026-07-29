@@ -99,8 +99,11 @@ class ProducerProvenance:
         out: dict[str, Any] = {k: getattr(self, k) for k in FIELDS}
         out["producer_version_source"] = self.producer_version_source
         out["digest_verified"] = self.digest_verified
-        if self.note:
-            out["note"] = self.note
+        # Present and null, never absent - the same rule as every other optional
+        # field here. Omitting it would make a consumer test for key presence to
+        # learn "no note", which is precisely the ambiguity this module's own
+        # docstring refuses for `producer_version` and friends.
+        out["note"] = self.note
         return out
 
 
@@ -183,6 +186,7 @@ def load_manifest(path: str | Path) -> dict[str, dict[str, Any]]:
 def resolve(sarif_inputs: list[tuple[str, str]],
             manifest_path: str | Path | None,
             observed_versions: dict[str, str | None] | None = None,
+            entries: dict[str, dict[str, Any]] | None = None,
             ) -> dict[str, ProducerProvenance]:
     """Resolve provenance for each `(tool, sarif_path)` the normalizer will read.
 
@@ -202,7 +206,11 @@ def resolve(sarif_inputs: list[tuple[str, str]],
     out: dict[str, ProducerProvenance] = {}
 
     check_unique_producers(sarif_inputs)
-    entries = load_manifest(manifest_path) if manifest_path else {}
+    # `entries` lets a caller that already read (and thereby validated) the manifest
+    # hand it over instead of having it parsed a second time. Passing the path alone
+    # still works and still validates - the caller does not have to know this exists.
+    if entries is None:
+        entries = load_manifest(manifest_path) if manifest_path else {}
 
     for tool, sarif_path in sarif_inputs:
         entry = entries.get(tool)
@@ -254,7 +262,8 @@ def resolve(sarif_inputs: list[tuple[str, str]],
 
 
 def unused_entries(sarif_inputs: list[tuple[str, str]],
-                   manifest_path: str | Path | None) -> list[str]:
+                   manifest_path: str | Path | None,
+                   entries: dict[str, dict[str, Any]] | None = None) -> list[str]:
     """Manifest entries no `--sarif` input claimed.
 
     Surfaced in the coverage ledger rather than raised: a manifest may legitimately
@@ -262,8 +271,9 @@ def unused_entries(sarif_inputs: list[tuple[str, str]],
     may equally be a typo in a tool name, which would silently cost that producer
     its whole run identity - so it is reported, not ignored.
     """
-    if not manifest_path:
-        return []
-    entries = load_manifest(manifest_path)
+    if entries is None:
+        if not manifest_path:
+            return []
+        entries = load_manifest(manifest_path)
     claimed = {tool for tool, _ in sarif_inputs}
     return sorted(k for k in entries if k not in claimed)

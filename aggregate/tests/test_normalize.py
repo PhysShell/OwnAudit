@@ -280,8 +280,12 @@ def _identity_checks(tax) -> None:
     check(all(r["pattern_id"] for r in bare["findings"]),
           "pattern_id does not depend on provenance and must always be present")
     for p in bare["provenance"].values():
-        check(set(prov.FIELDS) <= set(p),
+        check(set(prov.FIELDS) | {"producer_version_source", "digest_verified", "note"}
+              <= set(p),
               f"provenance must carry every field explicitly, got {sorted(p)}")
+        check("note" in p,
+              "`note` must be present-and-null like every other optional field, so a "
+              "consumer reads None rather than testing for key presence")
         check(p["producer_run_id"] is None and p["digest_verified"] is False,
               "an unverified producer must say so rather than look complete")
 
@@ -378,6 +382,11 @@ def _identity_checks(tax) -> None:
         fails.append("a manifest whose input_digest does not match the file must raise")
     except prov.ProvenanceError:
         pass
+    except Exception as e:                                       # noqa: BLE001
+        # Recorded as a named failure rather than escaping: an unexpected exception
+        # here would abort the whole sweep, and every later check would go unrun
+        # while looking like it had never existed.
+        fails.append(f"stale digest raised {type(e).__name__}, expected ProvenanceError")
 
     # 12f. An entry with no run id is present but useless - and only for its own
     #      producer; the other producer must keep its identity.
@@ -395,6 +404,9 @@ def _identity_checks(tax) -> None:
     # 12g. The ledger balances and surfaces the unclaimed manifest entry (a typo in
     #      a tool name would otherwise silently cost that producer its whole run).
     ident = doc["coverage"]["identity"]
+    check("schema_version" not in ident,
+          "the identity ledger must not restate the payload's schema_version - one "
+          "contract declaration, one place to drift")
     check(ident["with_occurrence_id"] + ident["without_occurrence_id"] == len(doc["findings"]),
           "the identity ledger must account for every emitted record")
     check(sum(ident["by_producer"][t]["with_occurrence_id"]
@@ -433,6 +445,8 @@ def _identity_checks(tax) -> None:
         fails.append("two --sarif inputs under one producer name must raise")
     except prov.ProvenanceError:
         pass
+    except Exception as e:                                       # noqa: BLE001
+        fails.append(f"duplicate producer raised {type(e).__name__}, expected ProvenanceError")
 
     # 12k. A malformed manifest raises ProvenanceError - never AttributeError or
     #      TypeError from somewhere far from the cause, and never a run identity
