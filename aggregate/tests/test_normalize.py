@@ -437,7 +437,8 @@ def _identity_checks(tax) -> None:
     # 12k. A malformed manifest raises ProvenanceError - never AttributeError or
     #      TypeError from somewhere far from the cause, and never a run identity
     #      str()-ed out of a number that no producer ever emitted.
-    for name in ("manifest-bad-types.json", "manifest-entry-not-object.json"):
+    for name in ("manifest-bad-types.json", "manifest-entry-not-object.json",
+                 "manifest-root-not-object.json"):
         try:
             build_payload(ins, tax, [], os.path.join(IDFIX, name))
             fails.append(f"{name}: a malformed manifest must raise ProvenanceError")
@@ -445,6 +446,21 @@ def _identity_checks(tax) -> None:
             pass
         except Exception as e:                                   # noqa: BLE001
             fails.append(f"{name}: raised {type(e).__name__}, expected ProvenanceError")
+    # A malformed manifest must exit 2 through the CLI, whatever shape the malformation
+    # takes. An AttributeError escaping to a traceback and exit 1 would make the
+    # failure mode depend on HOW the file was wrong.
+    import subprocess
+    for name in ("manifest-bad-types.json", "manifest-entry-not-object.json",
+                 "manifest-root-not-object.json", "manifest-stale-digest.json"):
+        proc = subprocess.run(
+            [sys.executable, os.path.join(ROOT, "aggregate", "normalize.py"),
+             "--sarif", f"own-check={os.path.join(IDFIX, 'own-check.sarif')}",
+             "--provenance", os.path.join(IDFIX, name)],
+            capture_output=True, text=True, env={**os.environ, "PYTHONUTF8": "1"})
+        check(proc.returncode == 2,
+              f"{name}: CLI exited {proc.returncode}, expected 2")
+        check("Traceback" not in proc.stderr,
+              f"{name}: CLI printed a traceback instead of a diagnosis")
 
 
 def _reference_checks(ref: str) -> None:

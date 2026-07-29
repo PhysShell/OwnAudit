@@ -75,6 +75,25 @@ $auditRunId   = "audit-{0}-{1}" -f [DateTime]::UtcNow.ToString("yyyyMMddTHHmmssZ
                                    [Guid]::NewGuid().ToString("N")
 $sourceCommit = (git -C $Target rev-parse HEAD 2>$null)
 if ([string]::IsNullOrWhiteSpace($sourceCommit)) { $sourceCommit = $null }
+
+# The analyzers read the WORKING TREE, not HEAD. On a dirty target `git rev-parse
+# HEAD` still answers, and recording that answer would attribute findings to a
+# commit that does not contain the analyzed bytes — the same fabrication as
+# stamping a reused CodeQL database with today's commit, just harder to notice.
+# Unknown is a value this schema carries, so it is recorded as unknown.
+#
+# Repo-wide rather than scoped to $Target: over-nulling costs a nullable field
+# that blocks nothing, while under-nulling asserts something false, and a change
+# outside the analyzed subtree can still be what the analyzed code depends on.
+$dirty = @(git -C $Target status --porcelain 2>$null)
+if ($sourceCommit -and $dirty.Count -gt 0) {
+    # One string, one -f: the format operator binds tighter than '+', so a
+    # concatenation of two format strings would silently format only the second one
+    # and leave the first one's placeholders as literal text.
+    $msg = "Target tree is dirty ({0} changed/untracked path(s)) — recording source_commit as null: the analyzed bytes are not the ones in {1}." -f $dirty.Count, $sourceCommit.Substring(0, 8)
+    Write-Host $msg
+    $sourceCommit = $null
+}
 $provenanceInputs = [ordered]@{}
 
 function Add-Provenance {

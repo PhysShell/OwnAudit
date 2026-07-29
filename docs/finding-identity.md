@@ -129,11 +129,18 @@ run ids, and "rare" is not a property an identity contract may have.
 
 | producer | `producer_run_id` | `source_commit` |
 |---|---|---|
-| own-check, run by this script | this run | target HEAD |
+| own-check, run by this script, clean target tree | this run | target HEAD |
+| own-check, run by this script, **dirty** target tree | this run | **null** — the analyzers read the working tree, and those bytes are not in HEAD |
 | CodeQL, DB built in this run | this run | target HEAD |
 | CodeQL, DB reused | this run (the *analysis* ran here) | **null** — the DB was built from a tree this run never saw |
 | a pre-existing Infer# SARIF | **null** | **null** |
 | a pre-existing Roslyn SARIF | **null** | **null** |
+
+The dirty-tree row is the same rule applied one step further in: `git rev-parse
+HEAD` answers on a dirty tree, and recording that answer would attribute findings
+to a commit that does not contain the analyzed bytes. The check is repo-wide
+rather than scoped to the target subtree — over-nulling costs a nullable field
+that blocks nothing, while under-nulling asserts something false.
 
 Infer# and Roslyn are produced by separate runners, possibly yesterday, possibly
 against another commit and another configuration; `Run-Audit.ps1` only *finds*

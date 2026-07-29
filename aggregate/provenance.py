@@ -143,6 +143,15 @@ def load_manifest(path: str | Path) -> dict[str, dict[str, Any]]:
     # which reads as a corrupt manifest rather than as an encoding detail. `utf-8-sig`
     # strips one if present and is identical to `utf-8` otherwise.
     doc = json.loads(Path(path).read_text(encoding="utf-8-sig"))
+    if not isinstance(doc, dict):
+        # `[]`, `null`, a bare string or number are all valid JSON. Reaching for
+        # `.get` on them raises AttributeError, which escapes the ProvenanceError
+        # handler in the CLI and exits 1 with a traceback - so a malformed manifest
+        # would report itself differently depending on HOW it was malformed. Every
+        # bad manifest exits 2 with a sentence.
+        raise ProvenanceError(
+            f"provenance manifest {path}: the document root must be an object, got "
+            f"{type(doc).__name__}")
     got = doc.get("schema_version")
     if got != CONTRACT:
         raise ProvenanceError(
