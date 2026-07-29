@@ -24,7 +24,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__)))))
 
 from aggregate.anchor_ab import (  # noqa: E402
-    build, column_coverage, differential, occurrence_coverage, read_anchored)
+    STS_317_LEDGER, STS_317_TOTAL, AcceptanceInputError, build, column_coverage,
+    differential, main, occurrence_coverage, read_anchored)
 
 _FAILS: list[str] = []
 _CHECKS = 0
@@ -250,6 +251,101 @@ def run() -> int:
     finally:
         os.remove(bp)
         os.remove(cp)
+
+    # ---- 11. THE THREE FAIL-OPEN HOLES -----------------------------------
+    # Each of these produced a PASS before the gates below existed. They are the
+    # ways a verdict can be printed over a slice that demonstrated nothing.
+
+    # (a) A baseline that ALREADY had columns: differential clean, candidate fully
+    #     columned - and no `null -> column` transformation ever happened.
+    bp = _write(_sarif([_result("a.cs", 10, column=13)]))
+    cp = _write(_sarif([_result("a.cs", 10, column=13)]))
+    try:
+        rep = build(bp, cp, "0ded835", "bdb3307", "ddf99b9")
+        check(rep["differential"]["clean"] and not rep["pass"],
+              "a baseline that already had columns must NOT pass")
+        check(rep["gates"]["baseline_line_only"] is False,
+              f"the reason must be named, got {rep['gates']}")
+        check(rep["baseline_column_coverage"]["with_column"] == 1,
+              "baseline coverage must be reported, not only the candidate's")
+    finally:
+        os.remove(bp)
+        os.remove(cp)
+
+    # (b) Acceptance mode with no normalized payload: a gate that cannot be
+    #     evaluated must not be reported as one that passed - so this is a
+    #     configuration error, not a FAIL.
+    bp = _write(_sarif([_result("a.cs", 10)]))
+    cp = _write(_sarif([_result("a.cs", 10, column=13)]))
+    try:
+        raised = False
+        try:
+            build(bp, cp, "0ded835", "bdb3307", "ddf99b9", acceptance=True)
+        except AcceptanceInputError:
+            raised = True
+        check(raised, "acceptance mode without --normalized must refuse, not decide")
+        check(main(["--baseline", bp, "--candidate", cp, "--baseline-commit", "x",
+                    "--candidate-commit", "y", "--normalizer-commit", "z",
+                    "--acceptance-ownnet-317"]) == 2,
+              "the CLI must exit 2, distinct from a FAIL")
+
+        # (c) A single perfectly clean finding: PASS in diagnostic mode, and it
+        #     must NOT be an acceptance of #317 - nothing here saw the corpus.
+        check(build(bp, cp, "0ded835", "bdb3307", "ddf99b9")["pass"],
+              "one clean finding is a valid diagnostic PASS")
+        norm = _write({"findings": [{"tool": "own-check", "occurrence_id": "a" * 32}]})
+        try:
+            rep = build(bp, cp, "0ded835", "bdb3307", "ddf99b9",
+                        normalized=norm, acceptance=True)
+            check(not rep["pass"], "one finding must NOT satisfy the #317 ledger")
+            for g in ("candidate_scored_is_ledger", "candidate_ledger_exact",
+                      "baseline_ledger_exact", "occurrence_total_is_ledger"):
+                check(rep["gates"][g] is False, f"{g} must fail on a 1-row corpus")
+        finally:
+            os.remove(norm)
+    finally:
+        os.remove(bp)
+        os.remove(cp)
+
+    # ---- 12. POSITIVE CONTROL: THE FULL LEDGER ---------------------------
+    # A synthetic corpus of exactly the #317 shape. This is the only check that
+    # proves the gates can all be satisfied at once - a criterion nothing can
+    # meet is as useless as one everything meets - and it pins the constants
+    # against each other (326 + 24 + 23 + 7 == 380).
+    base_rows, cand_rows = [], []
+    n = 0
+    for (rule, resource), count in sorted(STS_317_LEDGER.items()):
+        for i in range(count):
+            n += 1
+            base_rows.append(_result(f"f{n}.cs", n, rule=rule, resource=resource))
+            cand_rows.append(_result(f"f{n}.cs", n, rule=rule, resource=resource,
+                                     column=1 + (n % 40)))
+    check(n == STS_317_TOTAL, f"the ledger must sum to {STS_317_TOTAL}, got {n}")
+    bp, cp = _write(_sarif(base_rows)), _write(_sarif(cand_rows))
+    norm = _write({"findings": [{"tool": "own-check", "occurrence_id": f"{i:032x}"}
+                                for i in range(STS_317_TOTAL)]})
+    try:
+        rep = build(bp, cp, "0ded835", "bdb3307", "ddf99b9",
+                    normalized=norm, acceptance=True)
+        check(rep["pass"], f"the full #317 shape must PASS, failing gates: "
+                           f"{[k for k, v in rep['gates'].items() if not v]}")
+        check(rep["differential"]["column_added"] == STS_317_TOTAL,
+              f"all {STS_317_TOTAL} must count as gained, got "
+              f"{rep['differential']['column_added']}")
+        # ...and one occurrence id short of the ledger is a FAIL, not a rounding.
+        short = _write({"findings": [{"tool": "own-check",
+                                      "occurrence_id": (f"{i:032x}" if i else None)}
+                                     for i in range(STS_317_TOTAL)]})
+        try:
+            rep2 = build(bp, cp, "0ded835", "bdb3307", "ddf99b9",
+                         normalized=short, acceptance=True)
+            check(not rep2["pass"] and rep2["gates"]["occurrence_fully_covered"] is False,
+                  "379/380 occurrence coverage must FAIL")
+        finally:
+            os.remove(short)
+    finally:
+        for f in (bp, cp, norm):
+            os.remove(f)
 
     for f in _FAILS:
         print(f"FAIL: {f}")

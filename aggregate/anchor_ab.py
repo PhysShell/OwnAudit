@@ -61,7 +61,19 @@ metrics without either half re-deriving the other.
 
 It also does not decide whether the two inputs are comparable. Provenance is an
 input to this tool, not an output of it: the caller states which producer commit
-each file came from, and the report records those strings verbatim.
+each file came from, and the report records those strings verbatim. `--baseline-
+commit 0ded835` proves only that someone could type `0ded835`; the binding of a
+producer commit to the binary that emitted a SARIF has to be OBSERVED at capture
+time, by the runner, and carried in its own manifest.
+
+TWO MODES
+---------
+Diagnostic (default) answers "did anything but the anchor move?" for any pair.
+`--acceptance-ownnet-317` additionally pins what makes the answer count for that
+issue: the exact 380-row STS ledger on BOTH sides, a baseline that is genuinely
+line-only, and full occurrence coverage from the normalized payload. Acceptance
+mode without `--normalized` exits 2 rather than deciding, because a gate that
+could not be evaluated must never be reported as one that passed.
 """
 
 from __future__ import annotations
@@ -117,6 +129,23 @@ def _category(field: str) -> str:
 #: relaxing its source, or a reworded message would look like a two-field drift
 #: and be reported as an unrelated add/remove pair.
 DERIVED = {"message": ("resource",)}
+
+#: The in-scope ledger Own.NET#317 states for the recorded STS corpus. Gated
+#: EXACTLY, not as a lower bound: an A/B whose only corpus check is "more than
+#: zero findings" would pass on a single-finding replay, and a matching breakdown
+#: on both sides is also the cheapest available evidence that the two runs saw the
+#: same source snapshot rather than two trees that merely resemble each other.
+STS_317_LEDGER = {
+    ("OWN001", "subscription token"): 326,
+    ("OWN001", "disposable field"): 24,
+    ("OWN001", "disposable"): 23,
+    ("OWN014", "subscription token"): 7,
+}
+STS_317_TOTAL = 380
+
+
+class AcceptanceInputError(RuntimeError):
+    """Acceptance mode was asked for without the inputs it needs to decide."""
 
 
 @dataclass(frozen=True)
@@ -356,8 +385,13 @@ def render(report: dict[str, Any]) -> str:
         out.append(f"  {'':9} {s['digest']}")
     out.append(f"  normalizer   {inp['normalizer_commit']}")
     out.append("")
+    bcov = report["baseline_column_coverage"]
+    out.append("start-column coverage, BASELINE (scored)")
+    out.append(f"  {bcov['with_column']}/{bcov['total']}   "
+               "(must be 0/N: the transformation under test is null -> a column)")
+    out.append("")
     cov = report["column_coverage"]
-    out.append("start-column coverage (scored)")
+    out.append("start-column coverage, CANDIDATE (scored)")
     out.append(f"  {'rule':8} {'resource':24} {'covered':>12}")
     for r in cov["rows"]:
         out.append(f"  {r['rule']:8} {r['resource']:24} "
@@ -382,6 +416,11 @@ def render(report: dict[str, Any]) -> str:
         out.append(f"  e.g. {cat}:")
         out.extend(f"    {e}" for e in ex)
     out.append("")
+    mode = "acceptance (Own.NET#317)" if report.get("acceptance_mode") else "diagnostic"
+    out.append(f"gates [{mode}]")
+    for k, v in sorted(report["gates"].items()):
+        out.append(f"  {'ok ' if v else 'FAIL'}  {k}")
+    out.append("")
     out.append("VERDICT: " + ("PASS" if report["pass"] else "FAIL"))
     return "\n".join(out)
 
@@ -391,11 +430,20 @@ def build(baseline: str, candidate: str, baseline_commit: str,
           strips: list[str] | None = None,
           advisory: tuple[str, ...] = DEFAULT_ADVISORY,
           normalized: str | None = None,
-          producer: str = "own-check") -> dict[str, Any]:
+          producer: str = "own-check",
+          acceptance: bool = False) -> dict[str, Any]:
+    if acceptance and not normalized:
+        # Exit 2, not FAIL: a missing input is a misconfigured invocation, and a
+        # gate that cannot be evaluated must never be reported as one that was.
+        raise AcceptanceInputError(
+            "--acceptance-ownnet-317 requires --normalized: occurrence coverage is "
+            "part of the criterion, and a report that silently omitted it would "
+            "print PASS without ever computing an occurrence id.")
     base = read_anchored(baseline, strips, advisory)
     cand = read_anchored(candidate, strips, advisory)
     diff = differential(base, cand)
     cov = column_coverage(cand)
+    base_cov = column_coverage(base)
     report: dict[str, Any] = {
         "contract": "anchor-ab/v1",
         "inputs": {
@@ -412,11 +460,50 @@ def build(baseline: str, candidate: str, baseline_commit: str,
     if normalized:
         with open(normalized, encoding="utf-8-sig") as fh:
             report["occurrence_coverage"] = occurrence_coverage(json.load(fh), producer)
-    # The verdict is the differential's, plus full in-scope column coverage. Both,
-    # because a clean differential over a candidate that gained no columns at all
-    # would also be "nothing but the anchor changed".
-    report["pass"] = bool(diff["clean"] and cov["with_column"] == cov["total"]
-                          and cov["total"] > 0)
+    report["baseline_column_coverage"] = base_cov
+
+    # THE VERDICT
+    #
+    # A clean differential is necessary and nowhere near sufficient. Three ways a
+    # PASS could otherwise be printed over a slice that proved nothing:
+    #
+    #   * the candidate gained no columns at all - caught by requiring
+    #     `column_added == candidate_scored`;
+    #   * the BASELINE already had columns, so no `null -> column` transformation
+    #     ever happened - caught by requiring baseline coverage to be exactly zero.
+    #     Full candidate coverage does NOT cover this: it constrains only the
+    #     candidate side, and an earlier revision of this comment claimed otherwise;
+    #   * neither side ran on the corpus - caught in acceptance mode by pinning the
+    #     ledger exactly.
+    gates = {
+        "differential_clean": diff["clean"],
+        "baseline_line_only": base_cov["with_column"] == 0,
+        "candidate_fully_columned": (cov["total"] > 0
+                                     and cov["with_column"] == cov["total"]),
+        "column_added_equals_scored": diff["column_added"] == len(cand),
+    }
+    if acceptance:
+        occ = report.get("occurrence_coverage")
+        led = {(r["rule"], r["resource"]): r["total"] for r in cov["rows"]}
+        base_led = {(r["rule"], r["resource"]): r["total"] for r in base_cov["rows"]}
+        gates.update({
+            "baseline_scored_is_ledger": len(base) == STS_317_TOTAL,
+            "candidate_scored_is_ledger": len(cand) == STS_317_TOTAL,
+            "column_added_is_ledger": diff["column_added"] == STS_317_TOTAL,
+            "candidate_ledger_exact": led == STS_317_LEDGER,
+            "baseline_ledger_exact": base_led == STS_317_LEDGER,
+            "occurrence_producer": bool(occ and occ["producer"] == producer),
+            "occurrence_total_is_ledger": bool(occ and occ["total"] == STS_317_TOTAL),
+            "occurrence_fully_covered": bool(
+                occ and occ["total"] > 0
+                and occ["with_occurrence_id"] == occ["total"]),
+        })
+        report["expected_ledger"] = [
+            {"rule": k[0], "resource": k[1], "total": v}
+            for k, v in sorted(STS_317_LEDGER.items())]
+    report["acceptance_mode"] = bool(acceptance)
+    report["gates"] = gates
+    report["pass"] = all(gates.values())
     return report
 
 
@@ -434,12 +521,21 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--normalized", help="normalized-findings/v2 payload, for "
                                          "occurrence coverage")
     ap.add_argument("--producer", default="own-check")
+    ap.add_argument("--acceptance-ownnet-317", action="store_true",
+                    help="gate the Own.NET#317 acceptance criterion: the exact STS "
+                         "ledger on BOTH sides, a line-only baseline, and full "
+                         "occurrence coverage. Requires --normalized; exits 2 "
+                         "without it.")
     ap.add_argument("--json", help="write the machine-readable report here")
     a = ap.parse_args(argv)
-    report = build(a.baseline, a.candidate, a.baseline_commit, a.candidate_commit,
-                   a.normalizer_commit, a.strip,
-                   tuple(a.advisory_rule) if a.advisory_rule else DEFAULT_ADVISORY,
-                   a.normalized, a.producer)
+    try:
+        report = build(a.baseline, a.candidate, a.baseline_commit, a.candidate_commit,
+                       a.normalizer_commit, a.strip,
+                       tuple(a.advisory_rule) if a.advisory_rule else DEFAULT_ADVISORY,
+                       a.normalized, a.producer, a.acceptance_ownnet_317)
+    except AcceptanceInputError as e:
+        print(f"anchor_ab: {e}", file=sys.stderr)
+        return 2
     print(render(report))
     if a.json:
         with open(a.json, "w", encoding="utf-8") as fh:
