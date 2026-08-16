@@ -360,6 +360,29 @@ Example:
 
 007 remains responsible for executing/refactoring. OwnAudit only prepares evidence and gates.
 
+## P-038 boundary-transition witness overlay
+
+P-038 is an **accepted experiment**, not an adopted product. Own.NET supplies architecture coordinates and static boundary-site facts; OwnAudit owns the downstream join, classification, baseline/diff, and report surface.
+
+The overlay is deliberately separate from architecture verdicts:
+
+- it adds no coverage semantics to Own.Arch evaluation;
+- it emits no `ARCH###` finding codes;
+- it cannot change an architecture-gate verdict;
+- nothing from it enters `rules.yaml`, the architecture baseline ratchet, or the Own.Arch evaluator.
+
+The primary report unit is a statically resolved in-process executable call site. `static_test_proxy` is `likely_witnessed | likely_unwitnessed | indeterminate`; later executed-tier evidence may add `runtime_observation = observed | not_observed | indeterminate`.
+
+A runtime-only transition that cannot be matched to a static `site_id` remains `site_match = runtime_only`; ambiguous joins remain `ambiguous`. Neither is forced onto a static site or admitted to P-038's primary site-level estimand.
+
+`not_observed` is admissible only when the observation contract proves the camera was on: the site was instrumented, the collector supports the transition kind, the full declared green-suite domain completed, collection had no event loss, and per-test attribution is unambiguous. Otherwise the overlay must say `indeterminate`. Sampling collectors can establish `observed` only.
+
+The primary estimand is limited to statically resolved in-process call sites for which the local comparator vector is defined, the full green suite is observed, collector completeness is established, and per-test attribution is admissible. `runtime_only`, `ambiguous`, and `indeterminate` rates are reported as external-validity / attrition diagnostics.
+
+The overlay preserves provenance rather than collapsing evidence into a scalar. Before executed outcomes are inspected, the run preregisters the useful-effect floor, matched-strata estimator and comparator coding, precision/equivalence procedure, separation handling, differential-indeterminacy threshold, adversarial missingness assignment, and the primary-estimand population.
+
+P-038's result vocabulary (`POSITIVE`, `NEGATIVE`, `INCONCLUSIVE`, and a reasoned `CLOSED` decision record) is independent of the architecture verdict. `INCONCLUSIVE` never means negative. Until the calibration/funding/adjudication ladder earns adoption, this section is an experimental reporting contract only.
+
 ## Acceptance criteria
 
 MVP is accepted when:
