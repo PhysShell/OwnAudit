@@ -64,8 +64,16 @@ preimages to carry meaning, so it is given none:
 | --- | --- | --- |
 | `observed` | `scope`, `retained` | correlate — a heap was read, a witness is present |
 | `clean` | `scope`, `retained` | correlate — a heap was read, no witness |
-| `not_evaluated` | `reason.code`, `reason.detail`, optional `reason.policy` | **refuse** — nothing was read |
-| `error` | `error.classification` | **refuse** — the heap was readable and the walk broke |
+| `not_evaluated` | `reason.code`, `reason.stage`, `reason.detail`, optional `reason.policy_in_force` | **refuse** — nothing was read |
+| `error` | `error.classification`, `error.stage` | **refuse** — the heap was readable and the walk broke |
+
+`verdict` is command-specific rather than part of this contract: the collector's
+`roots` command carries one, `census` does not. An evaluated state owes `scope` and
+`retained`; correlation keys on `retained` and never requires `verdict`.
+
+`reason.policy_in_force` records a restricting kernel policy that **was in force** when the
+open failed — not a proven cause, which the collector cannot establish. It is relayed to the
+operator in those words, so nobody inherits a confident diagnosis that was never made.
 
 `not_evaluated` and `error` records carry **no** `retained` key at all — not even `[]`, which
 would read here as "looked, found nothing". `runtime/correlate.py` raises `UnusableRuntimeRecord`

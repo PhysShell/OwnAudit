@@ -14,6 +14,7 @@ import argparse
 import json
 import os
 import sys
+import tempfile
 
 from . import correlate as C
 
@@ -28,6 +29,45 @@ def _load(path, key=None):
     except (OSError, ValueError, KeyError) as e:
         print(f"error: cannot read {path!r}: {e}", file=sys.stderr)
         raise SystemExit(2) from None
+
+
+#: Everything this pass publishes. Listed once so invalidation cannot drift out
+#: of step with publication and leave one stale file behind.
+OUTPUTS = ("runtime-findings.json", "runtime-report.md")
+
+
+def _clear_outputs(out_dir: str) -> None:
+    """Remove this pass's published outputs, so the directory never describes an
+    earlier run as if it were this one.
+
+    Runs before the outcome is known, and before every exit path. Yesterday's
+    runtime-report.md surviving today's refusal is the same lie in a slower
+    form: nothing in the file says which run produced it, so a reader takes it
+    for the current one. "Wrote no new false evidence" is not enough while the
+    old evidence stays in place to be read as new."""
+    for name in OUTPUTS:
+        try:
+            os.remove(os.path.join(out_dir, name))
+        except FileNotFoundError:
+            pass
+
+
+def _publish(out_dir: str, name: str, text: str) -> None:
+    """Write via a temp file in the same directory, then os.replace — atomic on
+    POSIX and Windows, so a reader never sees a half-written report."""
+    os.makedirs(out_dir, exist_ok=True)
+    path = os.path.join(out_dir, name)
+    fd, tmp = tempfile.mkstemp(dir=out_dir, prefix=f".{name}.", suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            fh.write(text)
+        os.replace(tmp, path)
+    except BaseException:
+        try:
+            os.remove(tmp)
+        except OSError:
+            pass
+        raise
 
 
 def _report_md(res: dict, dump: dict, passed: bool, gate_level: str | None) -> str:
@@ -71,6 +111,12 @@ def main(argv=None) -> int:
                     help="fail (exit 2) on a confirmed leak at/above this confidence")
     args = ap.parse_args(argv)
 
+    # Before ANY exit path, not just the correlation refusal: a missing dump, an
+    # unreadable findings file and a not_evaluated record all end this run
+    # without a result, and all of them would otherwise leave the previous run's
+    # report in place to be read as this one's.
+    _clear_outputs(args.out_dir)
+
     if not os.path.isfile(args.runtime):
         print(f"error: no runtime dump at {args.runtime!r}; collect one on the stand "
               f"(see docs/runtime-contract.md).", file=sys.stderr)
@@ -78,6 +124,7 @@ def main(argv=None) -> int:
 
     static = _load(args.findings, key="findings")
     dump = _load(args.runtime)
+
     try:
         res = C.correlate(static, dump, C.load_config(args.config))
     except C.UnusableRuntimeRecord as e:
@@ -90,11 +137,11 @@ def main(argv=None) -> int:
     if args.gate_level:
         passed, blocking = C.gate(res, args.gate_level)
 
-    os.makedirs(args.out_dir, exist_ok=True)
-    with open(os.path.join(args.out_dir, "runtime-findings.json"), "w", encoding="utf-8") as fh:
-        json.dump({"findings": res["confirmed"] + res["runtime_only"]}, fh, indent=2)
-    with open(os.path.join(args.out_dir, "runtime-report.md"), "w", encoding="utf-8") as fh:
-        fh.write(_report_md(res, dump, passed, args.gate_level))
+    # Publish atomically, so a crash between the two writes cannot leave a report
+    # describing findings that were never written beside it.
+    _publish(args.out_dir, "runtime-findings.json",
+             json.dumps({"findings": res["confirmed"] + res["runtime_only"]}, indent=2))
+    _publish(args.out_dir, "runtime-report.md", _report_md(res, dump, passed, args.gate_level))
 
     print(f"runtime: {len(res['confirmed'])} confirmed, {len(res['static_only'])} static-only, "
           f"{len(res['runtime_only'])} runtime-only"

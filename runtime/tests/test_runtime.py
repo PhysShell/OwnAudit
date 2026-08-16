@@ -210,8 +210,9 @@ def _record(state, **execution):
 def _refused():
     return _record("not_evaluated",
                    reason={"code": "refused-attach",
+                           "stage": "open-target",
                            "detail": "Could not attach to process 4213",
-                           "policy": "kernel.yama.ptrace_scope=1"})
+                           "policy_in_force": "kernel.yama.ptrace_scope=1"})
 
 
 def test_not_evaluated_record_is_refused_not_read_as_clean():
@@ -222,7 +223,10 @@ def test_not_evaluated_record_is_refused_not_read_as_clean():
         raised = str(e)
     _expect(raised is not None, "a not_evaluated record must not correlate")
     _expect("refused-attach" in raised, raised)
-    _expect("ptrace_scope" in raised, "the refusing policy must reach the operator")
+    _expect("ptrace_scope" in raised, "the policy in force must reach the operator")
+    # Relayed as what it is — in force — not as a proven cause the collector
+    # never established.
+    _expect("policy in force" in raised, raised)
     # The specific trap: silently reading it as "nothing retained".
     _expect(C.evaluation_problem(_refused()) is not None, "must not be usable")
 
@@ -296,8 +300,86 @@ def test_cli_refuses_a_run_that_never_looked():
             raised = e.code
         _expect(raised == 2, f"a not_evaluated record must exit 2, got {raised}")
         # And no report: a written report is a claim that a pass ran.
-        _expect(not os.path.exists(os.path.join(out, "runtime-report.md")),
-                "no report may be written for a run that never looked")
+        for name in cli.OUTPUTS:
+            _expect(not os.path.exists(os.path.join(out, name)),
+                    f"{name} may not be written for a run that never looked")
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+
+def test_refusal_invalidates_a_previous_runs_outputs():
+    """The one a fresh temp-dir cannot catch. A good run yesterday, a refusal
+    today, the SAME out-dir: leaving yesterday's report in place is the same
+    false evidence, just aged. Nothing in the file says which run produced it,
+    so a reader takes it for the current one."""
+    d = tempfile.mkdtemp(prefix="rt-stale-")
+    try:
+        fp, rp = os.path.join(d, "findings.json"), os.path.join(d, "runtime.json")
+        out = os.path.join(d, "out")
+        _write(fp, {"findings": [_sf("DocumentsViewModel", event="DocumentStore.Changed")]})
+
+        # Yesterday: a real pass, real outputs.
+        good = _dump(_retained("DocumentsViewModel", 132, bytes_=88080384,
+                               event_holder="Sts.Broker.Documents.DocumentStore"))
+        good["execution"] = {"state": "observed",
+                             "scope": {"verb": "roots", "mode": "attach",
+                                       "instances_on_heap": 132}}
+        _write(rp, good)
+        _expect(cli.main(["--findings", fp, "--runtime", rp, "--out-dir", out]) == 0, "good run")
+        for name in cli.OUTPUTS:
+            _expect(os.path.exists(os.path.join(out, name)), f"{name} must exist after a good run")
+
+        # Today: the collector never looked.
+        _write(rp, _refused())
+        raised = None
+        try:
+            cli.main(["--findings", fp, "--runtime", rp, "--out-dir", out])
+        except SystemExit as e:
+            raised = e.code
+        _expect(raised == 2, f"refusal must exit 2, got {raised}")
+        for name in cli.OUTPUTS:
+            _expect(not os.path.exists(os.path.join(out, name)),
+                    f"{name} survived a refusal — it now reads as this run's result")
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+
+def test_a_missing_dump_also_invalidates_previous_outputs():
+    """Not only the refusal path. Every exit without a result has to leave the
+    directory saying nothing rather than saying the last thing it knew."""
+    d = tempfile.mkdtemp(prefix="rt-stale2-")
+    try:
+        fp, rp = os.path.join(d, "findings.json"), os.path.join(d, "runtime.json")
+        out = os.path.join(d, "out")
+        _write(fp, {"findings": [_sf("DocumentsViewModel", event="DocumentStore.Changed")]})
+        _write(rp, _dump(_retained("DocumentsViewModel", 132,
+                                   event_holder="Sts.Broker.Documents.DocumentStore")))
+        _expect(cli.main(["--findings", fp, "--runtime", rp, "--out-dir", out]) == 0, "good run")
+        os.remove(rp)
+        raised = None
+        try:
+            cli.main(["--findings", fp, "--runtime", rp, "--out-dir", out])
+        except SystemExit as e:
+            raised = e.code
+        _expect(raised == 2, f"a missing dump must exit 2, got {raised}")
+        for name in cli.OUTPUTS:
+            _expect(not os.path.exists(os.path.join(out, name)),
+                    f"{name} survived a run with no dump to read")
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+
+def test_publish_leaves_no_temp_files_behind():
+    d = tempfile.mkdtemp(prefix="rt-pub-")
+    try:
+        fp, rp = os.path.join(d, "findings.json"), os.path.join(d, "runtime.json")
+        out = os.path.join(d, "out")
+        _write(fp, {"findings": [_sf("DocumentsViewModel", event="DocumentStore.Changed")]})
+        _write(rp, _dump(_retained("DocumentsViewModel", 132,
+                                   event_holder="Sts.Broker.Documents.DocumentStore")))
+        _expect(cli.main(["--findings", fp, "--runtime", rp, "--out-dir", out]) == 0, "good run")
+        leftovers = sorted(n for n in os.listdir(out) if n not in cli.OUTPUTS)
+        _expect(not leftovers, f"atomic publish left files behind: {leftovers}")
     finally:
         shutil.rmtree(d, ignore_errors=True)
 

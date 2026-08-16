@@ -227,9 +227,14 @@ def evaluation_problem(dump: dict) -> str | None:
         return None
     if state == "not_evaluated":
         reason = ex.get("reason") or {}
+        # `policy_in_force` is what was in force, not a proven cause — relayed in
+        # those terms so the operator inherits the collector's uncertainty rather
+        # than a confident diagnosis it never made.
         return (f"the collector did not look: {reason.get('code', 'unspecified')}"
+                + (f" at stage {reason['stage']}" if reason.get("stage") else "")
                 + (f" ({reason['detail']})" if reason.get("detail") else "")
-                + (f" [{reason['policy']}]" if reason.get("policy") else ""))
+                + (f" [policy in force: {reason['policy_in_force']}]"
+                   if reason.get("policy_in_force") else ""))
     if state == "error":
         err = ex.get("error") or {}
         return (f"the collector failed while looking: "
