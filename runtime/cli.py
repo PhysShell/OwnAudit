@@ -78,7 +78,14 @@ def main(argv=None) -> int:
 
     static = _load(args.findings, key="findings")
     dump = _load(args.runtime)
-    res = C.correlate(static, dump, C.load_config(args.config))
+    try:
+        res = C.correlate(static, dump, C.load_config(args.config))
+    except C.UnusableRuntimeRecord as e:
+        # No report is the correct output here. A three-way split computed from a
+        # run that never looked would file every static finding under "static-only
+        # (suspect FP)" — a verdict on evidence that does not exist.
+        print(f"error: {args.runtime!r} records no usable evaluation: {e}", file=sys.stderr)
+        raise SystemExit(2) from None
     passed, blocking = (True, [])
     if args.gate_level:
         passed, blocking = C.gate(res, args.gate_level)

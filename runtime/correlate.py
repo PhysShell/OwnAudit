@@ -175,12 +175,81 @@ def _runtime_only_finding(t: str, rec: dict, count: int, expected: int, high_cou
             "retained": count, "expected": expected}
 
 
+class UnusableRuntimeRecord(ValueError):
+    """The runtime.json cannot be correlated against — and saying why is the
+    whole point. Raised rather than absorbed: every "absorb" turns into a
+    three-way split whose `static_only` column silently means "we never looked",
+    which is the confident report of health nobody measured."""
+
+
+#: `execution.state` values that mean a heap was actually read.
+EVALUATED_STATES = ("observed", "clean")
+
+
+def evaluation_problem(dump: dict) -> str | None:
+    """Why this record cannot be read as a measurement, or None if it can.
+
+    The collector's exit codes keep three states apart — evaluated/witness
+    present, evaluated/witness absent, not evaluated — and record them in
+    `execution.state` so the distinction survives the process
+    (Own.NET docs/runtime-witness-operations.md). Correlation has to honour it:
+    `retained` missing from a `not_evaluated` record is *no knowledge*, and
+    reading it as an empty list would turn every static finding into a
+    "suspect false positive" on the strength of a run that never happened.
+
+    Two shapes are refused beyond the obvious one. An evaluated state with no
+    `scope` does not say what was looked at, so it cannot mean "nothing was
+    there" — malformed, not a quieter `not_evaluated`. And an unknown state is
+    refused rather than guessed: a vocabulary this consumer does not know is a
+    newer collector, and assuming it means "fine" is exactly backwards.
+
+    A record with no `execution` block at all predates the contract. It is
+    accepted only when it carries `retained`, because a pre-contract collector
+    wrote that key only after evaluating — the ambiguity it had was in the
+    *absence* of the file, which this function is never handed.
+    """
+    ex = dump.get("execution")
+    if ex is None:
+        if isinstance(dump.get("retained"), list):
+            return None                      # legacy record, but a measurement
+        return ("no `execution` block and no `retained` list — this is neither a "
+                "pre-contract measurement nor a record of one")
+    if not isinstance(ex, dict):
+        return f"`execution` must be an object, got {type(ex).__name__}"
+
+    state = ex.get("state")
+    if state in EVALUATED_STATES:
+        if not ex.get("scope"):
+            return (f"state {state!r} without `scope`: a verdict that does not say what was "
+                    f"looked at cannot mean 'nothing was there' (malformed record)")
+        if not isinstance(dump.get("retained"), list):
+            return f"state {state!r} without a `retained` list — the measurement is missing"
+        return None
+    if state == "not_evaluated":
+        reason = ex.get("reason") or {}
+        return (f"the collector did not look: {reason.get('code', 'unspecified')}"
+                + (f" ({reason['detail']})" if reason.get("detail") else "")
+                + (f" [{reason['policy']}]" if reason.get("policy") else ""))
+    if state == "error":
+        err = ex.get("error") or {}
+        return (f"the collector failed while looking: "
+                f"{err.get('classification', 'unspecified')}"
+                + (f" ({err['detail']})" if err.get("detail") else ""))
+    return f"unknown `execution.state` {state!r} — refusing to guess what it meant"
+
+
 def correlate(static_findings, dump: dict, cfg: dict | None = None) -> dict:
     """Three-way split of leak findings against a heap dump:
       * confirmed   — static leak finding AND runtime retention agree (high-value, low-FP).
       * static_only — static leak finding, no runtime retention (likely FP or path not exercised).
       * runtime_only— runtime retention with no static finding (the analyzer's blind spot).
+
+    Raises UnusableRuntimeRecord when the dump does not record an evaluation the
+    split can be computed from — see `evaluation_problem`.
     """
+    problem = evaluation_problem(dump)
+    if problem is not None:
+        raise UnusableRuntimeRecord(problem)
     cfg = cfg or {}
     leak_cats = set(cfg.get("leak_categories", DEFAULT_LEAK_CATEGORIES))
     default_expected = cfg.get("default_expected", 1)

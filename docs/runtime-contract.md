@@ -27,6 +27,10 @@ unchanged, carrying a `confidence` and the static rule they corroborate.
   "schema": "ownAudit/runtime/v1",
   "scenario": "open+close DocumentsWindow",   // human label for the report
   "iterations": 10,                            // how many times the scenario ran (optional)
+  "execution": {                               // what the collector actually did (see below)
+    "state": "observed",
+    "scope": { "verb": "roots", "mode": "attach", "instances_on_heap": 132 }
+  },
   "retained": [
     {
       "type": "Sts.Broker.Documents.DocumentsViewModel",  // matched against a finding's `resource`
@@ -44,6 +48,43 @@ unchanged, carrying a `confidence` and the static rule they corroborate.
   ]
 }
 ```
+
+### `execution` — what the collector did, not just what it found
+
+A collector that could not read the heap must not be indistinguishable from one that read it
+and found nothing. On the process side the two are already distinct (exit 2 vs exit 0); the
+`execution` block carries that distinction into the artifact, because otherwise it ends when
+the process does — and an absent artifact means *not evaluated* **or** never invoked **or** the
+runner died **or** persistence failed **or** the file was lost in transit. Absence has too many
+preimages to carry meaning, so it is given none:
+
+> **Absence of a record means no durable knowledge, never a semantic outcome.**
+
+| `execution.state` | Carries | Correlation does |
+| --- | --- | --- |
+| `observed` | `scope`, `retained` | correlate — a heap was read, a witness is present |
+| `clean` | `scope`, `retained` | correlate — a heap was read, no witness |
+| `not_evaluated` | `reason.code`, `reason.detail`, optional `reason.policy` | **refuse** — nothing was read |
+| `error` | `error.classification` | **refuse** — the heap was readable and the walk broke |
+
+`not_evaluated` and `error` records carry **no** `retained` key at all — not even `[]`, which
+would read here as "looked, found nothing". `runtime/correlate.py` raises `UnusableRuntimeRecord`
+on both, and `runtime/cli.py` exits 2 and writes no report: a three-way split computed from a
+run that never happened would file every static finding under *static-only (suspect FP)*, which
+is a verdict about evidence that does not exist.
+
+Two further shapes are refused. An **evaluated state with no `scope`** is malformed rather than
+lenient — a verdict that does not say what it looked at cannot mean "nothing was there". And an
+**unknown state** is refused rather than guessed: an unfamiliar vocabulary means a newer
+collector, and assuming it means "fine" is exactly backwards.
+
+Records written before this block existed (no `execution` key) still correlate as long as they
+carry `retained`: a pre-contract collector wrote that key only after evaluating, and the
+ambiguity it had lived in the *absence* of the file, which correlation is never handed.
+
+Producer side: Own.NET `audit/runtime/RetentionPath`, contract documented in
+`Own.NET/docs/runtime-witness-operations.md` and pinned by its CI (a kernel-denied attach exits
+2, names the refusing policy, records the refusal, and records no verdict).
 
 **`retained`.** One entry per type that still has live instances after the scenario. The
 correlation keys on `type` ↔ the static finding's `resource`. `count - expected` is the

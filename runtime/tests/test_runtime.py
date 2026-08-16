@@ -196,6 +196,112 @@ def test_cli_missing_runtime_exits_2():
     _expect(raised == 2, raised)
 
 
+# ---- execution-state contract (Own.NET#331) --------------------------------
+# The collector keeps "did not look" apart from "looked, found nothing" in its
+# exit codes AND in the record. Correlation must honour the second one: a
+# missing `retained` on a run that never happened is NO KNOWLEDGE, and reading
+# it as an empty list files every static finding under "static-only (suspect
+# FP)" — a verdict about evidence that does not exist.
+
+def _record(state, **execution):
+    return {"schema": "own-runtime/1", "execution": dict(state=state, **execution)}
+
+
+def _refused():
+    return _record("not_evaluated",
+                   reason={"code": "refused-attach",
+                           "detail": "Could not attach to process 4213",
+                           "policy": "kernel.yama.ptrace_scope=1"})
+
+
+def test_not_evaluated_record_is_refused_not_read_as_clean():
+    raised = None
+    try:
+        C.correlate([_sf("DocumentsViewModel")], _refused(), CFG)
+    except C.UnusableRuntimeRecord as e:
+        raised = str(e)
+    _expect(raised is not None, "a not_evaluated record must not correlate")
+    _expect("refused-attach" in raised, raised)
+    _expect("ptrace_scope" in raised, "the refusing policy must reach the operator")
+    # The specific trap: silently reading it as "nothing retained".
+    _expect(C.evaluation_problem(_refused()) is not None, "must not be usable")
+
+
+def test_error_state_is_refused_and_names_the_classification():
+    raised = None
+    try:
+        C.correlate([], _record("error", error={"classification": "IOException"}), CFG)
+    except C.UnusableRuntimeRecord as e:
+        raised = str(e)
+    _expect(raised is not None and "IOException" in raised, raised)
+
+
+def test_evaluated_without_scope_is_malformed_not_lenient():
+    # A verdict that does not say what it looked at cannot mean "nothing was
+    # there" — it takes the schema-violation path, not a quieter reading.
+    doc = _record("clean")
+    doc["verdict"] = "ABSENT"
+    doc["retained"] = []
+    raised = None
+    try:
+        C.correlate([], doc, CFG)
+    except C.UnusableRuntimeRecord as e:
+        raised = str(e)
+    _expect(raised is not None and "scope" in raised, raised)
+
+
+def test_unknown_state_is_refused_rather_than_guessed():
+    raised = None
+    try:
+        C.correlate([], _record("mostly-fine", scope={"verb": "roots"}), CFG)
+    except C.UnusableRuntimeRecord as e:
+        raised = str(e)
+    _expect(raised is not None and "refusing to guess" in raised, raised)
+
+
+def test_evaluated_record_correlates_normally():
+    doc = _dump(_retained("DocumentsViewModel", 132, event_holder="Sts.Broker.DocumentStore"))
+    doc["execution"] = {"state": "observed",
+                        "scope": {"verb": "roots", "mode": "attach", "instances_on_heap": 132}}
+    res = C.correlate([_sf("DocumentsViewModel", event="DocumentStore.Changed")], doc, CFG)
+    _expect(len(res["confirmed"]) == 1, res)
+    _expect(C.evaluation_problem(doc) is None, "an observed record with scope is usable")
+
+
+def test_pre_contract_record_still_correlates():
+    # Records written before the execution block exists carry `retained` only
+    # after evaluating, so they are measurements; the ambiguity they had was in
+    # the ABSENCE of the file, which correlation is never handed.
+    legacy = _dump(_retained("DocumentsViewModel", 132))
+    _expect("execution" not in legacy, "fixture must model a pre-contract record")
+    _expect(C.evaluation_problem(legacy) is None, "legacy measurement must stay usable")
+
+
+def test_shapeless_record_is_refused():
+    _expect(C.evaluation_problem({"schema": "own-runtime/1"}) is not None,
+            "neither a measurement nor a record of one")
+
+
+def test_cli_refuses_a_run_that_never_looked():
+    d = tempfile.mkdtemp(prefix="rt-ne-")
+    try:
+        fp, rp = os.path.join(d, "findings.json"), os.path.join(d, "runtime.json")
+        out = os.path.join(d, "out")
+        _write(fp, {"findings": [_sf("DocumentsViewModel", event="DocumentStore.Changed")]})
+        _write(rp, _refused())
+        raised = None
+        try:
+            cli.main(["--findings", fp, "--runtime", rp, "--out-dir", out])
+        except SystemExit as e:
+            raised = e.code
+        _expect(raised == 2, f"a not_evaluated record must exit 2, got {raised}")
+        # And no report: a written report is a claim that a pass ran.
+        _expect(not os.path.exists(os.path.join(out, "runtime-report.md")),
+                "no report may be written for a run that never looked")
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+
 # ---- bare-python runner ----------------------------------------------------
 
 def _main() -> int:
