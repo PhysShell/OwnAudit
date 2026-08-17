@@ -1,0 +1,59 @@
+{
+  "case": "two-candidates-unresolved",
+  "title": "A move with two equally plausible candidates",
+  "why": "ADVERSARIAL. The source file is gone and two files now carry an indistinguishable occurrence. There is no evidence that prefers either; a mapper that picks one is reporting its sort order as a finding.",
+  "revision_a": {
+    "revision": "r1",
+    "occurrences": [
+      {
+        "occurrence_id": "occ-a1",
+        "path": "Broker/Old.cs",
+        "start_line": 42,
+        "start_column": null,
+        "pattern_id": "pat-A",
+        "enclosing_symbol": "Wire",
+        "anchored_content": "_store.Changed += OnChanged;"
+      }
+    ]
+  },
+  "revision_b": {
+    "revision": "r2",
+    "occurrences": [
+      {
+        "occurrence_id": "occ-b1",
+        "path": "Broker/NewA.cs",
+        "start_line": 42,
+        "start_column": null,
+        "pattern_id": "pat-A",
+        "enclosing_symbol": "Wire",
+        "anchored_content": "_store.Changed += OnChanged;"
+      },
+      {
+        "occurrence_id": "occ-b2",
+        "path": "Broker/NewB.cs",
+        "start_line": 42,
+        "start_column": null,
+        "pattern_id": "pat-A",
+        "enclosing_symbol": "Wire",
+        "anchored_content": "_store.Changed += OnChanged;"
+      }
+    ]
+  },
+  "expect": [
+    {
+      "outcome": "unresolved",
+      "frm": "occ-a1",
+      "to": [],
+      "reason": "lineage-id-unavailable:ambiguous-candidates",
+      "note": "two candidates, no evidence prefers either"
+    }
+  ],
+  "forbid": [
+    "continued to occ-b1",
+    "continued to occ-b2",
+    "reported as ended",
+    "reported as new"
+  ],
+  "contract": "finding-lineage/v1",
+  "status": "preregistered-unimplemented"
+}

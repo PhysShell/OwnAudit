@@ -1,0 +1,59 @@
+{
+  "case": "presentation-move-preserves-proven-lineage",
+  "title": "Presentation-only movement over an already-proven lineage",
+  "why": "Reformatting must not restate the question. The lineage was established in an earlier revision; a whitespace shift is not new evidence and must not be able to weaken it.",
+  "revision_a": {
+    "revision": "r2",
+    "established_lineage": {
+      "occ-a1": "lin-1"
+    },
+    "occurrences": [
+      {
+        "occurrence_id": "occ-a1",
+        "path": "Broker/Doc.cs",
+        "start_line": 54,
+        "start_column": null,
+        "pattern_id": "pat-A",
+        "enclosing_symbol": "DocView.Wire",
+        "anchored_content": "_store.Changed += OnChanged;"
+      }
+    ]
+  },
+  "revision_b": {
+    "revision": "r3",
+    "occurrences": [
+      {
+        "occurrence_id": "occ-b1",
+        "path": "Broker/Doc.cs",
+        "start_line": 61,
+        "start_column": null,
+        "pattern_id": "pat-A",
+        "enclosing_symbol": "DocView.Wire",
+        "anchored_content": "_store.Changed += OnChanged;"
+      }
+    ]
+  },
+  "expect": [
+    {
+      "outcome": "continued",
+      "frm": "occ-a1",
+      "to": [
+        "occ-b1"
+      ],
+      "lineage_id": "lin-1",
+      "evidence_at_least": [
+        "same_path",
+        "structural_context",
+        "anchored_content",
+        "line_drift"
+      ],
+      "note": "the SAME lineage id continues; a new one would read as a new defect"
+    }
+  ],
+  "forbid": [
+    "a freshly minted lineage_id",
+    "unresolved"
+  ],
+  "contract": "finding-lineage/v1",
+  "status": "preregistered-unimplemented"
+}

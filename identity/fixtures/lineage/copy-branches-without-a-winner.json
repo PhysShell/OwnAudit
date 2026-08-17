@@ -1,0 +1,62 @@
+{
+  "case": "copy-branches-without-a-winner",
+  "title": "One occurrence copied into two places",
+  "why": "Ambiguity must be EXPRESSED. Both successors are equally supported; choosing one and dropping the other silently loses a real finding.",
+  "revision_a": {
+    "revision": "r1",
+    "occurrences": [
+      {
+        "occurrence_id": "occ-a1",
+        "path": "Broker/Doc.cs",
+        "start_line": 42,
+        "start_column": null,
+        "pattern_id": "pat-A",
+        "enclosing_symbol": "DocView.Wire",
+        "anchored_content": "_store.Changed += OnChanged;"
+      }
+    ]
+  },
+  "revision_b": {
+    "revision": "r2",
+    "occurrences": [
+      {
+        "occurrence_id": "occ-b1",
+        "path": "Broker/Doc.cs",
+        "start_line": 42,
+        "start_column": null,
+        "pattern_id": "pat-A",
+        "enclosing_symbol": "DocView.Wire",
+        "anchored_content": "_store.Changed += OnChanged;"
+      },
+      {
+        "occurrence_id": "occ-b2",
+        "path": "Broker/DocCopy.cs",
+        "start_line": 42,
+        "start_column": null,
+        "pattern_id": "pat-A",
+        "enclosing_symbol": "DocCopyView.Wire",
+        "anchored_content": "_store.Changed += OnChanged;"
+      }
+    ]
+  },
+  "expect": [
+    {
+      "outcome": "branched",
+      "frm": "occ-a1",
+      "to": [
+        "occ-b1",
+        "occ-b2"
+      ],
+      "evidence_at_least": [
+        "same_pattern_id",
+        "anchored_content"
+      ]
+    }
+  ],
+  "forbid": [
+    "continued to exactly one of them",
+    "occ-b2 reported as new"
+  ],
+  "contract": "finding-lineage/v1",
+  "status": "preregistered-unimplemented"
+}

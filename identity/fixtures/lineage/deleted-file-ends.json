@@ -1,0 +1,41 @@
+{
+  "case": "deleted-file-ends",
+  "title": "The file is deleted",
+  "why": "No successor may be fabricated. `ended` is a claim backed by the deletion itself.",
+  "revision_a": {
+    "revision": "r1",
+    "occurrences": [
+      {
+        "occurrence_id": "occ-a1",
+        "path": "Broker/Gone.cs",
+        "start_line": 42,
+        "start_column": null,
+        "pattern_id": "pat-A",
+        "enclosing_symbol": "Wire",
+        "anchored_content": "_store.Changed += OnChanged;"
+      }
+    ]
+  },
+  "revision_b": {
+    "revision": "r2",
+    "deleted_paths": [
+      "Broker/Gone.cs"
+    ],
+    "occurrences": []
+  },
+  "expect": [
+    {
+      "outcome": "ended",
+      "frm": "occ-a1",
+      "to": [],
+      "reason": "lineage-id-unavailable:no-mapping-evidence",
+      "note": "the containing file is gone in revision B"
+    }
+  ],
+  "forbid": [
+    "any successor",
+    "unresolved (the deletion IS the evidence)"
+  ],
+  "contract": "finding-lineage/v1",
+  "status": "preregistered-unimplemented"
+}

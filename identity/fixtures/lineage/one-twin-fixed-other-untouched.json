@@ -1,0 +1,67 @@
+{
+  "case": "one-twin-fixed-other-untouched",
+  "title": "One of the two repeats is fixed; the other is not",
+  "why": "ADVERSARIAL, and the reason case 3 matters. If the twins share a lineage, fixing one reads as fixing both - a false 'resolved' on a defect still in the tree.",
+  "revision_a": {
+    "revision": "r1",
+    "occurrences": [
+      {
+        "occurrence_id": "occ-a1",
+        "path": "Broker/Doc.cs",
+        "start_line": 42,
+        "start_column": null,
+        "pattern_id": "pat-A",
+        "enclosing_symbol": "DocView.WireA",
+        "anchored_content": "_store.Changed += OnChanged;"
+      },
+      {
+        "occurrence_id": "occ-a2",
+        "path": "Broker/Doc.cs",
+        "start_line": 88,
+        "start_column": null,
+        "pattern_id": "pat-A",
+        "enclosing_symbol": "DocView.WireB",
+        "anchored_content": "_store.Changed += OnChanged;"
+      }
+    ]
+  },
+  "revision_b": {
+    "revision": "r2",
+    "occurrences": [
+      {
+        "occurrence_id": "occ-b2",
+        "path": "Broker/Doc.cs",
+        "start_line": 86,
+        "start_column": null,
+        "pattern_id": "pat-A",
+        "enclosing_symbol": "DocView.WireB",
+        "anchored_content": "_store.Changed += OnChanged;"
+      }
+    ]
+  },
+  "expect": [
+    {
+      "outcome": "ended",
+      "frm": "occ-a1",
+      "to": [],
+      "reason": "lineage-id-unavailable:no-mapping-evidence",
+      "note": "WireA's occurrence is gone and the site is gone with it"
+    },
+    {
+      "outcome": "continued",
+      "frm": "occ-a2",
+      "to": [
+        "occ-b2"
+      ],
+      "evidence_at_least": [
+        "structural_context"
+      ]
+    }
+  ],
+  "forbid": [
+    "occ-a1 mapped to occ-b2",
+    "occ-a2 reported as ended"
+  ],
+  "contract": "finding-lineage/v1",
+  "status": "preregistered-unimplemented"
+}

@@ -1,0 +1,80 @@
+{
+  "case": "twin-patterns-stay-distinct",
+  "title": "Two identical patterns in one file",
+  "why": "ADVERSARIAL. Same pattern_id, same path, same content: everything except position is identical. A pattern-keyed mapper collapses them into one lineage and can then never say that one was fixed. This is why the unit of analysis is the occurrence.",
+  "revision_a": {
+    "revision": "r1",
+    "occurrences": [
+      {
+        "occurrence_id": "occ-a1",
+        "path": "Broker/Doc.cs",
+        "start_line": 42,
+        "start_column": null,
+        "pattern_id": "pat-A",
+        "enclosing_symbol": "DocView.WireA",
+        "anchored_content": "_store.Changed += OnChanged;"
+      },
+      {
+        "occurrence_id": "occ-a2",
+        "path": "Broker/Doc.cs",
+        "start_line": 88,
+        "start_column": null,
+        "pattern_id": "pat-A",
+        "enclosing_symbol": "DocView.WireB",
+        "anchored_content": "_store.Changed += OnChanged;"
+      }
+    ]
+  },
+  "revision_b": {
+    "revision": "r2",
+    "occurrences": [
+      {
+        "occurrence_id": "occ-b1",
+        "path": "Broker/Doc.cs",
+        "start_line": 44,
+        "start_column": null,
+        "pattern_id": "pat-A",
+        "enclosing_symbol": "DocView.WireA",
+        "anchored_content": "_store.Changed += OnChanged;"
+      },
+      {
+        "occurrence_id": "occ-b2",
+        "path": "Broker/Doc.cs",
+        "start_line": 90,
+        "start_column": null,
+        "pattern_id": "pat-A",
+        "enclosing_symbol": "DocView.WireB",
+        "anchored_content": "_store.Changed += OnChanged;"
+      }
+    ]
+  },
+  "expect": [
+    {
+      "outcome": "continued",
+      "frm": "occ-a1",
+      "to": [
+        "occ-b1"
+      ],
+      "evidence_at_least": [
+        "structural_context"
+      ]
+    },
+    {
+      "outcome": "continued",
+      "frm": "occ-a2",
+      "to": [
+        "occ-b2"
+      ],
+      "evidence_at_least": [
+        "structural_context"
+      ]
+    }
+  ],
+  "forbid": [
+    "a single lineage covering both",
+    "occ-a1 mapped to occ-b2",
+    "occ-a2 mapped to occ-b1"
+  ],
+  "contract": "finding-lineage/v1",
+  "status": "preregistered-unimplemented"
+}

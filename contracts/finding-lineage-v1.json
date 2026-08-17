@@ -1,0 +1,126 @@
+{
+  "contract": "finding-lineage/v1",
+  "status": "frozen-unimplemented",
+  "notes": [
+    "Own.NET#266 slice 2, step 0. The VOCABULARY is frozen; no mapper exists.",
+    "The unit of analysis is one occurrence in revision A mapped to revision B.",
+    "pattern_id collides on purpose and occurrence_id cannot span runs, so lineage",
+    "is precisely the relation neither of those ids carries - and it is EARNED by",
+    "evidence, never derived from them.",
+    "Absence of mapping evidence is 'unresolved'. It is not 'new' and not the same",
+    "lineage. Same invariant as finding-occurrence/v1 ('identity is refused, not",
+    "approximated') and as the runtime witness ('absence of a record is not a",
+    "semantic outcome')."
+  ],
+
+  "outcomes": {
+    "continued": {
+      "cardinality": "1:1",
+      "lineage_id": "minted",
+      "means": "exactly one successor, established by evidence"
+    },
+    "branched": {
+      "cardinality": "1:N",
+      "lineage_id": "one per successor, recorded as a set",
+      "means": "one predecessor, several equally-supported successors (copy/split)",
+      "forbids": "picking a winner and discarding the rest"
+    },
+    "merged": {
+      "cardinality": "N:1",
+      "lineage_id": "successor records every predecessor",
+      "means": "several predecessors collapse into one successor"
+    },
+    "unresolved": {
+      "cardinality": "unknown",
+      "lineage_id": "null",
+      "requires": "reason",
+      "means": "the evidence does not decide - the DEFAULT when evidence is absent"
+    },
+    "ended": {
+      "cardinality": "1:0",
+      "lineage_id": "null",
+      "requires": "reason",
+      "means": "no successor, and the absence is itself evidenced"
+    },
+    "new": {
+      "cardinality": "0:1",
+      "lineage_id": "null",
+      "requires": "reason",
+      "means": "no predecessor, and the absence is itself evidenced"
+    }
+  },
+
+  "evidence_kinds": {
+    "same_pattern_id": {
+      "sufficient_alone": false,
+      "why": "pattern_id collides by design; two unrelated occurrences of one pattern share it"
+    },
+    "same_path": {
+      "sufficient_alone": false,
+      "why": "a file can hold several occurrences of the same pattern"
+    },
+    "path_rename": {
+      "sufficient_alone": false,
+      "why": "a rename relates files, not the occurrences inside them"
+    },
+    "structural_context": {
+      "sufficient_alone": false,
+      "why": "an enclosing symbol can hold several occurrences"
+    },
+    "anchored_content": {
+      "sufficient_alone": false,
+      "why": "identical content is exactly what cases 3 and 8 exploit"
+    },
+    "line_drift": {
+      "sufficient_alone": false,
+      "why": "proximity is not identity; case 8 is proximity without anything else"
+    }
+  },
+  "evidence_rule": [
+    "No single evidence kind carries a 'continued' on its own.",
+    "This is a floor, not the algorithm: which COMBINATIONS suffice is slice 2",
+    "step 1 and is deliberately not fixed here.",
+    "Evidence is stored in its own field, never folded into the id and never",
+    "collapsed into a score that discards which signals fired."
+  ],
+
+  "limitations": {
+    "no-mapping-evidence": "lineage-id-unavailable:no-mapping-evidence",
+    "ambiguous-candidates": "lineage-id-unavailable:ambiguous-candidates",
+    "missing-occurrence-id": "lineage-id-unavailable:missing-occurrence-id",
+    "no-predecessor-revision": "lineage-id-unavailable:no-predecessor-revision",
+    "insufficient-evidence-kind": "lineage-id-unavailable:insufficient-evidence-kind"
+  },
+
+  "mapping_provenance_required": [
+    "from_run",
+    "to_run",
+    "from_revision",
+    "to_revision",
+    "mapper"
+  ],
+  "mapping_provenance_rule": [
+    "A mapping is a statement about two specific runs over two specific revisions.",
+    "Recording both is what keeps it falsifiable outside the context that computed",
+    "it; 'mapper' is there because two mappers disagreeing about one pair of runs",
+    "is a fact worth being able to see."
+  ],
+
+  "preregistered_cases": [
+    "line-drift-continues",
+    "rename-with-context-continues",
+    "twin-patterns-stay-distinct",
+    "one-twin-fixed-other-untouched",
+    "copy-branches-without-a-winner",
+    "two-candidates-unresolved",
+    "deleted-file-ends",
+    "coincidence-is-not-a-mapping",
+    "presentation-move-preserves-proven-lineage",
+    "rerun-is-byte-stable"
+  ],
+  "preregistration_rule": [
+    "Fixed BEFORE any algorithm exists, so the algorithm cannot select the cases",
+    "that flatter it. identity/tests/test_lineage_contract.py holds the matrix to",
+    "this list: a case removed or renamed fails the suite rather than disappearing."
+  ]
+}

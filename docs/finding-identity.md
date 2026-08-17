@@ -240,5 +240,11 @@ regenerated from the code under test.
   improves anchor precision, IDE/GitHub positioning, and telling several findings
   on one line apart. It does not define the schema, so it does not block it.
 - **Locationless results** are dropped and counted nowhere — [#57](https://github.com/PhysShell/OwnAudit/issues/57).
-- **`lineage_id`** (following one finding across runs) is slice 2, and needs
-  occurrence identity to exist first.
+- **`lineage_id`** (following one finding across revisions) is slice 2. Its
+  contract is now frozen — outcomes, evidence rules, mapping provenance and a
+  preregistered adversarial fixture matrix — in
+  [`docs/finding-lineage.md`](finding-lineage.md) and
+  [`contracts/finding-lineage-v1.json`](../contracts/finding-lineage-v1.json).
+  **No mapper is implemented.** The contract was written first so the algorithm
+  cannot pick the cases that flatter it; implementation is held until the
+  normalization seam under review settles.

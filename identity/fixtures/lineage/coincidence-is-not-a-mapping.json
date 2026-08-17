@@ -1,0 +1,57 @@
+{
+  "case": "coincidence-is-not-a-mapping",
+  "title": "Same basename and roughly the same line, nothing else in common",
+  "why": "ADVERSARIAL. Different directory, different enclosing symbol, different content, different pattern. Only the basename and a nearby line coincide - which is exactly what a proximity heuristic latches onto.",
+  "revision_a": {
+    "revision": "r1",
+    "occurrences": [
+      {
+        "occurrence_id": "occ-a1",
+        "path": "Broker/Doc.cs",
+        "start_line": 42,
+        "start_column": null,
+        "pattern_id": "pat-A",
+        "enclosing_symbol": "DocView.Wire",
+        "anchored_content": "_store.Changed += OnChanged;"
+      }
+    ]
+  },
+  "revision_b": {
+    "revision": "r2",
+    "occurrences": [
+      {
+        "occurrence_id": "occ-b1",
+        "path": "Reports/Doc.cs",
+        "start_line": 43,
+        "start_column": null,
+        "pattern_id": "pat-B",
+        "enclosing_symbol": "ReportGrid.Bind",
+        "anchored_content": "timer.Elapsed += OnTick;"
+      }
+    ]
+  },
+  "expect": [
+    {
+      "outcome": "ended",
+      "frm": "occ-a1",
+      "to": [],
+      "reason": "lineage-id-unavailable:no-mapping-evidence",
+      "note": "Broker/Doc.cs no longer carries the occurrence"
+    },
+    {
+      "outcome": "new",
+      "to": [
+        "occ-b1"
+      ],
+      "frm": null,
+      "reason": "lineage-id-unavailable:no-predecessor-revision",
+      "note": "nothing in revision A corresponds to it"
+    }
+  ],
+  "forbid": [
+    "continued from occ-a1 to occ-b1",
+    "any mapping justified by basename alone"
+  ],
+  "contract": "finding-lineage/v1",
+  "status": "preregistered-unimplemented"
+}
