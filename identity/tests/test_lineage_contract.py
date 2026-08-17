@@ -111,11 +111,25 @@ def main() -> int:
     # The load-bearing rule, asserted rather than only written down: absent
     # evidence yields 'unresolved'. If this ever reads 'new', every "introduced
     # this revision" metric silently starts measuring the mapper.
-    for refusing in REFUSING:
-        check(contract["outcomes"][refusing]["lineage_id"] == "null",
-              f"{refusing} must not mint a lineage_id")
     check("reason" in contract["outcomes"]["unresolved"]["requires"],
           "unresolved must require a reason")
+
+    # A lineage_id records MEMBERSHIP in a lineage graph, not "an edge was
+    # proven" - that tidier invariant made a root node unrepresentable. So a
+    # refusal seeds nothing, an ending invents nothing, and an evidenced birth
+    # seeds the root a later branch will have to name as its parent.
+    seeding = contract.get("root_seeding_rules", {})
+    check(set(seeding) == set(OUTCOMES),
+          f"root seeding must be stated for every outcome, missing {sorted(set(OUTCOMES) - set(seeding))}")
+    check(contract["outcomes"]["unresolved"]["lineage_id"] == "null",
+          "unresolved must not mint a lineage_id - a refusal that minted one would be membership")
+    check(contract["outcomes"]["ended"]["lineage_id"] == "none-minted",
+          "ended must mint nothing; an unlinked predecessor stays a terminal occurrence")
+    check(contract["outcomes"]["new"]["lineage_id"] == "minted-root",
+          "an evidenced birth must seed a root lineage, or a later branch from it "
+          "has no parent lineage to record and an occurrence id gets used instead")
+    check(bool(contract.get("lineage_id_existence")),
+          "the contract must state when a lineage_id exists")
 
     # `unresolved` has to be sayable about an occurrence in B, or an unmatched B
     # occurrence has nowhere to go but `new` and the SCHEMA fabricates the birth.
@@ -310,9 +324,37 @@ def main() -> int:
                     # A child with no recorded parent is a birth wearing another
                     # word, and a merge that records one parent has quietly
                     # elected it. Either way the graph loses what happened.
-                    check(sorted(exp.get("parent_lineage", [])) == sorted(frm),
-                          f"{where}: {outcome} must record parent lineage for every "
-                          f"predecessor, got {exp.get('parent_lineage')!r} for {frm!r}")
+                    #
+                    # And the parents are LINEAGE ids. An occurrence_id is built
+                    # from producer_run_id and cannot span runs by construction,
+                    # so one stored in a cross-revision field is a claim made out
+                    # of something that provably cannot carry it. The fixture
+                    # says `lin-of:<occ>` - the lineage OF that occurrence,
+                    # seeded as a root first if it has none - or a literal id it
+                    # already declared in `established_lineage`.
+                    parents = exp.get("parent_lineage", [])
+                    resolved: list[str] = []
+                    for ref in parents:
+                        check(ref not in occ_a and ref not in occ_b,
+                              f"{where}: parent_lineage holds occurrence id {ref!r}. "
+                              "Parents are lineages; an occurrence id cannot span runs.")
+                        if isinstance(ref, str) and ref.startswith("lin-of:"):
+                            resolved.append(ref[len("lin-of:"):])
+                        elif ref in established.values():
+                            resolved.extend(o for o, lid in established.items() if lid == ref)
+                        else:
+                            check(False,
+                                  f"{where}: parent_lineage entry {ref!r} names no lineage - "
+                                  "use `lin-of:<occurrence_id>` or a declared established id")
+                    check(sorted(resolved) == sorted(frm),
+                          f"{where}: {outcome} must record a parent lineage for every "
+                          f"predecessor, got {parents!r} resolving to {sorted(resolved)} for {sorted(frm)}")
+
+            if outcome == "new":
+                # The birth seeds a root. A fixture that pinned it to null would
+                # re-open the hole this rule closes.
+                check(exp.get("lineage_id", "unset") is not None,
+                      f"{where}: `new` seeds a root lineage; it may not claim a null lineage_id")
 
         # Nothing may be dropped in silence. An occurrence the matrix does not
         # mention is indistinguishable from one a mapper forgot to report.

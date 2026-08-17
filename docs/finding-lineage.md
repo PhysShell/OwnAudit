@@ -50,8 +50,8 @@ Six outcomes, and no others. The vocabulary is in
 | `branched` | one predecessor, several equally-supported successors | a fresh child id per successor, each recording the parent |
 | `merged` | several predecessors, one successor | a fresh id for the successor, recording *every* parent |
 | `unresolved` | **the evidence does not decide**, on either side | `null` + side + reason |
-| `ended` | no successor, and *that* is positively evidenced | `null` + boundary evidence |
-| `new` | no predecessor, and *that* is positively evidenced | `null` + boundary evidence |
+| `ended` | no successor, and *that* is positively evidenced | nothing minted + boundary evidence |
+| `new` | no predecessor, and *that* is positively evidenced | a fresh **root** id + boundary evidence |
 
 **The load-bearing rule.** Absence of mapping evidence is `unresolved`. It is
 not a new lineage, and it is not the same lineage. This is the same invariant the
@@ -132,6 +132,49 @@ questions this contract exists to ask.
 - **merge** — the successor gets a freshly minted id recording
   `parent_lineage_ids` for **every** predecessor. Inheriting one parent's id
   would elect it silently and orphan the rest.
+
+### When a lineage id exists at all
+
+> A `lineage_id` exists when **membership in an established lineage graph is
+> known**. `unresolved` establishes no membership, and so seeds nothing.
+
+An earlier draft said instead that an id exists exactly when an edge was proven.
+Tidier, and wrong: it makes a **root node unrepresentable**. Take a legal
+sequence — `occ-b2` is an evidenced birth in r1→r2, then branches into `c1` and
+`c2` in r2→r3. The branch owes its children a parent *lineage*, and under the
+edge-only rule the parent has none. What is left is an empty parent, an
+occurrence id smuggled into a lineage field, or a retroactive mint no rule
+describes.
+
+So the outcomes that build graph structure seed their own roots:
+
+| outcome | seeds |
+|---|---|
+| `unresolved` | nothing, on either side — a refusal that minted an id would *be* membership |
+| `new` | a fresh **root** id for its B occurrence: a node with no incoming edge |
+| `continued` | mint-once-and-bind-both if neither end is linked; inherit if the predecessor is |
+| `branched` | an unlinked predecessor is seeded with a root **first**; children then record *that* id |
+| `merged` | every still-unlinked predecessor is seeded with its own root **first** |
+| `ended` | nothing — a linked predecessor has its lineage terminated, an unlinked one stays a terminal occurrence with no pretended past |
+
+`ended` is deliberately outside the seeding rule. It creates no structure, so
+requiring an id there would inflate "lineage" into "every singleton has one".
+
+### Parents are lineages, not occurrences
+
+`parent_lineage_ids` holds **lineage** ids. Never occurrence ids — and this is
+not pedantry about naming. `occurrence_id` is built from `producer_run_id` and
+therefore cannot span runs *by construction*; one stored in a cross-revision
+field is a claim made out of the one identifier that provably cannot carry it.
+It is the same type confusion the three-way split at the top of this document
+exists to prevent, one level up.
+
+Fixtures cannot know a value the mapper has not minted yet, so they write
+`lin-of:<occurrence_id>` — *the lineage of* that occurrence, seeded as a root if
+it has none — or a literal id the case already declared in
+`established_lineage`. The integrity suite resolves those references and checks
+every predecessor contributes exactly one parent lineage, and that no bare
+occurrence id appears in the field.
 
 What remains open is which evidence licenses each outcome — not what the ids then
 do.
@@ -263,16 +306,14 @@ cannot diff is a lineage you cannot audit.
 - **Ordering** of the six outcomes, or a confidence score. A score that collapses
   `unresolved` and a weak `continued` into one number would undo the distinction
   this contract exists to protect.
-- **Whether a proven `new` mints an origin id** for the lineage that starts
-  there, rather than waiting for its first edge. Today it is `null`, which keeps
-  "has a lineage_id" equivalent to "an edge was proven". Minting at a proven
-  birth would record the origin, and it is a real choice — but nothing forces it
-  yet, and taking it now would be deciding for a mapper that does not exist.
-
-The lineage-id semantics used to sit on this list. They came off it under review:
-"one per successor" and "the successor records every predecessor" describe a
-record without saying what id anything gets, which left the mapper to settle the
-shape of the lineage graph as a side effect of its implementation.
+The lineage-id semantics used to sit on this list, in two rounds. First "one per
+successor" and "the successor records every predecessor" — a description of a
+record that never says what id anything gets, leaving the mapper to settle the
+shape of the lineage graph as a side effect. Then whether an evidenced `new`
+seeds a root, which looked like a free choice until the r1→r2→r3 branch above
+showed it is not one: the alternative is not "no id", it is an occurrence id in
+a lineage field. Both came off the list. Neither was safe to leave to the
+implementation, and both were cheap to settle while no implementation exists.
 
 ## Dependency, stated honestly
 

@@ -60,17 +60,18 @@
     },
     "ended": {
       "cardinality": "1:0",
-      "lineage_id": "null",
+      "lineage_id": "none-minted",
       "requires": "boundary_evidence",
       "means": "no successor, and the absence is POSITIVELY evidenced",
-      "note": "no new edge is created; a lineage the predecessor already carries is terminated, never re-minted",
+      "note": "an ending invents nothing. A predecessor already in a lineage has that lineage terminated; one that is not stays a positively evidenced terminal occurrence, without a pretended past. This is what keeps 'lineage' from inflating into 'every singleton must have an id'.",
       "forbids": "an identity limitation as its justification - 'I found nothing' is unresolved, not a death"
     },
     "new": {
       "cardinality": "0:1",
-      "lineage_id": "null",
+      "lineage_id": "minted-root",
       "requires": "boundary_evidence",
       "means": "no predecessor, and the absence is POSITIVELY evidenced",
+      "note": "an evidenced birth SEEDS a lineage: the occurrence gets a fresh root id with no incoming edge. Without it a later branch from this occurrence would have no parent lineage to record, and the only ways out are an empty parent, an occurrence id smuggled in as a lineage id, or a retroactive mint the contract never described.",
       "forbids": "an identity limitation as its justification - 'I found nothing' is unresolved, not a birth"
     }
   },
@@ -178,11 +179,20 @@
     "copied file, and the copy case and the birth case are the same shape."
   ],
 
+  "lineage_id_existence": [
+    "A lineage_id exists when MEMBERSHIP IN AN ESTABLISHED LINEAGE GRAPH is known.",
+    "Not 'when an edge was proven' - that earlier wording was tidier and wrong. It",
+    "made a root node unrepresentable, so an evidenced birth could not seed the",
+    "lineage a later branch would have to name as its parent.",
+    "'unresolved' establishes no membership and therefore seeds nothing, on either",
+    "side. That is the line the invariant actually has to hold."
+  ],
+
   "lineage_id_rules": {
     "inherit": "predecessor already carries a lineage_id -> the successor takes THAT id. A re-mint would read as a new defect appearing where an old one was proven to persist.",
     "mint": "first proven 1:1 edge between two occurrences neither of which is linked yet -> mint once, and bind BOTH ends to it.",
-    "branch": "each successor gets its own fresh child id, and every child records parent_lineage_ids. No successor inherits the predecessor's id, because inheriting is choosing.",
-    "merge": "the successor gets a freshly minted id which records parent_lineage_ids for EVERY predecessor. Inheriting one parent's id would silently elect it and orphan the rest."
+    "branch": "each successor gets its own fresh child id, and every child records parent_lineage_ids - LINEAGE ids, seeded first if the predecessor is unlinked. No successor inherits the predecessor's id, because inheriting is choosing.",
+    "merge": "the successor gets a freshly minted id which records parent_lineage_ids for EVERY predecessor, each of them a LINEAGE id, seeded first where needed. Inheriting one parent's id would silently elect it and orphan the rest."
   },
   "lineage_id_rules_note": [
     "This is graph semantics, not an implementation detail, so it is fixed here",
@@ -193,7 +203,40 @@
     "What is still open is which evidence licenses each outcome - not what the ids",
     "then do."
   ],
+
+  "root_seeding_rules": {
+    "unresolved": "seeds nothing, on either side. A refusal that minted an id would make the refusal itself into membership.",
+    "new": "an evidenced birth mints a FRESH ROOT lineage id for its occurrence in revision B - a node with no incoming edge.",
+    "continued": "two unlinked occurrences: mint once and bind both. A linked predecessor: inherit.",
+    "branched": "an unlinked predecessor is seeded with a root lineage id FIRST; the children then get fresh child ids recording that lineage id.",
+    "merged": "every still-unlinked predecessor is seeded with its own root lineage id FIRST; the successor then gets a fresh id recording all of them.",
+    "ended": "mints nothing. A predecessor in a lineage has it terminated; an unlinked one stays a terminal occurrence, not a retroactive lineage of one."
+  },
+  "root_seeding_note": [
+    "new, branched and merged are the outcomes that build GRAPH STRUCTURE, and a",
+    "graph edge needs a node at both ends. Without seeding, a branch from an",
+    "occurrence born last revision has no parent lineage to name, and the only ways",
+    "out are an empty parent, an occurrence id smuggled in under a lineage field, or",
+    "a retroactive mint no rule describes. 'ended' is deliberately outside this: it",
+    "creates no structure, so requiring an id there would only inflate 'lineage'",
+    "into 'every singleton has one'."
+  ],
+
   "parent_lineage_required_for": ["branched", "merged"],
+  "parent_lineage_reference_forms": {
+    "established": "a literal lineage id the fixture already declares in revision_a.established_lineage",
+    "seeded": "lin-of:<occurrence_id> - THE LINEAGE OF that occurrence, seeded per root_seeding_rules if it has none yet"
+  },
+  "parent_lineage_rule": [
+    "parent_lineage_ids holds LINEAGE ids. Never occurrence ids.",
+    "The distinction is the whole point of the three-way split at the top of this",
+    "contract: an occurrence_id cannot span runs by construction, so an occurrence",
+    "id stored in a lineage field is a cross-revision claim made out of something",
+    "that provably cannot carry one.",
+    "Fixtures therefore write `lin-of:<occurrence_id>` rather than the bare id -",
+    "the reference is to the lineage, and it stays checkable that a lineage exists",
+    "for every predecessor without the fixture having to guess a minted value."
+  ],
 
   "mapping_provenance_required": [
     "from_run",

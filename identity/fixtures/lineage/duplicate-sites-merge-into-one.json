@@ -71,10 +71,10 @@
         "anchored_content"
       ],
       "parent_lineage": [
-        "occ-a1",
-        "occ-a2"
+        "lin-of:occ-a1",
+        "lin-of:occ-a2"
       ],
-      "note": "occ-b1 takes a freshly minted id recording BOTH parents; inheriting occ-a1's would elect it and orphan occ-a2 without ever saying so"
+      "note": "occ-b1 takes a freshly minted id recording BOTH parent LINEAGES - each seeded as a root first, since neither predecessor is linked yet. Inheriting occ-a1's would elect it and orphan occ-a2 without ever saying so."
     }
   ],
   "forbid": [
@@ -82,7 +82,8 @@
     "continued from occ-a2 with occ-a1 ended",
     "either predecessor reported as ended on the strength of removed_symbols - the site moved into the merge target, and merged_symbols says where",
     "occ-b1 inheriting one parent's lineage_id",
-    "a merge recorded with fewer parent lineages than predecessors"
+    "a merge recorded with fewer parent lineages than predecessors",
+    "an occurrence id in parent_lineage instead of the lineage it belongs to"
   ],
   "contract": "finding-lineage/v1",
   "status": "preregistered-unimplemented"
