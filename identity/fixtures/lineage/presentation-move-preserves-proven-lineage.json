@@ -47,7 +47,7 @@
         "anchored_content",
         "line_drift"
       ],
-      "note": "the SAME lineage id continues; a new one would read as a new defect"
+      "note": "the SAME lineage id continues; a new one would read as a new defect. This is the `inherit` rule: the predecessor is already linked, so the successor takes that id rather than minting."
     }
   ],
   "forbid": [

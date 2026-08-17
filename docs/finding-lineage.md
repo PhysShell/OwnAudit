@@ -46,12 +46,12 @@ Six outcomes, and no others. The vocabulary is in
 
 | outcome | means | `lineage_id` |
 |---|---|---|
-| `continued` | exactly one successor, and the evidence establishes it | minted |
-| `branched` | one predecessor, several equally-supported successors | one per successor, all recorded as a set |
-| `merged` | several predecessors, one successor | the successor records all of them |
-| `unresolved` | **the evidence does not decide** | `null` + reason |
-| `ended` | no successor, and *that* is evidenced (the file is gone, the site is gone) | `null` + reason |
-| `new` | no predecessor, and *that* is evidenced | `null` + reason |
+| `continued` | exactly one successor, and the evidence establishes it | inherited if the predecessor has one, else minted once for both |
+| `branched` | one predecessor, several equally-supported successors | a fresh child id per successor, each recording the parent |
+| `merged` | several predecessors, one successor | a fresh id for the successor, recording *every* parent |
+| `unresolved` | **the evidence does not decide**, on either side | `null` + side + reason |
+| `ended` | no successor, and *that* is positively evidenced | `null` + boundary evidence |
+| `new` | no predecessor, and *that* is positively evidenced | `null` + boundary evidence |
 
 **The load-bearing rule.** Absence of mapping evidence is `unresolved`. It is
 not a new lineage, and it is not the same lineage. This is the same invariant the
@@ -62,12 +62,79 @@ answers "new" whenever it fails to find a predecessor manufactures a birth event
 out of its own ignorance, and every metric built on "findings introduced this
 revision" then measures the mapper.
 
+**`unresolved` is symmetric, and that is structural.** It anchors on the A side
+(*a predecessor whose successor was not established*) or on the B side (*an
+occurrence in B whose predecessor was not established*). The first draft of this
+contract had only the A side, and the consequence was not a gap in the prose: an
+unmatched occurrence in revision B had **nowhere to go but `new`**, so the
+schema itself manufactured the birth event the doctrine forbids. A defect in the
+vocabulary is one no implementation can avoid, which is exactly why the
+vocabulary is frozen before the mapper.
+
 **Ambiguity is expressed, not resolved.** A copy of one occurrence into two
 places is `branched`, not a coin-flip between two successors with the loser
-discarded. Two equally plausible move candidates are `unresolved`, not the one
-that sorted first. The occurrence contract already refuses an ordinal tiebreaker
-for exactly this reason — an ordinal makes identity depend on emission order —
-and a lineage tiebreaker would be the same defect across time.
+discarded. Two equally plausible move candidates are `unresolved` — and so is
+each of the two candidates, seen from B. The occurrence contract already refuses
+an ordinal tiebreaker for exactly this reason — an ordinal makes identity depend
+on emission order — and a lineage tiebreaker would be the same defect across
+time.
+
+**Nothing is dropped in silence.** Every occurrence on both sides appears in the
+mapping record under some outcome. An occurrence the record does not mention is
+indistinguishable from one the mapper forgot, so "unexplained" is a thing that
+gets *said*, not a thing that gets omitted.
+
+## Ends and births are earned, exactly like continuations
+
+`ended` and `new` are the two outcomes that assert something about the *world*:
+that a lineage stopped, or that one began. They are therefore **not** reachable
+by failing to find a match — that is `unresolved` — and the contract keeps two
+separate vocabularies so the two can never be confused in a stored record:
+
+| vocabulary | prefix | says | belongs to |
+|---|---|---|---|
+| identity limitation | `lineage-id-unavailable:` | why the *mapper* could not decide | `unresolved` only |
+| boundary evidence | `boundary:` | what the *tree* shows about an edge | `ended` and `new` only |
+
+Each boundary kind names the machine-readable field it is read from —
+`containing-file-deleted` from `deleted_paths`, `enclosing-site-removed` from
+`removed_symbols`, and so on — because a boundary asserted only in prose is the
+absence of a match wearing a better word. The integrity suite reads that field
+and checks the fact is really there, and really about *this* occurrence.
+
+Each kind also names what **defeats** it. Positive evidence that another record
+explains away is not evidence: a deleted path that appears as a rename source
+did not die, and an added path that appears as a copy target was not born. That
+defeater is what separates
+[`copy-branches-without-a-winner`](../identity/fixtures/lineage/copy-branches-without-a-winner.json)
+from
+[`added-file-is-an-evidenced-birth`](../identity/fixtures/lineage/added-file-is-an-evidenced-birth.json):
+both put an occurrence in a file that did not exist in revision A, and the only
+thing that tells a copy from a birth is whether the arrival has a recorded
+source.
+
+## What the lineage ids do
+
+The graph semantics are fixed here rather than left to the mapper, because a
+mapper free to choose between inheriting and minting decides by itself whether a
+lineage survives reformatting, and a mapper free to choose a merge id decides by
+itself which of several defects "the" surviving one is. Those are answers to the
+questions this contract exists to ask.
+
+- **inherit** — the predecessor already carries a lineage: the successor takes
+  *that* id. A re-mint would read as a new defect appearing exactly where an old
+  one was proven to persist.
+- **mint** — first proven 1:1 edge between two unlinked occurrences: mint once,
+  and bind both ends to it.
+- **branch** — every successor gets its own fresh child id recording
+  `parent_lineage_ids`. No successor inherits the predecessor's id, because
+  inheriting *is* choosing, and `branched` exists precisely to refuse a choice.
+- **merge** — the successor gets a freshly minted id recording
+  `parent_lineage_ids` for **every** predecessor. Inheriting one parent's id
+  would elect it silently and orphan the rest.
+
+What remains open is which evidence licenses each outcome — not what the ids then
+do.
 
 ## Evidence is stored, and stored separately from the id
 
@@ -88,8 +155,29 @@ fired.
     { "kind": "anchored_content",    "detail": "line content identical" },
     { "kind": "line_drift",          "detail": "+12 lines" }
   ],
-  "mapping_provenance": { "from_run": "…", "to_run": "…", "…": "…" }
+  "mapping_provenance": {
+    "from_run": "…", "to_run": "…",
+    "from_revision": "…", "to_revision": "…",
+    "mapper": "…", "mapper_version": "…",
+    "mapper_config_digest": "…", "contract_version": "finding-lineage/v1"
+  }
 }
+```
+
+A refusal is the same record with the conclusion refused rather than drawn — the
+outcome, the side or the boundary evidence, and the same provenance:
+
+```jsonc
+{ "outcome": "unresolved", "side": "b", "lineage_id": null,
+  "from": null, "to": { "occurrence_id": "…", "revision": "…" },
+  "reason": "lineage-id-unavailable:ambiguous-candidates",
+  "mapping_provenance": { "…": "…" } }
+
+{ "outcome": "ended", "lineage_id": null,
+  "from": { "occurrence_id": "…", "revision": "…" }, "to": [],
+  "boundary_evidence": [ { "kind": "boundary:containing-file-deleted",
+                           "detail": "Broker/Gone.cs in deleted_paths" } ],
+  "mapping_provenance": { "…": "…" } }
 ```
 
 Two reasons this is a requirement rather than a nicety. A mapping whose evidence
@@ -119,9 +207,18 @@ The mapper's own identity belongs there too. Two mappers disagreeing about one
 pair of runs is a fact worth being able to see, and it is invisible if the record
 says only that a mapping exists.
 
+A bare name is not that identity, though. The promise "an old mapping can be
+re-judged when the rule changes" needs to survive the rule changing *inside* one
+mapper: two runs of `own-lineage` with different thresholds are a disagreement
+that would read as a contradiction. So the record pins `mapper_version`, a
+`mapper_config_digest` of the configuration actually in force, and the
+`contract_version` the mapping was made under. Without those three, "would this
+mapping still be made today?" has no answer, and the evidence field is kept for
+a re-judgement that can never be performed.
+
 ## The fixture matrix, preregistered
 
-Ten cases, fixed **before** the algorithm, in
+Twelve cases, fixed **before** the algorithm, in
 [`identity/fixtures/lineage/`](../identity/fixtures/lineage/). Each declares its
 inputs and its expected outcome. `identity/tests/test_lineage_contract.py`
 checks the matrix is complete and well-formed — it does **not** run a mapper,
@@ -129,22 +226,30 @@ because there is none.
 
 | # | case | expected |
 |---|---|---|
-| 1 | clean line drift | `continued` |
-| 2 | git rename, same structural/context evidence | `continued` |
-| 3 | two identical patterns in one file | two lineages, **not** collapsed |
-| 4 | one of the two repeats fixed | the other does **not** inherit its fate |
-| 5 | one occurrence copied into two places | `branched` — no arbitrary winner |
-| 6 | a move with two equally plausible candidates | `unresolved` |
-| 7 | the file is deleted | `ended` — no fabricated successor |
-| 8 | same basename, roughly the same line, nothing else | **not** a mapping |
-| 9 | presentation-only line movement over an already-proven lineage | lineage unchanged |
-| 10 | re-run on identical inputs | byte-stable mapping artifact |
+| 1 | `line-drift-continues` | `continued` |
+| 2 | `rename-with-context-continues` | `continued` |
+| 3 | `twin-patterns-stay-distinct` | two lineages, **not** collapsed |
+| 4 | `one-twin-fixed-other-untouched` | `ended` + `continued`; the survivor does **not** inherit the other's fate |
+| 5 | `copy-branches-without-a-winner` | `branched` — no arbitrary winner |
+| 6 | `duplicate-sites-merge-into-one` | `merged` — no arbitrary survivor |
+| 7 | `two-candidates-unresolved` | `unresolved` on **both** sides |
+| 8 | `deleted-file-ends` | `ended`, earned by the deletion record |
+| 9 | `added-file-is-an-evidenced-birth` | `new`, earned by the addition record |
+| 10 | `coincidence-is-not-a-mapping` | `unresolved` on both sides — **not** `ended` + `new` |
+| 11 | `presentation-move-preserves-proven-lineage` | lineage id unchanged |
+| 12 | `rerun-is-byte-stable` | byte-stable mapping artifact |
 
-Cases 3, 4, 6 and 8 are the adversarial core: each is a shape where a plausible
-mapper produces a confident wrong answer. 3 and 4 are why the unit is the
-occurrence rather than the pattern. 6 and 8 are where "probably the same" has to
-become `unresolved` instead of a guess. 10 is what makes any of it re-checkable
-— a mapping artifact that differs run to run cannot be diffed, and a lineage you
+Cases 3, 4, 6, 7 and 10 are the adversarial core: each is a shape where a
+plausible mapper produces a confident wrong answer. 3 and 4 are why the unit is
+the occurrence rather than the pattern. 7 and 10 are where "probably the same"
+has to become `unresolved` instead of a guess — and 10 is the case that caught
+this contract's own first draft, which turned a refused mapping into a death and
+a birth. 6 is the mirror of 5: an N:1 collapse looks exactly like 1:1 plus a
+fix, so a mapper that continues one predecessor and ends the other reports a
+repair that never happened. 8 and 9 are the positive controls that make `ended`
+and `new` falsifiable at all; without them those words could only ever be reached
+by the route the contract forbids. 12 is what makes any of it re-checkable — a
+mapping artifact that differs run to run cannot be diffed, and a lineage you
 cannot diff is a lineage you cannot audit.
 
 ## What is deliberately not decided here
@@ -158,6 +263,16 @@ cannot diff is a lineage you cannot audit.
 - **Ordering** of the six outcomes, or a confidence score. A score that collapses
   `unresolved` and a weak `continued` into one number would undo the distinction
   this contract exists to protect.
+- **Whether a proven `new` mints an origin id** for the lineage that starts
+  there, rather than waiting for its first edge. Today it is `null`, which keeps
+  "has a lineage_id" equivalent to "an edge was proven". Minting at a proven
+  birth would record the origin, and it is a real choice — but nothing forces it
+  yet, and taking it now would be deciding for a mapper that does not exist.
+
+The lineage-id semantics used to sit on this list. They came off it under review:
+"one per successor" and "the successor records every predecessor" describe a
+record without saying what id anything gets, which left the mapper to settle the
+shape of the lineage graph as a side effect of its implementation.
 
 ## Dependency, stated honestly
 

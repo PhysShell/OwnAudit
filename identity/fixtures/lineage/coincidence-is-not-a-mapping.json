@@ -1,7 +1,7 @@
 {
   "case": "coincidence-is-not-a-mapping",
   "title": "Same basename and roughly the same line, nothing else in common",
-  "why": "ADVERSARIAL. Different directory, different enclosing symbol, different content, different pattern. Only the basename and a nearby line coincide - which is exactly what a proximity heuristic latches onto.",
+  "why": "ADVERSARIAL, and doubly so. Different directory, different enclosing symbol, different content, different pattern: only the basename and a nearby line coincide, which is exactly what a proximity heuristic latches onto. The second trap is the one this case originally fell into itself - having correctly refused the mapping, there is still no evidence that occ-a1 died or that occ-b1 was born, so BOTH sides are unresolved. Reporting ended plus new here is the proximity error committed twice: it turns 'I could not relate these' into a fix and a regression that never happened.",
   "revision_a": {
     "revision": "r1",
     "occurrences": [
@@ -32,25 +32,30 @@
   },
   "expect": [
     {
-      "outcome": "ended",
+      "outcome": "unresolved",
+      "side": "a",
       "frm": "occ-a1",
       "to": [],
       "reason": "lineage-id-unavailable:no-mapping-evidence",
-      "note": "Broker/Doc.cs no longer carries the occurrence"
+      "note": "Broker/Doc.cs is still present and was not observed to lose the site; nothing shows this occurrence ended"
     },
     {
-      "outcome": "new",
+      "outcome": "unresolved",
+      "side": "b",
+      "frm": null,
       "to": [
         "occ-b1"
       ],
-      "frm": null,
-      "reason": "lineage-id-unavailable:no-predecessor-revision",
-      "note": "nothing in revision A corresponds to it"
+      "reason": "lineage-id-unavailable:no-mapping-evidence",
+      "note": "Reports/Doc.cs is not recorded as added, so nothing shows this occurrence was born here"
     }
   ],
   "forbid": [
     "continued from occ-a1 to occ-b1",
-    "any mapping justified by basename alone"
+    "any mapping justified by basename alone",
+    "ended for occ-a1 - the file is still there and no site removal was observed",
+    "new for occ-b1 - no added path and no added site; this is the fabricated birth",
+    "no-predecessor-revision as a reason - revision A exists and is right there"
   ],
   "contract": "finding-lineage/v1",
   "status": "preregistered-unimplemented"

@@ -1,7 +1,7 @@
 {
   "case": "copy-branches-without-a-winner",
   "title": "One occurrence copied into two places",
-  "why": "Ambiguity must be EXPRESSED. Both successors are equally supported; choosing one and dropping the other silently loses a real finding.",
+  "why": "Ambiguity must be EXPRESSED. Both successors are equally supported; choosing one and dropping the other silently loses a real finding. Paired with added-file-is-an-evidenced-birth this also fixes where the line falls: Broker/DocCopy.cs is new in revision B, but it is recorded as a COPY of Broker/Doc.cs, so the arrival has a source. A new file with a recorded source is a branch candidate; a new file that is a copy of nothing is a birth. Without that distinction the two cases would be the same shape with opposite answers.",
   "revision_a": {
     "revision": "r1",
     "occurrences": [
@@ -18,6 +18,13 @@
   },
   "revision_b": {
     "revision": "r2",
+    "copies": [
+      {
+        "from": "Broker/Doc.cs",
+        "to": "Broker/DocCopy.cs",
+        "similarity": 100
+      }
+    ],
     "occurrences": [
       {
         "occurrence_id": "occ-b1",
@@ -50,12 +57,18 @@
       "evidence_at_least": [
         "same_pattern_id",
         "anchored_content"
-      ]
+      ],
+      "parent_lineage": [
+        "occ-a1"
+      ],
+      "note": "each successor takes a FRESH child id recording occ-a1's lineage as parent; letting occ-b1 inherit it outright would elect a winner in the id layer after the outcome refused to"
     }
   ],
   "forbid": [
     "continued to exactly one of them",
-    "occ-b2 reported as new"
+    "occ-b2 reported as new",
+    "either successor inheriting occ-a1's lineage_id",
+    "a branch recorded without parent_lineage - a child with no parent is a birth wearing the word branched"
   ],
   "contract": "finding-lineage/v1",
   "status": "preregistered-unimplemented"

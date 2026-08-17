@@ -7,46 +7,71 @@
     "pattern_id collides on purpose and occurrence_id cannot span runs, so lineage",
     "is precisely the relation neither of those ids carries - and it is EARNED by",
     "evidence, never derived from them.",
-    "Absence of mapping evidence is 'unresolved'. It is not 'new' and not the same",
-    "lineage. Same invariant as finding-occurrence/v1 ('identity is refused, not",
-    "approximated') and as the runtime witness ('absence of a record is not a",
-    "semantic outcome')."
+    "Absence of mapping evidence is 'unresolved', on EITHER side. It is not 'new',",
+    "not 'ended', and not the same lineage. Same invariant as finding-occurrence/v1",
+    "('identity is refused, not approximated') and as the runtime witness ('absence",
+    "of a record is not a semantic outcome')."
+  ],
+  "revision_note": [
+    "This contract was corrected before it was ever merged, under review of PR #65.",
+    "The first draft let 'ended' and 'new' be justified by no-mapping-evidence, and",
+    "gave 'unresolved' only an A-side anchor - so every unmatched B occurrence was",
+    "pushed toward 'new'. That is the fabricated-birth defect the contract exists to",
+    "forbid, written into the contract itself. It is fixed in place rather than as a",
+    "v2 because v1 has never been implemented or released: nothing is built on it."
   ],
 
   "outcomes": {
     "continued": {
       "cardinality": "1:1",
-      "lineage_id": "minted",
+      "lineage_id": "inherited-or-minted",
+      "requires": "evidence",
       "means": "exactly one successor, established by evidence"
     },
     "branched": {
       "cardinality": "1:N",
-      "lineage_id": "one per successor, recorded as a set",
+      "lineage_id": "child-per-successor",
+      "requires": "evidence",
       "means": "one predecessor, several equally-supported successors (copy/split)",
-      "forbids": "picking a winner and discarding the rest"
+      "forbids": "picking a winner and discarding the rest; letting one successor inherit the predecessor's id, which is the same thing said with ids"
     },
     "merged": {
       "cardinality": "N:1",
-      "lineage_id": "successor records every predecessor",
-      "means": "several predecessors collapse into one successor"
+      "lineage_id": "minted-with-parents",
+      "requires": "evidence",
+      "means": "several predecessors collapse into one successor",
+      "forbids": "inheriting one predecessor's id - that is picking a winner among predecessors; and reporting the losing predecessors as 'ended', which reads as fixes that never happened"
     },
     "unresolved": {
       "cardinality": "unknown",
       "lineage_id": "null",
-      "requires": "reason",
-      "means": "the evidence does not decide - the DEFAULT when evidence is absent"
+      "requires": ["side", "reason"],
+      "means": "the evidence does not decide - the DEFAULT when evidence is absent",
+      "sides": {
+        "a": "a predecessor in revision A whose successor was not established: names `frm`, leaves `to` empty",
+        "b": "an occurrence in revision B whose predecessor was not established: names `to`, leaves `frm` null"
+      },
+      "why_symmetric": [
+        "Without the b side there is no way to say 'this occurrence in B is not",
+        "explained', and an unmatched B occurrence has nowhere to go but 'new'. The",
+        "schema would then manufacture the birth event the contract forbids - the",
+        "defect would be in the vocabulary, where no implementation could avoid it."
+      ]
     },
     "ended": {
       "cardinality": "1:0",
       "lineage_id": "null",
-      "requires": "reason",
-      "means": "no successor, and the absence is itself evidenced"
+      "requires": "boundary_evidence",
+      "means": "no successor, and the absence is POSITIVELY evidenced",
+      "note": "no new edge is created; a lineage the predecessor already carries is terminated, never re-minted",
+      "forbids": "an identity limitation as its justification - 'I found nothing' is unresolved, not a death"
     },
     "new": {
       "cardinality": "0:1",
       "lineage_id": "null",
-      "requires": "reason",
-      "means": "no predecessor, and the absence is itself evidenced"
+      "requires": "boundary_evidence",
+      "means": "no predecessor, and the absence is POSITIVELY evidenced",
+      "forbids": "an identity limitation as its justification - 'I found nothing' is unresolved, not a birth"
     }
   },
 
@@ -91,19 +116,105 @@
     "no-predecessor-revision": "lineage-id-unavailable:no-predecessor-revision",
     "insufficient-evidence-kind": "lineage-id-unavailable:insufficient-evidence-kind"
   },
+  "limitations_rule": [
+    "These say why a lineage_id is UNAVAILABLE. They belong to 'unresolved' and to",
+    "nothing else. An identity limitation is a statement about the mapper's reach;",
+    "'ended' and 'new' are statements about the world, and cannot be earned by one.",
+    "'no-predecessor-revision' means there is no revision A to compare against at",
+    "all - a first run. It must never be used while a predecessor revision exists."
+  ],
+
+  "boundary_evidence_kinds": {
+    "containing-file-deleted": {
+      "value": "boundary:containing-file-deleted",
+      "proves": "ended",
+      "observable_from": "revision_b.deleted_paths",
+      "match": "predecessor.path",
+      "why": "the file that held the occurrence is gone, so no successor can exist in it",
+      "defeated_by": "revision_b.renames[].from",
+      "defeated_why": "a renamed file was not deleted; it moved, and the occurrence may have moved with it"
+    },
+    "containing-file-added": {
+      "value": "boundary:containing-file-added",
+      "proves": "new",
+      "observable_from": "revision_b.added_paths",
+      "match": "successor.path",
+      "why": "the file did not exist in revision A, so no predecessor could have lived in it",
+      "defeated_by": "revision_b.copies[].to, revision_b.renames[].to",
+      "defeated_why": "a file that arrived as a copy or a rename has a SOURCE; its occurrences may descend from that source, which is the branch case, not a birth"
+    },
+    "enclosing-site-removed": {
+      "value": "boundary:enclosing-site-removed",
+      "proves": "ended",
+      "observable_from": "revision_b.removed_symbols",
+      "match": "predecessor.enclosing_symbol",
+      "why": "the file survives but the site does not; the occurrence has nowhere left to be",
+      "defeated_by": "revision_b.merged_symbols[].from",
+      "defeated_why": "a site folded into another was not removed but relocated; the merge record says where the occurrence went"
+    },
+    "enclosing-site-added": {
+      "value": "boundary:enclosing-site-added",
+      "proves": "new",
+      "observable_from": "revision_b.added_symbols",
+      "match": "successor.enclosing_symbol",
+      "why": "the site itself is new, so the occurrence in it cannot be a continuation",
+      "defeated_by": "revision_b.merged_symbols[].to",
+      "defeated_why": "a site that exists because other sites were folded into it inherits their occurrences; that is the merge case, not a birth"
+    }
+  },
+  "boundary_evidence_rule": [
+    "'ended' and 'new' are EARNED, exactly like 'continued' - the difference is only",
+    "that the evidence proves an edge of the lineage rather than a link in it.",
+    "Every kind names the machine-readable field it is read from, because a boundary",
+    "asserted in prose is not a boundary: the absence of an occurrence in revision B",
+    "is precisely what 'unresolved' already covers, so it can never be the evidence",
+    "that distinguishes 'ended' from it.",
+    "The 'boundary:' prefix keeps these impossible to confuse with an identity",
+    "limitation in a stored record, which is how the first draft went wrong.",
+    "Each kind also names what DEFEATS it. Positive evidence that is explained away",
+    "by another record is not evidence: a deleted path that appears as a rename",
+    "source did not die, and an added path that appears as a copy target was not",
+    "born. Without the defeaters, 'the file is new' would license a birth for every",
+    "copied file, and the copy case and the birth case are the same shape."
+  ],
+
+  "lineage_id_rules": {
+    "inherit": "predecessor already carries a lineage_id -> the successor takes THAT id. A re-mint would read as a new defect appearing where an old one was proven to persist.",
+    "mint": "first proven 1:1 edge between two occurrences neither of which is linked yet -> mint once, and bind BOTH ends to it.",
+    "branch": "each successor gets its own fresh child id, and every child records parent_lineage_ids. No successor inherits the predecessor's id, because inheriting is choosing.",
+    "merge": "the successor gets a freshly minted id which records parent_lineage_ids for EVERY predecessor. Inheriting one parent's id would silently elect it and orphan the rest."
+  },
+  "lineage_id_rules_note": [
+    "This is graph semantics, not an implementation detail, so it is fixed here",
+    "rather than left to the mapper. A mapper free to choose between inherit and",
+    "mint decides by itself whether a lineage survives reformatting, and a mapper",
+    "free to choose a merge id decides by itself which of several defects 'the'",
+    "surviving one is. Both are answers to questions this contract exists to ask.",
+    "What is still open is which evidence licenses each outcome - not what the ids",
+    "then do."
+  ],
+  "parent_lineage_required_for": ["branched", "merged"],
 
   "mapping_provenance_required": [
     "from_run",
     "to_run",
     "from_revision",
     "to_revision",
-    "mapper"
+    "mapper",
+    "mapper_version",
+    "mapper_config_digest",
+    "contract_version"
   ],
   "mapping_provenance_rule": [
     "A mapping is a statement about two specific runs over two specific revisions.",
     "Recording both is what keeps it falsifiable outside the context that computed",
     "it; 'mapper' is there because two mappers disagreeing about one pair of runs",
-    "is a fact worth being able to see."
+    "is a fact worth being able to see.",
+    "A bare mapper name is not enough for that promise. Two runs of one name with",
+    "different thresholds are a disagreement that would look like a contradiction,",
+    "so the version, a digest of the configuration that was actually in force, and",
+    "the contract version the mapping was made under are all required. Without them",
+    "'would this mapping still be made under the new rule' has no answer."
   ],
 
   "preregistered_cases": [
@@ -112,8 +223,10 @@
     "twin-patterns-stay-distinct",
     "one-twin-fixed-other-untouched",
     "copy-branches-without-a-winner",
+    "duplicate-sites-merge-into-one",
     "two-candidates-unresolved",
     "deleted-file-ends",
+    "added-file-is-an-evidenced-birth",
     "coincidence-is-not-a-mapping",
     "presentation-move-preserves-proven-lineage",
     "rerun-is-byte-stable"
@@ -121,6 +234,8 @@
   "preregistration_rule": [
     "Fixed BEFORE any algorithm exists, so the algorithm cannot select the cases",
     "that flatter it. identity/tests/test_lineage_contract.py holds the matrix to",
-    "this list: a case removed or renamed fails the suite rather than disappearing."
+    "this list: a case removed or renamed fails the suite rather than disappearing.",
+    "Every one of the six outcomes must appear somewhere in the matrix, or that",
+    "outcome is frozen in name only and the mapper may implement it as it likes."
   ]
 }

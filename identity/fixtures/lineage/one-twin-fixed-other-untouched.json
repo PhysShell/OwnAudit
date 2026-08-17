@@ -1,7 +1,7 @@
 {
   "case": "one-twin-fixed-other-untouched",
   "title": "One of the two repeats is fixed; the other is not",
-  "why": "ADVERSARIAL, and the reason case 3 matters. If the twins share a lineage, fixing one reads as fixing both - a false 'resolved' on a defect still in the tree.",
+  "why": "ADVERSARIAL, and the reason case 3 matters. If the twins share a lineage, fixing one reads as fixing both - a false 'resolved' on a defect still in the tree. The second half of the case is that the fix must itself be evidenced: WireA is recorded in `removed_symbols`, so the site is observably gone rather than merely unmatched. Without that record this is unresolved, and calling it `ended` would be claiming a fix from a failed search.",
   "revision_a": {
     "revision": "r1",
     "occurrences": [
@@ -27,6 +27,9 @@
   },
   "revision_b": {
     "revision": "r2",
+    "removed_symbols": [
+      "DocView.WireA"
+    ],
     "occurrences": [
       {
         "occurrence_id": "occ-b2",
@@ -44,8 +47,10 @@
       "outcome": "ended",
       "frm": "occ-a1",
       "to": [],
-      "reason": "lineage-id-unavailable:no-mapping-evidence",
-      "note": "WireA's occurrence is gone and the site is gone with it"
+      "boundary_evidence": [
+        "boundary:enclosing-site-removed"
+      ],
+      "note": "the file survives, but DocView.WireA does not - the site is observably gone"
     },
     {
       "outcome": "continued",
@@ -60,7 +65,8 @@
   ],
   "forbid": [
     "occ-a1 mapped to occ-b2",
-    "occ-a2 reported as ended"
+    "occ-a2 reported as ended",
+    "occ-a1 ended on the strength of no match alone - without removed_symbols this is unresolved"
   ],
   "contract": "finding-lineage/v1",
   "status": "preregistered-unimplemented"
