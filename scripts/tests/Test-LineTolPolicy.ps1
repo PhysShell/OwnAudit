@@ -115,6 +115,29 @@ Check ((Resolve-LineTol -Requested 3 -Explicit $false -Tools @('own-check','semg
 Check ((Resolve-LineTol -Requested 3 -Explicit $false -Tools @()).Value -eq 3) `
       "an empty tool list must resolve to the requested value"
 
+# ---- Encoding: these files must be pure ASCII -------------------------------
+# Windows PowerShell 5.1 reads a BOM-less .ps1 in the system ANSI codepage, not
+# UTF-8. A single em dash in a comment therefore arrives as mojibake and takes the
+# PARSER down -- the policy cannot even be dot-sourced, so a stand on 5.1 gets a
+# crash rather than a tolerance. That is exactly how this suite first failed on
+# the windows-latest/5.1 leg.
+#
+# A UTF-8 BOM would also fix it, but ASCII is the one answer that does not depend
+# on BOM handling surviving an editor, a git filter or a copy-paste. The Python
+# suites here are ASCII-only for the same reason.
+foreach ($f in @((Join-Path (Split-Path $PSScriptRoot -Parent) 'LineTolPolicy.ps1'),
+                 (Join-Path $PSScriptRoot 'Test-LineTolPolicy.ps1'))) {
+    $bytes = [System.IO.File]::ReadAllBytes($f)
+    $high  = @($bytes | Where-Object { $_ -gt 127 })
+    # Parenthesise the concatenation BEFORE -f: the format operator binds tighter
+    # than '+', so `"a{0}" + "b" -f $x` formats only "b" and leaves {0} literal.
+    # Run-Audit.ps1 already carries a comment about this trap; it is easy to fall
+    # into anyway, and it only shows up on the failure path.
+    Check ($high.Count -eq 0) `
+          (("{0}: {1} non-ASCII byte(s) -- Windows PowerShell 5.1 will mis-decode this file " +
+            "and fail to parse it") -f (Split-Path $f -Leaf), $high.Count)
+}
+
 # ---- The wiring in Run-Audit.ps1 --------------------------------------------
 # The pure function can be right while the caller uses it wrongly, and the caller
 # cannot be executed here: it fetches a worktree, builds, and wants a Windows

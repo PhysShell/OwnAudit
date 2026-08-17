@@ -15,8 +15,8 @@
   clustering ran with the wrong window every time nobody remembered. The comments
   inside the script repeated the rule and, being comments, did nothing.
 
-  THIS FUNCTION DOES NOT OVERRIDE A DELIBERATE CHOICE. The obvious one-liner —
-  `$LineTol = [Math]::Max($LineTol, 8)` — silently rewrites an explicitly passed
+  THIS FUNCTION DOES NOT OVERRIDE A DELIBERATE CHOICE. The obvious one-liner --
+  `$LineTol = [Math]::Max($LineTol, 8)` -- silently rewrites an explicitly passed
   `-LineTol 3` into an 8. That is the script deciding for the caller and not
   saying so, which is the behaviour the provenance contract exists to prevent:
   do not assert what you did not observe, and do not substitute your choice for
@@ -27,7 +27,7 @@
   running an analyzer, a build, or a Python process.
 
 .NOTES
-  Whether `-LineTol` was passed cannot be decided here — `$PSBoundParameters`
+  Whether `-LineTol` was passed cannot be decided here -- `$PSBoundParameters`
   belongs to the caller's own invocation. `Run-Audit.ps1` reads it in its own
   scope and passes the answer in as `-Explicit`.
 #>
@@ -69,7 +69,7 @@ function Resolve-LineTol {
         # inferred from $Requested.
         [Parameter(Mandatory)][bool]$Explicit,
 
-        # Tool names being folded in, in any spelling order — e.g.
+        # Tool names being folded in, in any spelling order -- e.g.
         # @('own-check','codeql','roslyn'). Matched case-insensitively.
         [string[]]$Tools = @()
     )
@@ -106,7 +106,7 @@ function Resolve-LineTol {
     $warn = $null
     if ($trigger.Count -gt 0 -and $Requested -lt $script:ShiftedLineTol) {
         $warn = ("line-tol: using the explicit {0}, but {1} report shifted/generated locations " +
-                 "and cluster better at {2} (AGENTS.md) — honouring your value, not overriding it") -f
+                 "and cluster better at {2} (AGENTS.md) -- honouring your value, not overriding it") -f
                 $Requested, ($trigger -join ' and '), $script:ShiftedLineTol
     }
     return [pscustomobject]@{
