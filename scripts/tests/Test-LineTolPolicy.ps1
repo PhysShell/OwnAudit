@@ -23,12 +23,20 @@ $ErrorActionPreference = 'Stop'
 . (Join-Path (Split-Path $PSScriptRoot -Parent) 'LineTolPolicy.ps1')
 
 $script:Fails = @()
+$script:Skips = @()
 $script:Count = 0
 
 function Check {
     param([bool]$Ok, [string]$Message)
     $script:Count++
     if (-not $Ok) { $script:Fails += $Message }
+}
+
+function Skip {
+    # Loudly, never silently: a skipped check that prints nothing reads exactly
+    # like a passing one. Same rule the Python suites here follow.
+    param([string]$Message)
+    $script:Skips += $Message
 }
 
 function Case {
@@ -162,29 +170,52 @@ Check ((Resolve-LineTol -Requested 3 -Explicit $false -Tools $derived).Value -eq
 # 2. The AST, for the two facts a unit test cannot reach: explicitness is read in
 #    the script's OWN scope, and the decision is made AFTER the folding blocks
 #    (resolving earlier would consult a tool list that is not final yet).
-$tokens = $null; $errors = $null
-$ast = [System.Management.Automation.Language.Parser]::ParseFile(
-    (Resolve-Path $runAudit), [ref]$tokens, [ref]$errors)
-Check ($errors.Count -eq 0) "Run-Audit.ps1 does not parse: $($errors | ForEach-Object { $_.Message })"
+#
+#    NOT under Windows PowerShell 5.1. `Run-Audit.ps1` carries 23 non-ASCII
+#    characters (em dashes, a section sign, an ellipsis) in comments and in
+#    user-facing messages, all of which predate this change, and 5.1 reads a
+#    BOM-less file in the system ANSI codepage -- so the runner does not parse
+#    there at all. That is a real property of the repo, tracked separately; it is
+#    not something this suite gets to assert away, and asserting the opposite here
+#    would fail for a reason that has nothing to do with the tolerance policy.
+#
+#    The policy file itself IS held to 5.1 by the ASCII check above, which is what
+#    actually matters: it is dot-sourced, so it must load wherever the runner does.
+if ($PSVersionTable.PSEdition -eq 'Desktop') {
+    Skip ("Windows PowerShell 5.1: Run-Audit.ps1 structural checks did not run - the runner " +
+          "is pwsh-only (23 non-ASCII chars, pre-existing) and 5.1 cannot parse it")
+    $text = $null
+} else {
+    $tokens = $null; $errors = $null
+    $null = [System.Management.Automation.Language.Parser]::ParseFile(
+        (Resolve-Path $runAudit), [ref]$tokens, [ref]$errors)
+    Check ($errors.Count -eq 0) `
+          "Run-Audit.ps1 does not parse: $($errors | ForEach-Object { $_.Message })"
+    $text = Get-Content -LiteralPath $runAudit -Raw
+}
 
-$text = Get-Content -LiteralPath $runAudit -Raw
-Check ($text -match [regex]::Escape("PSBoundParameters.ContainsKey('LineTol')")) `
-      "Run-Audit.ps1 must decide explicitness via PSBoundParameters, not by comparing to the default"
-Check ($text -match 'LineTolPolicy\.ps1') "Run-Audit.ps1 must dot-source the policy"
+if ($null -ne $text) {
+    Check ($text -match [regex]::Escape("PSBoundParameters.ContainsKey('LineTol')")) `
+          "Run-Audit.ps1 must decide explicitness via PSBoundParameters, not by comparing to the default"
+    Check ($text -match 'LineTolPolicy\.ps1') "Run-Audit.ps1 must dot-source the policy"
 
-$iRoslyn  = $text.IndexOf('roslyn.sarif')
-$iInfer   = $text.IndexOf('infersharp.sarif')
-$iResolve = $text.IndexOf('Resolve-LineTol')
-$iUse     = $text.IndexOf('--line-tol')
-Check ($iResolve -gt $iRoslyn -and $iResolve -gt $iInfer) `
-      "the tolerance must be resolved AFTER both folding blocks, or the tool list is not final"
-Check ($iUse -gt $iResolve) "the resolved tolerance must be computed before report.py consumes it"
+    $iRoslyn  = $text.IndexOf('roslyn.sarif')
+    $iInfer   = $text.IndexOf('infersharp.sarif')
+    $iResolve = $text.IndexOf('Resolve-LineTol')
+    $iUse     = $text.IndexOf('--line-tol')
+    Check ($iResolve -gt $iRoslyn -and $iResolve -gt $iInfer) `
+          "the tolerance must be resolved AFTER both folding blocks, or the tool list is not final"
+    Check ($iUse -gt $iResolve) "the resolved tolerance must be computed before report.py consumes it"
+}
 
 # ---- verdict ----------------------------------------------------------------
 foreach ($f in $script:Fails) { Write-Host "FAIL: $f" }
+foreach ($s in $script:Skips) { Write-Host "SKIP: $s" }
 if ($script:Fails.Count -gt 0) {
-    Write-Host "line-tol policy: FAIL - $($script:Fails.Count) of $($script:Count) checks failed"
+    Write-Host ("line-tol policy: FAIL - {0} of {1} checks failed, {2} skipped" -f
+                $script:Fails.Count, $script:Count, $script:Skips.Count)
     exit 1
 }
-Write-Host "line-tol policy: OK - $($script:Count) checks passed (7 matrix rows + distinctions)"
+Write-Host ("line-tol policy: OK - {0} checks passed (7 matrix rows + distinctions), {1} skipped" -f
+            $script:Count, $script:Skips.Count)
 exit 0
