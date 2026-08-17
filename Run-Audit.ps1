@@ -34,11 +34,20 @@ param(
     [string]$CodeqlExe = "C:\Repos\codeql-bundle-win64\codeql\codeql.exe",
     [string]$CodeqlDb  = "C:\Repos\_ownaudit\codeql-db\sectorts",
     [switch]$RebuildCodeqlDb,
-    [int]$LineTol = 3                       # cluster window; use ~8 when folding Infer#
+    [int]$LineTol = 3                       # cluster window; raised to 8 automatically when
+                                            # Infer#/Roslyn are folded in (scripts/LineTolPolicy.ps1).
+                                            # Passing it explicitly always wins, including a lower value.
 )
 $ErrorActionPreference = "Stop"
 $env:PYTHONUTF8 = "1"   # report.py prints '>=' / '·' — crashes on a cp1251 console
 New-Item -ItemType Directory -Force -Path $Out | Out-Null
+
+# Read HERE, in this script's own scope: $PSBoundParameters describes this
+# invocation and nothing further down can recover it. An explicitly passed
+# -LineTol 3 is indistinguishable from the default by value, and the whole point
+# of the policy below is that those two are not the same request.
+$lineTolExplicit = $PSBoundParameters.ContainsKey('LineTol')
+. (Join-Path (Join-Path $PSScriptRoot "scripts") "LineTolPolicy.ps1")
 
 # 1. worktree of main — audit/ is on main; the dev checkout may sit on a feature branch.
 git -C $OwnNet fetch origin main -q
@@ -185,7 +194,8 @@ if ($Codeql) {
 }
 
 # Infer# (build-required) — fold in if a SARIF is present. Produce it first with
-# Run-Infersharp.ps1 (WSL). Infer# reports at the last-access line, so use -LineTol ~8.
+# Run-Infersharp.ps1 (WSL). Infer# reports at the last-access line, so the clustering
+# window is raised to 8 below unless -LineTol was passed explicitly.
 if (Test-Path (Join-Path $Out "infersharp.sarif")) {
     Write-Host "Infer# SARIF: $Out\infersharp.sarif (folding in)"
     $sarifInputs += "infersharp=$(Join-Path $Out 'infersharp.sarif')"
@@ -194,13 +204,26 @@ if (Test-Path (Join-Path $Out "infersharp.sarif")) {
 }
 
 # Roslyn analyzer packs (build-required) — fold in if a SARIF is present. Produce it
-# first with Run-Roslyn.ps1 (VS2022 build). High volume; use -LineTol 8 with it.
+# first with Run-Roslyn.ps1 (VS2022 build). High volume and shifted/generated locations,
+# so the clustering window is raised to 8 below unless -LineTol was passed explicitly.
 if (Test-Path (Join-Path $Out "roslyn.sarif")) {
     Write-Host "Roslyn SARIF: $Out\roslyn.sarif (folding in)"
     $sarifInputs += "roslyn=$(Join-Path $Out 'roslyn.sarif')"
     # Found, not produced: no run id, no commit. See Add-Provenance's note.
     Add-Provenance -Tool "roslyn" -SarifPath (Join-Path $Out 'roslyn.sarif')
 }
+
+# The folding above is automatic; the clustering window it needs used to be manual.
+# Resolve it now that the input set is final — Infer# and Roslyn report shifted or
+# generated locations, so at the default window one defect splits into several
+# findings. An explicitly passed -LineTol is honoured exactly, including when it is
+# lower than those tools want: the mismatch is reported, never corrected behind the
+# caller's back. See scripts/LineTolPolicy.ps1 and OwnAudit#59.
+$tolDecision = Resolve-LineTol -Requested $LineTol -Explicit $lineTolExplicit `
+                               -Tools @($sarifInputs | ForEach-Object { ($_ -split '=', 2)[0] })
+if ($tolDecision.Message) { Write-Host $tolDecision.Message }
+if ($tolDecision.Warning) { Write-Warning $tolDecision.Warning }
+$LineTol = $tolDecision.Value
 
 # 4. aggregation -> report (markdown + html + json). Cross-tool agreement happens
 #    automatically when both own-check and codeql findings cluster at the same site.
