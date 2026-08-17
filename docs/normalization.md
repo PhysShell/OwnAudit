@@ -105,13 +105,59 @@ Two things matter here:
   v2 payload back to v1 and diffs it against the slice-1A golden byte for byte —
   on the full STS corpus too.
 
+## Results with no usable location
+
+A SARIF result whose every location lacks an `artifactLocation.uri` does not
+become a finding — and now says so. The reader counts it by rule and the ledger
+reports the total:
+
+```jsonc
+"coverage": {
+  "total": 73397,                 // results that could be normalized
+  "no_physical_location": 1121,   // results that could not be anchored
+  "no_physical_location_by": { "roslyn": { "CS8032": 1118, "MSTEST0001": 2, "CS2002": 1 } }
+}
+```
+
+`total` keeps its meaning and does **not** absorb them, so the two reconcile
+against the raw input: `total + no_physical_location == sum(len(run.results))`.
+That identity is asserted on the fixtures, and it is what makes the ledger
+checkable against the producers rather than only against itself.
+
+**Why they are not admitted as findings with `path: ""` / `line: 0`.** The whole
+identity chain downstream — `physical_anchor`, then `pattern_id` /
+`occurrence_id`, then the ambiguity census — is built on a real `(path, line,
+column)`. A substituted empty path is not the result preserved; it is a
+coordinate the producer never reported, entering identity as though it had. The
+same reasoning already keeps `startColumn` nullable rather than defaulted to 1.
+
+**What they turned out to be.** Measured on the recorded STS corpus, all 1 121
+are Roslyn, and they resolve to three rules: `CS8032` (1 118 — an analyzer
+instance could not be created), `MSTEST0001` (2), `CS2002` (1 — a source file
+specified twice). Every one is a project- or build-level diagnostic with no file
+to point at, which is what the shape predicted. So nothing here is a code finding
+that went missing; what was missing was the count. Giving this class a
+representation of its own — if it deserves one — is a separate question with its
+own identity contract, and it is now a decision made on data rather than on
+absence.
+
+For the record of the corpus this was measured on:
+
+| tool | raw results | with usable location | no physical location |
+| --- | ---: | ---: | ---: |
+| own-check | 613 | 613 | 0 |
+| codeql | 9 634 | 9 634 | 0 |
+| infersharp | 207 | 207 | 0 |
+| roslyn | 64 064 | 62 943 | **1 121** |
+| **total** | **74 518** | **73 397** | **1 121** |
+
+A second fixture pins the neighbouring question the issue asked not to assume: a
+result whose *first* location carries no uri, and whose second one does, reads as
+a normal finding and is counted as no loss. `_first_location` already scanned
+past the empty one; the specimen makes that measured rather than asserted.
+
 ## What is deliberately still missing
 
-- **A SARIF result with no usable location is dropped and counted nowhere.** That
-  is the reference behaviour, preserved so the parity claim means something, and
-  it is a real hole in a ledger that otherwise refuses to lose a finding silently.
-  It is pinned by a test (`20` results read as `19`) so it cannot drift, and it
-  gets fixed in a change that owns the payload difference rather than under a port.
 - **No `lineage_id`.** Following one finding across runs is slice 2 and needs
   occurrence identity to exist first. The record's key set is pinned exhaustively
   in both directions, because a field that appears quietly is a field consumers
