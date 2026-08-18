@@ -1,0 +1,90 @@
+{
+  "case": "duplicate-sites-merge-into-one",
+  "title": "Two duplicated sites are folded into one shared helper",
+  "why": "ADVERSARIAL, and the mirror of the copy case. DocView.WireA and DocView.WireB were duplicates; revision B deletes both and records them as merged into DocView.Wire, which still carries the defect. The trap is that N:1 looks exactly like 1:1 plus a fix: a mapper that continues one predecessor and calls the other `ended` reports a repair that never happened, and the removed_symbols record would even seem to back it up. Both predecessors are equally supported, so the honest answer is one merged edge naming both.",
+  "revision_a": {
+    "revision": "r1",
+    "occurrences": [
+      {
+        "occurrence_id": "occ-a1",
+        "path": "Broker/Doc.cs",
+        "start_line": 42,
+        "start_column": null,
+        "pattern_id": "pat-A",
+        "enclosing_symbol": "DocView.WireA",
+        "anchored_content": "_store.Changed += OnChanged;"
+      },
+      {
+        "occurrence_id": "occ-a2",
+        "path": "Broker/Doc.cs",
+        "start_line": 88,
+        "start_column": null,
+        "pattern_id": "pat-A",
+        "enclosing_symbol": "DocView.WireB",
+        "anchored_content": "_store.Changed += OnChanged;"
+      }
+    ]
+  },
+  "revision_b": {
+    "revision": "r2",
+    "removed_symbols": [
+      "DocView.WireA",
+      "DocView.WireB"
+    ],
+    "added_symbols": [
+      "DocView.Wire"
+    ],
+    "merged_symbols": [
+      {
+        "from": [
+          "DocView.WireA",
+          "DocView.WireB"
+        ],
+        "to": "DocView.Wire"
+      }
+    ],
+    "occurrences": [
+      {
+        "occurrence_id": "occ-b1",
+        "path": "Broker/Doc.cs",
+        "start_line": 40,
+        "start_column": null,
+        "pattern_id": "pat-A",
+        "enclosing_symbol": "DocView.Wire",
+        "anchored_content": "_store.Changed += OnChanged;"
+      }
+    ]
+  },
+  "expect": [
+    {
+      "outcome": "merged",
+      "frm": [
+        "occ-a1",
+        "occ-a2"
+      ],
+      "to": [
+        "occ-b1"
+      ],
+      "evidence_at_least": [
+        "same_path",
+        "same_pattern_id",
+        "anchored_content"
+      ],
+      "parent_lineage_ids": [
+        "lin-of:occ-a1",
+        "lin-of:occ-a2"
+      ],
+      "note": "occ-b1 takes a freshly minted id recording BOTH parent LINEAGES - each seeded as a root first, since neither predecessor is linked yet. Inheriting occ-a1's would elect it and orphan occ-a2 without ever saying so."
+    }
+  ],
+  "forbid": [
+    "continued from occ-a1 with occ-a2 ended",
+    "continued from occ-a2 with occ-a1 ended",
+    "either predecessor reported as ended on the strength of removed_symbols - the site moved into the merge target, and merged_symbols says where",
+    "occ-b1 inheriting one parent's lineage_id",
+    "a merge recorded with fewer parent lineages than predecessors",
+    "an occurrence id in parent_lineage_ids instead of the lineage it belongs to"
+  ],
+  "contract": "finding-lineage/v1",
+  "status": "preregistered-unimplemented"
+}

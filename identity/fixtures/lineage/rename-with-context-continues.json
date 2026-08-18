@@ -1,0 +1,57 @@
+{
+  "case": "rename-with-context-continues",
+  "title": "Git rename plus unchanged structural/context evidence",
+  "why": "A rename must not end a lineage. The path changed; nothing about the occurrence did.",
+  "revision_a": {
+    "revision": "r1",
+    "occurrences": [
+      {
+        "occurrence_id": "occ-a1",
+        "path": "Broker/Doc.cs",
+        "start_line": 42,
+        "start_column": null,
+        "pattern_id": "pat-A",
+        "enclosing_symbol": "DocView.Wire",
+        "anchored_content": "_store.Changed += OnChanged;"
+      }
+    ]
+  },
+  "revision_b": {
+    "revision": "r2",
+    "renames": [
+      {
+        "from": "Broker/Doc.cs",
+        "to": "Broker/Views/Doc.cs",
+        "similarity": 96
+      }
+    ],
+    "occurrences": [
+      {
+        "occurrence_id": "occ-b1",
+        "path": "Broker/Views/Doc.cs",
+        "start_line": 42,
+        "start_column": null,
+        "pattern_id": "pat-A",
+        "enclosing_symbol": "DocView.Wire",
+        "anchored_content": "_store.Changed += OnChanged;"
+      }
+    ]
+  },
+  "expect": [
+    {
+      "outcome": "continued",
+      "frm": "occ-a1",
+      "to": [
+        "occ-b1"
+      ],
+      "evidence_at_least": [
+        "path_rename",
+        "same_pattern_id",
+        "structural_context",
+        "anchored_content"
+      ]
+    }
+  ],
+  "contract": "finding-lineage/v1",
+  "status": "preregistered-unimplemented"
+}

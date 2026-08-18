@@ -1,0 +1,81 @@
+{
+  "case": "added-file-is-an-evidenced-birth",
+  "title": "A new file is added and brings an occurrence with it",
+  "why": "The positive control for `new`, and the case that makes the outcome falsifiable at all. Broker/Brand.cs does not exist in revision A and revision B records it in `added_paths` with no copy relation to anything, so no predecessor COULD have lived there - that is a fact about the tree, not a failure to find one. Without a case like this, `new` would only ever be reachable by the route the contract forbids, and freezing the word would mean nothing.",
+  "revision_a": {
+    "revision": "r1",
+    "occurrences": [
+      {
+        "occurrence_id": "occ-a1",
+        "path": "Broker/Doc.cs",
+        "start_line": 42,
+        "start_column": null,
+        "pattern_id": "pat-A",
+        "enclosing_symbol": "DocView.Wire",
+        "anchored_content": "_store.Changed += OnChanged;"
+      }
+    ]
+  },
+  "revision_b": {
+    "revision": "r2",
+    "added_paths": [
+      "Broker/Brand.cs"
+    ],
+    "copies": [],
+    "occurrences": [
+      {
+        "occurrence_id": "occ-b1",
+        "path": "Broker/Doc.cs",
+        "start_line": 42,
+        "start_column": null,
+        "pattern_id": "pat-A",
+        "enclosing_symbol": "DocView.Wire",
+        "anchored_content": "_store.Changed += OnChanged;"
+      },
+      {
+        "occurrence_id": "occ-b2",
+        "path": "Broker/Brand.cs",
+        "start_line": 17,
+        "start_column": null,
+        "pattern_id": "pat-C",
+        "enclosing_symbol": "BrandView.Bind",
+        "anchored_content": "palette.Updated += OnPalette;"
+      }
+    ]
+  },
+  "expect": [
+    {
+      "outcome": "continued",
+      "frm": "occ-a1",
+      "to": [
+        "occ-b1"
+      ],
+      "evidence_at_least": [
+        "same_path",
+        "structural_context",
+        "anchored_content"
+      ],
+      "note": "the untouched occurrence stays untouched; an arrival elsewhere is not news about it"
+    },
+    {
+      "outcome": "new",
+      "frm": null,
+      "to": [
+        "occ-b2"
+      ],
+      "boundary_evidence": [
+        "boundary:containing-file-added"
+      ],
+      "note": "the file is recorded as added and as a copy of nothing, so there is no place a predecessor could have been. The birth SEEDS a root lineage id: occ-b2 may itself branch next revision, and a branch whose parent has no lineage has nothing to record. The root id is written down here rather than left implicit: root seeding is a rule this contract froze, so a case that omits it preregisters nothing about it.",
+      "lineage_id": "lin-born-1"
+    }
+  ],
+  "forbid": [
+    "occ-b2 reported as unresolved - the recorded addition is exactly the evidence unresolved says is missing",
+    "occ-b2 reported as new on the strength of finding no predecessor, rather than on the recorded addition",
+    "occ-a1 disturbed - it is already accounted for, and a birth elsewhere is not evidence about it",
+    "a `new` recorded without a lineage_id, or with a null one - the root would be unnameable as a parent in the next revision, which is exactly how an occurrence id ends up in a lineage field"
+  ],
+  "contract": "finding-lineage/v1",
+  "status": "preregistered-unimplemented"
+}

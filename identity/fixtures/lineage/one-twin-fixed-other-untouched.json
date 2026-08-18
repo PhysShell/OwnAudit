@@ -1,0 +1,78 @@
+{
+  "case": "one-twin-fixed-other-untouched",
+  "title": "One of the two repeats is fixed; the other is not",
+  "why": "ADVERSARIAL, and the reason case 3 matters. If the twins share a lineage, fixing one reads as fixing both - a false 'resolved' on a defect still in the tree. The second half of the case is that the fix must itself be evidenced: WireA is recorded in `removed_symbols`, so the site is observably gone rather than merely unmatched. Without that record this is unresolved, and calling it `ended` would be claiming a fix from a failed search.",
+  "revision_a": {
+    "revision": "r1",
+    "occurrences": [
+      {
+        "occurrence_id": "occ-a1",
+        "path": "Broker/Doc.cs",
+        "start_line": 42,
+        "start_column": null,
+        "pattern_id": "pat-A",
+        "enclosing_symbol": "DocView.WireA",
+        "anchored_content": "_store.Changed += OnChanged;"
+      },
+      {
+        "occurrence_id": "occ-a2",
+        "path": "Broker/Doc.cs",
+        "start_line": 88,
+        "start_column": null,
+        "pattern_id": "pat-A",
+        "enclosing_symbol": "DocView.WireB",
+        "anchored_content": "_store.Changed += OnChanged;"
+      }
+    ]
+  },
+  "revision_b": {
+    "revision": "r2",
+    "removed_symbols": [
+      "DocView.WireA"
+    ],
+    "occurrences": [
+      {
+        "occurrence_id": "occ-b2",
+        "path": "Broker/Doc.cs",
+        "start_line": 86,
+        "start_column": null,
+        "pattern_id": "pat-A",
+        "enclosing_symbol": "DocView.WireB",
+        "anchored_content": "_store.Changed += OnChanged;"
+      }
+    ]
+  },
+  "expect": [
+    {
+      "outcome": "ended",
+      "frm": "occ-a1",
+      "to": [],
+      "boundary_evidence": [
+        "boundary:enclosing-site-removed"
+      ],
+      "note": "the file survives, but DocView.WireA does not - the site is observably gone"
+    },
+    {
+      "outcome": "continued",
+      "frm": "occ-a2",
+      "to": [
+        "occ-b2"
+      ],
+      "evidence_at_least": [
+        "same_path",
+        "same_pattern_id",
+        "structural_context",
+        "anchored_content",
+        "line_drift"
+      ],
+      "note": "structural_context is what DISCRIMINATES occ-a2 from occ-a1 - the twins agree on everything else - but it is not what licenses the mapping on its own. Listing only the discriminator let this case sit under the contract's own floor, which forbids a continued on one kind. `evidence_at_least` means what it says: the minimum that must have fired."
+    }
+  ],
+  "forbid": [
+    "occ-a1 mapped to occ-b2",
+    "occ-a2 reported as ended",
+    "occ-a1 ended on the strength of no match alone - without removed_symbols this is unresolved"
+  ],
+  "contract": "finding-lineage/v1",
+  "status": "preregistered-unimplemented"
+}

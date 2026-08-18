@@ -1,0 +1,44 @@
+{
+  "case": "deleted-file-ends",
+  "title": "The file is deleted",
+  "why": "No successor may be fabricated, and no death may be either. `ended` here is not the absence of a match - it is a claim backed by the deletion, which the fixture carries as data in `deleted_paths` rather than as prose. Strip that field and the correct answer drops back to unresolved.",
+  "revision_a": {
+    "revision": "r1",
+    "occurrences": [
+      {
+        "occurrence_id": "occ-a1",
+        "path": "Broker/Gone.cs",
+        "start_line": 42,
+        "start_column": null,
+        "pattern_id": "pat-A",
+        "enclosing_symbol": "Wire",
+        "anchored_content": "_store.Changed += OnChanged;"
+      }
+    ]
+  },
+  "revision_b": {
+    "revision": "r2",
+    "deleted_paths": [
+      "Broker/Gone.cs"
+    ],
+    "occurrences": []
+  },
+  "expect": [
+    {
+      "outcome": "ended",
+      "frm": "occ-a1",
+      "to": [],
+      "boundary_evidence": [
+        "boundary:containing-file-deleted"
+      ],
+      "note": "the containing file is gone in revision B, and the deletion is the evidence"
+    }
+  ],
+  "forbid": [
+    "any successor",
+    "unresolved (the deletion IS the evidence)",
+    "an identity limitation as the justification - a death is earned, not inferred from a failed search"
+  ],
+  "contract": "finding-lineage/v1",
+  "status": "preregistered-unimplemented"
+}

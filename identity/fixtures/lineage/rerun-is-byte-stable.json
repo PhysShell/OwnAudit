@@ -1,0 +1,49 @@
+{
+  "case": "rerun-is-byte-stable",
+  "title": "Re-run on identical inputs",
+  "why": "A mapping artifact that differs run to run cannot be diffed, and a lineage you cannot diff is a lineage you cannot audit. Same discipline as the runtime witness's collector identity, which carries no timestamps for this reason.",
+  "revision_a": {
+    "revision": "r1",
+    "occurrences": [
+      {
+        "occurrence_id": "occ-a1",
+        "path": "Broker/Doc.cs",
+        "start_line": 42,
+        "start_column": null,
+        "pattern_id": "pat-A",
+        "enclosing_symbol": "DocView.Wire",
+        "anchored_content": "_store.Changed += OnChanged;"
+      }
+    ]
+  },
+  "revision_b": {
+    "revision": "r2",
+    "occurrences": [
+      {
+        "occurrence_id": "occ-b1",
+        "path": "Broker/Doc.cs",
+        "start_line": 54,
+        "start_column": null,
+        "pattern_id": "pat-A",
+        "enclosing_symbol": "DocView.Wire",
+        "anchored_content": "_store.Changed += OnChanged;"
+      }
+    ]
+  },
+  "expect": [
+    {
+      "outcome": "continued",
+      "frm": "occ-a1",
+      "to": [
+        "occ-b1"
+      ],
+      "evidence_at_least": [
+        "same_path",
+        "structural_context"
+      ]
+    }
+  ],
+  "invariant": "running the mapper twice on these inputs must produce byte-identical artifacts",
+  "contract": "finding-lineage/v1",
+  "status": "preregistered-unimplemented"
+}

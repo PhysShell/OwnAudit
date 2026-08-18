@@ -1,0 +1,81 @@
+{
+  "case": "two-candidates-unresolved",
+  "title": "A move with two equally plausible candidates",
+  "why": "ADVERSARIAL. The source file is gone and two files now carry an indistinguishable occurrence. There is no evidence that prefers either; a mapper that picks one is reporting its sort order as a finding. The case also exercises the symmetry: refusing on the A side leaves both B occurrences unexplained, and each of them is unresolved in its own right rather than quietly dropped or promoted to new.",
+  "revision_a": {
+    "revision": "r1",
+    "occurrences": [
+      {
+        "occurrence_id": "occ-a1",
+        "path": "Broker/Old.cs",
+        "start_line": 42,
+        "start_column": null,
+        "pattern_id": "pat-A",
+        "enclosing_symbol": "Wire",
+        "anchored_content": "_store.Changed += OnChanged;"
+      }
+    ]
+  },
+  "revision_b": {
+    "revision": "r2",
+    "occurrences": [
+      {
+        "occurrence_id": "occ-b1",
+        "path": "Broker/NewA.cs",
+        "start_line": 42,
+        "start_column": null,
+        "pattern_id": "pat-A",
+        "enclosing_symbol": "Wire",
+        "anchored_content": "_store.Changed += OnChanged;"
+      },
+      {
+        "occurrence_id": "occ-b2",
+        "path": "Broker/NewB.cs",
+        "start_line": 42,
+        "start_column": null,
+        "pattern_id": "pat-A",
+        "enclosing_symbol": "Wire",
+        "anchored_content": "_store.Changed += OnChanged;"
+      }
+    ]
+  },
+  "expect": [
+    {
+      "outcome": "unresolved",
+      "side": "a",
+      "frm": "occ-a1",
+      "to": [],
+      "reason": "lineage-id-unavailable:ambiguous-candidates",
+      "note": "two candidates, no evidence prefers either"
+    },
+    {
+      "outcome": "unresolved",
+      "side": "b",
+      "frm": null,
+      "to": [
+        "occ-b1"
+      ],
+      "reason": "lineage-id-unavailable:ambiguous-candidates",
+      "note": "it may be the moved occurrence or it may be a birth; the same ambiguity, seen from B"
+    },
+    {
+      "outcome": "unresolved",
+      "side": "b",
+      "frm": null,
+      "to": [
+        "occ-b2"
+      ],
+      "reason": "lineage-id-unavailable:ambiguous-candidates",
+      "note": "symmetrical with occ-b1 - neither may be resolved without resolving the other"
+    }
+  ],
+  "forbid": [
+    "continued to occ-b1",
+    "continued to occ-b2",
+    "reported as ended",
+    "reported as new",
+    "leaving occ-b1 or occ-b2 out of the record entirely - an unexplained occurrence is a stated unresolved, not a silence"
+  ],
+  "contract": "finding-lineage/v1",
+  "status": "preregistered-unimplemented"
+}

@@ -1,0 +1,76 @@
+{
+  "case": "copy-branches-without-a-winner",
+  "title": "One occurrence copied into two places",
+  "why": "Ambiguity must be EXPRESSED. Both successors are equally supported; choosing one and dropping the other silently loses a real finding. Paired with added-file-is-an-evidenced-birth this also fixes where the line falls: Broker/DocCopy.cs is new in revision B, but it is recorded as a COPY of Broker/Doc.cs, so the arrival has a source. A new file with a recorded source is a branch candidate; a new file that is a copy of nothing is a birth. Without that distinction the two cases would be the same shape with opposite answers.",
+  "revision_a": {
+    "revision": "r1",
+    "occurrences": [
+      {
+        "occurrence_id": "occ-a1",
+        "path": "Broker/Doc.cs",
+        "start_line": 42,
+        "start_column": null,
+        "pattern_id": "pat-A",
+        "enclosing_symbol": "DocView.Wire",
+        "anchored_content": "_store.Changed += OnChanged;"
+      }
+    ]
+  },
+  "revision_b": {
+    "revision": "r2",
+    "copies": [
+      {
+        "from": "Broker/Doc.cs",
+        "to": "Broker/DocCopy.cs",
+        "similarity": 100
+      }
+    ],
+    "occurrences": [
+      {
+        "occurrence_id": "occ-b1",
+        "path": "Broker/Doc.cs",
+        "start_line": 42,
+        "start_column": null,
+        "pattern_id": "pat-A",
+        "enclosing_symbol": "DocView.Wire",
+        "anchored_content": "_store.Changed += OnChanged;"
+      },
+      {
+        "occurrence_id": "occ-b2",
+        "path": "Broker/DocCopy.cs",
+        "start_line": 42,
+        "start_column": null,
+        "pattern_id": "pat-A",
+        "enclosing_symbol": "DocCopyView.Wire",
+        "anchored_content": "_store.Changed += OnChanged;"
+      }
+    ]
+  },
+  "expect": [
+    {
+      "outcome": "branched",
+      "frm": "occ-a1",
+      "to": [
+        "occ-b1",
+        "occ-b2"
+      ],
+      "evidence_at_least": [
+        "same_pattern_id",
+        "anchored_content"
+      ],
+      "parent_lineage_ids": [
+        "lin-of:occ-a1"
+      ],
+      "note": "each successor takes a FRESH child id recording occ-a1's LINEAGE as parent - seeded as a root first, since occ-a1 is not linked yet. Letting occ-b1 inherit that lineage outright would elect a winner in the id layer after the outcome refused to, and recording the bare occurrence id would put a within-run identifier in a cross-revision field."
+    }
+  ],
+  "forbid": [
+    "continued to exactly one of them",
+    "occ-b2 reported as new",
+    "either successor inheriting occ-a1's lineage_id",
+    "a branch recorded without parent_lineage_ids - a child with no parent is a birth wearing the word branched",
+    "an occurrence id in parent_lineage_ids - occurrence ids cannot span runs, so one stored there is a cross-revision claim made of something that cannot carry it"
+  ],
+  "contract": "finding-lineage/v1",
+  "status": "preregistered-unimplemented"
+}
