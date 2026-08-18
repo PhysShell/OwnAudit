@@ -106,10 +106,24 @@ if ($PSVersionTable.PSEdition -eq 'Desktop') {
         # if the body runs at all, this appears. Its ABSENCE afterwards is the
         # evidence that #Requires fired first.
         $probe = Join-Path ([System.IO.Path]::GetTempPath()) ("shellcontract-" + [Guid]::NewGuid().ToString("N"))
-        $out = & powershell.exe -NoProfile -NonInteractive -File $path -Out $probe 2>&1
+
+        # $ErrorActionPreference must drop to Continue around this call. The
+        # refusal arrives on STDERR, and Windows PowerShell 5.1 turns any stderr
+        # write by a native executable into a terminating NativeCommandError when
+        # the preference is Stop - so the suite would die ON the evidence it came
+        # to read, at the very moment the contract was working. pwsh does not do
+        # this, which is why only the 5.1 leg can catch it.
+        $prevEap = $ErrorActionPreference
+        $ErrorActionPreference = 'Continue'
+        try {
+            $out = & powershell.exe -NoProfile -NonInteractive -File $path -Out $probe 2>&1
+            $code = $LASTEXITCODE
+        } finally {
+            $ErrorActionPreference = $prevEap
+        }
         $text = ($out | Out-String)
 
-        Check ($LASTEXITCODE -ne 0) "$name ran to success under Windows PowerShell 5.1; it is declared pwsh-only"
+        Check ($code -ne 0) "$name ran to success under Windows PowerShell 5.1; it is declared pwsh-only"
         Check ($text -match '(?i)version|requires') `
               ("{0} failed under 5.1 without naming the version requirement. That is the #64 defect returning in another costume: the message must be about the shell, not about a word in a comment. Got: {1}" -f $name, $text.Trim())
         Check (-not (Test-Path -LiteralPath $probe)) `
