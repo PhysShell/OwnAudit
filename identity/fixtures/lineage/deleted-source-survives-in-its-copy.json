@@ -1,0 +1,65 @@
+{
+  "case": "deleted-source-survives-in-its-copy",
+  "title": "The source path is deleted, but its contents were copied first",
+  "why": "ADVERSARIAL against the boundary evidence itself. Broker/Doc.cs really is in deleted_paths, so `boundary:containing-file-deleted` genuinely fires - and it is still wrong, because the same revision records the file as a COPY SOURCE. The deletion proves the path is gone; it does not prove the occurrence has no successor, and here the successor is sitting in the copy. A mapper that stops at the first positive signal reports a fix that a diff of the tree contradicts. This is why boundary evidence carries defeaters at all: evidence explained away by another record is not evidence.",
+  "revision_a": {
+    "revision": "r1",
+    "occurrences": [
+      {
+        "occurrence_id": "occ-a1",
+        "path": "Broker/Doc.cs",
+        "start_line": 42,
+        "start_column": null,
+        "pattern_id": "pat-A",
+        "enclosing_symbol": "DocView.Wire",
+        "anchored_content": "_store.Changed += OnChanged;"
+      }
+    ]
+  },
+  "revision_b": {
+    "revision": "r2",
+    "deleted_paths": [
+      "Broker/Doc.cs"
+    ],
+    "copies": [
+      {
+        "from": "Broker/Doc.cs",
+        "to": "Broker/Moved.cs",
+        "similarity": 100
+      }
+    ],
+    "occurrences": [
+      {
+        "occurrence_id": "occ-b1",
+        "path": "Broker/Moved.cs",
+        "start_line": 42,
+        "start_column": null,
+        "pattern_id": "pat-A",
+        "enclosing_symbol": "DocView.Wire",
+        "anchored_content": "_store.Changed += OnChanged;"
+      }
+    ]
+  },
+  "expect": [
+    {
+      "outcome": "continued",
+      "frm": "occ-a1",
+      "to": [
+        "occ-b1"
+      ],
+      "evidence_at_least": [
+        "same_pattern_id",
+        "structural_context",
+        "anchored_content"
+      ],
+      "note": "the copy record relates the paths and the occurrence is unchanged inside it; the deletion of the source is not evidence about the occurrence, only about the path"
+    }
+  ],
+  "forbid": [
+    "ended for occ-a1 on the strength of containing-file-deleted - the deletion is DEFEATED by the copy record naming the same path as its source",
+    "occ-b1 reported as new - the file it lives in has a recorded source, so a predecessor could and does exist",
+    "unresolved - the copy record is exactly the evidence that unresolved says is missing"
+  ],
+  "contract": "finding-lineage/v1",
+  "status": "preregistered-unimplemented"
+}

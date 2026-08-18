@@ -113,6 +113,14 @@ both put an occurrence in a file that did not exist in revision A, and the only
 thing that tells a copy from a birth is whether the arrival has a recorded
 source.
 
+The same applies at the other edge, and it is easy to miss: a path in
+`deleted_paths` that *also* appears as `copies[].from` was not a death. The
+deletion is a fact about the path; the copy record says the contents — and any
+occurrence in them — went somewhere.
+[`deleted-source-survives-in-its-copy`](../identity/fixtures/lineage/deleted-source-survives-in-its-copy.json)
+is that case, and it is adversarial precisely because the boundary evidence
+genuinely fires.
+
 ## What the lineage ids do
 
 The graph semantics are fixed here rather than left to the mapper, because a
@@ -234,6 +242,12 @@ every hop instead of asserting "this object is retained".
 exactly the signal that collides on purpose. The contract records which evidence
 kinds may carry a `continued` on their own and which may not.
 
+Today none may, so the floor is a **count**: a `continued` names at least two
+kinds, and `minimum_evidence_kinds_for_continued` states that as data rather than
+prose. A floor only written in prose is one a preregistered case can quietly sit
+under — which three of these cases did, naming only the signal that *told two
+occurrences apart* instead of the evidence that carried the mapping.
+
 ## Mapping provenance binds both sides
 
 A mapping is a statement about two specific runs over two specific revisions. It
@@ -261,7 +275,7 @@ a re-judgement that can never be performed.
 
 ## The fixture matrix, preregistered
 
-Twelve cases, fixed **before** the algorithm, in
+Thirteen cases, fixed **before** the algorithm, in
 [`identity/fixtures/lineage/`](../identity/fixtures/lineage/). Each declares its
 inputs and its expected outcome. `identity/tests/test_lineage_contract.py`
 checks the matrix is complete and well-formed — it does **not** run a mapper,
@@ -277,21 +291,24 @@ because there is none.
 | 6 | `duplicate-sites-merge-into-one` | `merged` — no arbitrary survivor |
 | 7 | `two-candidates-unresolved` | `unresolved` on **both** sides |
 | 8 | `deleted-file-ends` | `ended`, earned by the deletion record |
-| 9 | `added-file-is-an-evidenced-birth` | `new`, earned by the addition record |
-| 10 | `coincidence-is-not-a-mapping` | `unresolved` on both sides — **not** `ended` + `new` |
-| 11 | `presentation-move-preserves-proven-lineage` | lineage id unchanged |
-| 12 | `rerun-is-byte-stable` | byte-stable mapping artifact |
+| 9 | `deleted-source-survives-in-its-copy` | `continued` — the deletion is **defeated** by the copy record |
+| 10 | `added-file-is-an-evidenced-birth` | `new` + a seeded **root** id |
+| 11 | `coincidence-is-not-a-mapping` | `unresolved` on both sides — **not** `ended` + `new` |
+| 12 | `presentation-move-preserves-proven-lineage` | lineage id unchanged |
+| 13 | `rerun-is-byte-stable` | byte-stable mapping artifact |
 
-Cases 3, 4, 6, 7 and 10 are the adversarial core: each is a shape where a
+Cases 3, 4, 6, 7, 9 and 11 are the adversarial core: each is a shape where a
 plausible mapper produces a confident wrong answer. 3 and 4 are why the unit is
 the occurrence rather than the pattern. 7 and 10 are where "probably the same"
-has to become `unresolved` instead of a guess — and 10 is the case that caught
+has to become `unresolved` instead of a guess — and 11 is the case that caught
 this contract's own first draft, which turned a refused mapping into a death and
-a birth. 6 is the mirror of 5: an N:1 collapse looks exactly like 1:1 plus a
+a birth. 9 is the adversarial case against the boundary evidence itself: the
+deletion really does fire, and is still wrong, because the same revision records
+the path as a copy source. 6 is the mirror of 5: an N:1 collapse looks exactly like 1:1 plus a
 fix, so a mapper that continues one predecessor and ends the other reports a
-repair that never happened. 8 and 9 are the positive controls that make `ended`
+repair that never happened. 8 and 10 are the positive controls that make `ended`
 and `new` falsifiable at all; without them those words could only ever be reached
-by the route the contract forbids. 12 is what makes any of it re-checkable — a
+by the route the contract forbids. 13 is what makes any of it re-checkable — a
 mapping artifact that differs run to run cannot be diffed, and a lineage you
 cannot diff is a lineage you cannot audit.
 

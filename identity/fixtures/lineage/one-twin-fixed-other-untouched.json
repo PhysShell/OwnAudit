@@ -59,8 +59,13 @@
         "occ-b2"
       ],
       "evidence_at_least": [
-        "structural_context"
-      ]
+        "same_path",
+        "same_pattern_id",
+        "structural_context",
+        "anchored_content",
+        "line_drift"
+      ],
+      "note": "structural_context is what DISCRIMINATES occ-a2 from occ-a1 - the twins agree on everything else - but it is not what licenses the mapping on its own. Listing only the discriminator let this case sit under the contract's own floor, which forbids a continued on one kind. `evidence_at_least` means what it says: the minimum that must have fired."
     }
   ],
   "forbid": [

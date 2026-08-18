@@ -56,8 +56,13 @@
         "occ-b1"
       ],
       "evidence_at_least": [
-        "structural_context"
-      ]
+        "same_path",
+        "same_pattern_id",
+        "structural_context",
+        "anchored_content",
+        "line_drift"
+      ],
+      "note": "structural_context is the only signal that tells the twins apart, but the floor still applies: a continued names at least two kinds. The twins share path, pattern and content precisely so that a mapper leaning on those alone collapses them."
     },
     {
       "outcome": "continued",
@@ -66,7 +71,11 @@
         "occ-b2"
       ],
       "evidence_at_least": [
-        "structural_context"
+        "same_path",
+        "same_pattern_id",
+        "structural_context",
+        "anchored_content",
+        "line_drift"
       ]
     }
   ],

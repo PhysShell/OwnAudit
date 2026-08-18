@@ -100,6 +100,7 @@ def main() -> int:
     boundary = contract["boundary_evidence_kinds"]
     boundary_values = {spec["value"]: spec for spec in boundary.values()}
     preregistered = list(contract["preregistered_cases"])
+    floor = contract["minimum_evidence_kinds_for_continued"]
 
     # ---- 1. The contract itself is the shape the doc describes. ---------------
     check(contract["contract"] == "finding-lineage/v1",
@@ -169,6 +170,8 @@ def main() -> int:
 
     # No evidence kind may carry a `continued` alone. `same_pattern_id` above all:
     # pattern_id collides on purpose, so alone it is the collision, not evidence.
+    check(isinstance(floor, int) and floor >= 2,
+          f"the evidence floor must be at least 2 while no kind is sufficient alone, got {floor!r}")
     for kind, spec in contract["evidence_kinds"].items():
         check(spec["sufficient_alone"] is False,
               f"evidence kind {kind!r} claims to be sufficient alone")
@@ -292,16 +295,43 @@ def main() -> int:
                     check(wanted in observed,
                           f"{where}: {kind!r} claims {spec['observable_from']} names "
                           f"{wanted!r}, but it holds {observed!r}")
-                    for defeater in (d.strip() for d in spec["defeated_by"].split(",")):
+                    # `defeated_by` is contract data, and this loop reads revision B
+                    # with it. An unvalidated path would either explode on a
+                    # non-string or, worse, silently read a `revision_a.` defeater
+                    # out of revision B and report a defeat that never happened.
+                    raw = spec["defeated_by"]
+                    if not isinstance(raw, str):
+                        check(False, f"{kind!r}: defeated_by must be a string, got {type(raw).__name__}")
+                        continue
+                    defeaters = [d.strip() for d in raw.split(",")]
+                    if not all(defeaters) or not all(d.startswith("revision_b.") for d in defeaters):
+                        check(False, f"{kind!r}: every defeated_by path must be a non-empty "
+                                     f"`revision_b.` path, got {defeaters!r}")
+                        continue
+                    for defeater in defeaters:
                         check(wanted not in collect(rev_b, defeater),
                               f"{where}: {kind!r} is defeated - {wanted!r} appears in "
                               f"{defeater}, so the boundary is explained away")
 
             else:
                 check(bool(to), f"{where}: {outcome} must name at least one successor")
-                for kind in exp.get("evidence_at_least", []):
+                required = exp.get("evidence_at_least", [])
+                for kind in required:
                     check(kind in evidence_kinds,
                           f"{where}: evidence kind {kind!r} is not in the frozen vocabulary")
+                if outcome == "continued":
+                    # The floor is a rule about what may CARRY a continued, so a
+                    # preregistered case that names fewer kinds than the floor sits
+                    # under the contract it is supposed to pin down - and CI would
+                    # accept a mapper that does the same.
+                    check(bool(required),
+                          f"{where}: continued must name the evidence that carries it")
+                    alone_ok = any(contract["evidence_kinds"].get(k, {}).get("sufficient_alone")
+                                   for k in required)
+                    check(alone_ok or len(required) >= floor,
+                          f"{where}: continued names {len(required)} evidence kind(s) "
+                          f"{required}, and none is sufficient alone; the frozen floor is "
+                          f"{floor}. Name the evidence that really fired, or promote a kind.")
                 if outcome == "continued":
                     check(len(frm) == 1 and len(to) == 1,
                           f"{where}: continued is 1:1, got {len(frm)}:{len(to)}")
@@ -332,11 +362,11 @@ def main() -> int:
                     # says `lin-of:<occ>` - the lineage OF that occurrence,
                     # seeded as a root first if it has none - or a literal id it
                     # already declared in `established_lineage`.
-                    parents = exp.get("parent_lineage", [])
+                    parents = exp.get("parent_lineage_ids", [])
                     resolved: list[str] = []
                     for ref in parents:
                         check(ref not in occ_a and ref not in occ_b,
-                              f"{where}: parent_lineage holds occurrence id {ref!r}. "
+                              f"{where}: parent_lineage_ids holds occurrence id {ref!r}. "
                               "Parents are lineages; an occurrence id cannot span runs.")
                         if isinstance(ref, str) and ref.startswith("lin-of:"):
                             resolved.append(ref[len("lin-of:"):])
@@ -344,7 +374,7 @@ def main() -> int:
                             resolved.extend(o for o, lid in established.items() if lid == ref)
                         else:
                             check(False,
-                                  f"{where}: parent_lineage entry {ref!r} names no lineage - "
+                                  f"{where}: parent_lineage_ids entry {ref!r} names no lineage - "
                                   "use `lin-of:<occurrence_id>` or a declared established id")
                     check(sorted(resolved) == sorted(frm),
                           f"{where}: {outcome} must record a parent lineage for every "
@@ -353,8 +383,11 @@ def main() -> int:
             if outcome == "new":
                 # The birth seeds a root. A fixture that pinned it to null would
                 # re-open the hole this rule closes.
-                check(exp.get("lineage_id", "unset") is not None,
-                      f"{where}: `new` seeds a root lineage; it may not claim a null lineage_id")
+                check("lineage_id" in exp and exp["lineage_id"],
+                      f"{where}: `new` seeds a ROOT lineage, so the case must name it. "
+                      "Omitting it preregisters nothing about root seeding - and a default "
+                      "sentinel that treats absence as 'fine' is how this check first "
+                      "passed without ever looking.")
 
         # Nothing may be dropped in silence. An occurrence the matrix does not
         # mention is indistinguishable from one a mapper forgot to report.
@@ -391,6 +424,19 @@ def main() -> int:
           f"{len(outcomes)} outcomes (all exercised), {len(evidence_kinds)} evidence kinds, "
           f"{len(boundary)} boundary kinds (contract frozen, mapper not implemented)")
     return 0
+
+
+def test_lineage_contract() -> None:
+    """Pytest entry point.
+
+    Without it `pytest` collects nothing from this file and reports success - a
+    green run that checked exactly zero things, which is the failure mode this
+    whole suite exists to prevent one level up. The bare-script path below stays
+    the primary one, because `pytest` is not guaranteed in the dev shell.
+    """
+    rc = main()
+    if rc != 0:
+        raise AssertionError(f"lineage contract integrity failed: {len(fails)} check(s)")
 
 
 if __name__ == "__main__":

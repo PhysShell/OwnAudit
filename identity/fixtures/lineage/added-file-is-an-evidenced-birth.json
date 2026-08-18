@@ -66,14 +66,16 @@
       "boundary_evidence": [
         "boundary:containing-file-added"
       ],
-      "note": "the file is recorded as added and as a copy of nothing, so there is no place a predecessor could have been. The birth SEEDS a root lineage id: occ-b2 may itself branch next revision, and a branch whose parent has no lineage has nothing to record."
+      "note": "the file is recorded as added and as a copy of nothing, so there is no place a predecessor could have been. The birth SEEDS a root lineage id: occ-b2 may itself branch next revision, and a branch whose parent has no lineage has nothing to record. The root id is written down here rather than left implicit: root seeding is a rule this contract froze, so a case that omits it preregisters nothing about it.",
+      "lineage_id": "lin-born-1"
     }
   ],
   "forbid": [
     "occ-b2 reported as unresolved - the recorded addition is exactly the evidence unresolved says is missing",
     "occ-b2 reported as new on the strength of finding no predecessor, rather than on the recorded addition",
     "occ-a1 disturbed - it is already accounted for, and a birth elsewhere is not evidence about it",
-    "a null lineage_id for the birth - a root with no id cannot be named as a parent later, which is exactly how an occurrence id ends up in a lineage field"
+    "a null lineage_id for the birth - a root with no id cannot be named as a parent later, which is exactly how an occurrence id ends up in a lineage field",
+    "a `new` recorded without a lineage_id - the root would be unnameable as a parent in the next revision, which is exactly how an occurrence id ends up in a lineage field"
   ],
   "contract": "finding-lineage/v1",
   "status": "preregistered-unimplemented"

@@ -70,7 +70,7 @@
         "same_pattern_id",
         "anchored_content"
       ],
-      "parent_lineage": [
+      "parent_lineage_ids": [
         "lin-of:occ-a1",
         "lin-of:occ-a2"
       ],
@@ -83,7 +83,7 @@
     "either predecessor reported as ended on the strength of removed_symbols - the site moved into the merge target, and merged_symbols says where",
     "occ-b1 inheriting one parent's lineage_id",
     "a merge recorded with fewer parent lineages than predecessors",
-    "an occurrence id in parent_lineage instead of the lineage it belongs to"
+    "an occurrence id in parent_lineage_ids instead of the lineage it belongs to"
   ],
   "contract": "finding-lineage/v1",
   "status": "preregistered-unimplemented"

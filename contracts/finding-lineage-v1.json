@@ -20,7 +20,6 @@
     "forbid, written into the contract itself. It is fixed in place rather than as a",
     "v2 because v1 has never been implemented or released: nothing is built on it."
   ],
-
   "outcomes": {
     "continued": {
       "cardinality": "1:1",
@@ -45,7 +44,10 @@
     "unresolved": {
       "cardinality": "unknown",
       "lineage_id": "null",
-      "requires": ["side", "reason"],
+      "requires": [
+        "side",
+        "reason"
+      ],
       "means": "the evidence does not decide - the DEFAULT when evidence is absent",
       "sides": {
         "a": "a predecessor in revision A whose successor was not established: names `frm`, leaves `to` empty",
@@ -75,7 +77,6 @@
       "forbids": "an identity limitation as its justification - 'I found nothing' is unresolved, not a birth"
     }
   },
-
   "evidence_kinds": {
     "same_pattern_id": {
       "sufficient_alone": false,
@@ -102,14 +103,20 @@
       "why": "proximity is not identity; case 8 is proximity without anything else"
     }
   },
+  "minimum_evidence_kinds_for_continued": 2,
   "evidence_rule": [
     "No single evidence kind carries a 'continued' on its own.",
+    "Since every kind above is `sufficient_alone: false`, that floor is a COUNT:",
+    "a 'continued' names at least two kinds. `minimum_evidence_kinds_for_continued`",
+    "states it as data so the integrity suite can hold the fixtures to it - a floor",
+    "only written in prose is a floor a preregistered case can quietly sit under.",
+    "If a kind is ever promoted to `sufficient_alone: true`, that kind alone",
+    "satisfies the floor and the count stops applying to it.",
     "This is a floor, not the algorithm: which COMBINATIONS suffice is slice 2",
     "step 1 and is deliberately not fixed here.",
     "Evidence is stored in its own field, never folded into the id and never",
     "collapsed into a score that discards which signals fired."
   ],
-
   "limitations": {
     "no-mapping-evidence": "lineage-id-unavailable:no-mapping-evidence",
     "ambiguous-candidates": "lineage-id-unavailable:ambiguous-candidates",
@@ -124,7 +131,6 @@
     "'no-predecessor-revision' means there is no revision A to compare against at",
     "all - a first run. It must never be used while a predecessor revision exists."
   ],
-
   "boundary_evidence_kinds": {
     "containing-file-deleted": {
       "value": "boundary:containing-file-deleted",
@@ -132,8 +138,8 @@
       "observable_from": "revision_b.deleted_paths",
       "match": "predecessor.path",
       "why": "the file that held the occurrence is gone, so no successor can exist in it",
-      "defeated_by": "revision_b.renames[].from",
-      "defeated_why": "a renamed file was not deleted; it moved, and the occurrence may have moved with it"
+      "defeated_by": "revision_b.renames[].from, revision_b.copies[].from",
+      "defeated_why": "a renamed file was not deleted; it moved, and the occurrence may have moved with it. A deleted path that is also a COPY SOURCE is the same story told in two records: the contents survive at the copy target, so the occurrence may survive with them, and reporting `ended` would announce a fix that a diff of the tree contradicts"
     },
     "containing-file-added": {
       "value": "boundary:containing-file-added",
@@ -178,7 +184,6 @@
     "born. Without the defeaters, 'the file is new' would license a birth for every",
     "copied file, and the copy case and the birth case are the same shape."
   ],
-
   "lineage_id_existence": [
     "A lineage_id exists when MEMBERSHIP IN AN ESTABLISHED LINEAGE GRAPH is known.",
     "Not 'when an edge was proven' - that earlier wording was tidier and wrong. It",
@@ -187,7 +192,6 @@
     "'unresolved' establishes no membership and therefore seeds nothing, on either",
     "side. That is the line the invariant actually has to hold."
   ],
-
   "lineage_id_rules": {
     "inherit": "predecessor already carries a lineage_id -> the successor takes THAT id. A re-mint would read as a new defect appearing where an old one was proven to persist.",
     "mint": "first proven 1:1 edge between two occurrences neither of which is linked yet -> mint once, and bind BOTH ends to it.",
@@ -203,7 +207,6 @@
     "What is still open is which evidence licenses each outcome - not what the ids",
     "then do."
   ],
-
   "root_seeding_rules": {
     "unresolved": "seeds nothing, on either side. A refusal that minted an id would make the refusal itself into membership.",
     "new": "an evidenced birth mints a FRESH ROOT lineage id for its occurrence in revision B - a node with no incoming edge.",
@@ -221,8 +224,11 @@
     "creates no structure, so requiring an id there would only inflate 'lineage'",
     "into 'every singleton has one'."
   ],
-
-  "parent_lineage_required_for": ["branched", "merged"],
+  "parent_lineage_required_for": [
+    "branched",
+    "merged"
+  ],
+  "parent_lineage_field": "parent_lineage_ids",
   "parent_lineage_reference_forms": {
     "established": "a literal lineage id the fixture already declares in revision_a.established_lineage",
     "seeded": "lin-of:<occurrence_id> - THE LINEAGE OF that occurrence, seeded per root_seeding_rules if it has none yet"
@@ -237,7 +243,6 @@
     "the reference is to the lineage, and it stays checkable that a lineage exists",
     "for every predecessor without the fixture having to guess a minted value."
   ],
-
   "mapping_provenance_required": [
     "from_run",
     "to_run",
@@ -259,7 +264,6 @@
     "the contract version the mapping was made under are all required. Without them",
     "'would this mapping still be made under the new rule' has no answer."
   ],
-
   "preregistered_cases": [
     "line-drift-continues",
     "rename-with-context-continues",
@@ -269,6 +273,7 @@
     "duplicate-sites-merge-into-one",
     "two-candidates-unresolved",
     "deleted-file-ends",
+    "deleted-source-survives-in-its-copy",
     "added-file-is-an-evidenced-birth",
     "coincidence-is-not-a-mapping",
     "presentation-move-preserves-proven-lineage",

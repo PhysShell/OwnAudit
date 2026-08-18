@@ -58,7 +58,7 @@
         "same_pattern_id",
         "anchored_content"
       ],
-      "parent_lineage": [
+      "parent_lineage_ids": [
         "lin-of:occ-a1"
       ],
       "note": "each successor takes a FRESH child id recording occ-a1's LINEAGE as parent - seeded as a root first, since occ-a1 is not linked yet. Letting occ-b1 inherit that lineage outright would elect a winner in the id layer after the outcome refused to, and recording the bare occurrence id would put a within-run identifier in a cross-revision field."
@@ -68,8 +68,8 @@
     "continued to exactly one of them",
     "occ-b2 reported as new",
     "either successor inheriting occ-a1's lineage_id",
-    "a branch recorded without parent_lineage - a child with no parent is a birth wearing the word branched",
-    "an occurrence id in parent_lineage - occurrence ids cannot span runs, so one stored there is a cross-revision claim made of something that cannot carry it"
+    "a branch recorded without parent_lineage_ids_ids - a child with no parent is a birth wearing the word branched",
+    "an occurrence id in parent_lineage_ids_ids - occurrence ids cannot span runs, so one stored there is a cross-revision claim made of something that cannot carry it"
   ],
   "contract": "finding-lineage/v1",
   "status": "preregistered-unimplemented"
