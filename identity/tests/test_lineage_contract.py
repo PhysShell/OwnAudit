@@ -41,6 +41,7 @@ answers.
 """
 import json
 import os
+import re
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -101,6 +102,7 @@ def main() -> int:
     boundary_values = {spec["value"]: spec for spec in boundary.values()}
     preregistered = list(contract["preregistered_cases"])
     floor = contract["minimum_evidence_kinds_for_continued"]
+    parent_field = contract["parent_lineage_field"]
 
     # ---- 1. The contract itself is the shape the doc describes. ---------------
     check(contract["contract"] == "finding-lineage/v1",
@@ -396,9 +398,22 @@ def main() -> int:
         check(claimed_b == set(occ_b),
               f"{name}: revision B occurrences unaccounted for: {sorted(set(occ_b) - claimed_b)}")
 
+        seen_forbid: set[str] = set()
         for forbidden in case.get("forbid", []):
             check(isinstance(forbidden, str) and forbidden,
                   f"{name}: empty entry in `forbid`")
+            check(forbidden not in seen_forbid,
+                  f"{name}: `forbid` repeats an entry verbatim: {forbidden[:60]!r}")
+            seen_forbid.add(forbidden)
+            # `forbid` is prose, but it NAMES fields, and a name nothing answers to
+            # is worse than no name: it reads as a real constraint. A bulk rename
+            # of `parent_lineage` -> `parent_lineage_ids` produced
+            # `parent_lineage_ids_ids` here and shipped, because prose was checked
+            # only for being non-empty.
+            for hit in re.findall(r"parent_lineage\w*", forbidden):
+                check(hit == parent_field,
+                      f"{name}: `forbid` names {hit!r}; the contract's field is "
+                      f"{parent_field!r} and nothing answers to any other spelling")
 
     # Every frozen outcome must be exercised, or it is frozen in name only and a
     # mapper may implement it however it likes without failing preregistration.

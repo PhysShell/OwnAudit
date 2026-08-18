@@ -68,8 +68,8 @@
     "continued to exactly one of them",
     "occ-b2 reported as new",
     "either successor inheriting occ-a1's lineage_id",
-    "a branch recorded without parent_lineage_ids_ids - a child with no parent is a birth wearing the word branched",
-    "an occurrence id in parent_lineage_ids_ids - occurrence ids cannot span runs, so one stored there is a cross-revision claim made of something that cannot carry it"
+    "a branch recorded without parent_lineage_ids - a child with no parent is a birth wearing the word branched",
+    "an occurrence id in parent_lineage_ids - occurrence ids cannot span runs, so one stored there is a cross-revision claim made of something that cannot carry it"
   ],
   "contract": "finding-lineage/v1",
   "status": "preregistered-unimplemented"

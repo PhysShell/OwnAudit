@@ -74,8 +74,7 @@
     "occ-b2 reported as unresolved - the recorded addition is exactly the evidence unresolved says is missing",
     "occ-b2 reported as new on the strength of finding no predecessor, rather than on the recorded addition",
     "occ-a1 disturbed - it is already accounted for, and a birth elsewhere is not evidence about it",
-    "a null lineage_id for the birth - a root with no id cannot be named as a parent later, which is exactly how an occurrence id ends up in a lineage field",
-    "a `new` recorded without a lineage_id - the root would be unnameable as a parent in the next revision, which is exactly how an occurrence id ends up in a lineage field"
+    "a `new` recorded without a lineage_id, or with a null one - the root would be unnameable as a parent in the next revision, which is exactly how an occurrence id ends up in a lineage field"
   ],
   "contract": "finding-lineage/v1",
   "status": "preregistered-unimplemented"
