@@ -72,6 +72,47 @@ jobs:
           PYTHONPATH=.   python3 -O runtime/tests/test_member_aware.py
           PYTHONPATH=.   python3 -O leakmine/tests/test_leakmine.py
 
+  linetol-policy:
+    # OwnAudit#59. Run-Audit.ps1 itself cannot run in CI — it wants a worktree, a
+    # build and a Windows stand — so the clustering-tolerance decision lives in a
+    # pure function (scripts/LineTolPolicy.ps1) that can. The issue is explicit
+    # that this must not be accepted by reading the code, hence a real interpreter
+    # on a real Windows runner.
+    #
+    # Both shells on Windows: the script's own examples invoke `pwsh`, but a stand
+    # that still has only Windows PowerShell 5.1 must not silently get different
+    # tolerances. Ubuntu covers the pwsh-on-Linux path a contributor is likely to
+    # use locally.
+    name: line-tol policy matrix (${{ matrix.os }} / pwsh)
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
+      - name: Resolve-LineTol decision matrix
+        shell: pwsh
+        run: ./scripts/tests/Test-LineTolPolicy.ps1
+
+  linetol-policy-ps51:
+    # Split out rather than folded into the matrix above: `shell:` accepts no
+    # expression, so `${{ matrix.shell }}` is rejected by the workflow schema.
+    # Launching the interpreter by hand from bash would sidestep that, but GitHub
+    # sets $ErrorActionPreference and the invocation form per shell, and a fidelity
+    # test should run under the shell it claims to cover, not near it.
+    name: line-tol policy matrix (windows-latest / Windows PowerShell 5.1)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
+      - name: Resolve-LineTol decision matrix
+        shell: powershell
+        run: ./scripts/tests/Test-LineTolPolicy.ps1
+
   audit-report:
     name: SARIF export + dashboard smoke
     runs-on: ubuntu-latest
