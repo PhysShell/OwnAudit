@@ -32,12 +32,6 @@
       "THREAD_SAFETY_VIOLATION": 1,
       "NULLPTR_DEREFERENCE": 1,
       "CS0219": 1
-    },
-    "no_physical_location": 1,
-    "no_physical_location_by": {
-      "own-check": {
-        "OWN001": 1
-      }
     }
   },
   "findings": [

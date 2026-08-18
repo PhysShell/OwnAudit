@@ -40,7 +40,8 @@ sys.path.insert(0, ROOT)
 from aggregate import provenance as prov                                         # noqa: E402
 from aggregate.normalize import (                                                # noqa: E402
     DEFAULT_TAXONOMY, SCHEMA_VERSION, V1_FIELDS, TaxonomyError, build_payload,
-    categorize, coverage, finding_to_dict, load_taxonomy, normalize_results, project_v1,
+    categorize, coverage, finding_to_dict, load_taxonomy, normalize, normalize_results,
+    project_v1,
 )
 from aggregate.sarif_read import norm_path, parse_sarif, read_sarif              # noqa: E402
 from identity.occurrence import (                                                # noqa: E402
@@ -50,13 +51,6 @@ from identity.occurrence import (                                               
 FIX = os.path.join(HERE, "fixtures", "parity")
 GOLDEN = os.path.join(FIX, "expected-findings.json")
 IDFIX = os.path.join(HERE, "fixtures", "identity")
-
-#: Coverage keys the committed golden carries and the reference implementation
-#: does not (#57). The reference is the code that dropped locationless results
-#: without counting them, so it has nothing to say here by construction. Listed
-#: explicitly so the divergence stays a short, reviewable list rather than a
-#: loosened comparison - see `_reference_checks`.
-DIVERGES_FROM_REFERENCE = ("no_physical_location", "no_physical_location_by")
 
 #: The invocation the golden was generated with. The three overlapping spellings of
 #: one worktree are what `Run-Audit.ps1` really passes; they are what makes
@@ -210,6 +204,24 @@ def main() -> int:
     check(cov["no_physical_location_by"] == {"own-check": {"OWN001": 1}},
           f"the loss must be attributable to a tool and a rule: "
           f"{cov['no_physical_location_by']}")
+
+    # ---- 5c. That reconciliation is only trustworthy if one producer name means one
+    #      input. `normalize` keys its reads by producer, so two inputs under one
+    #      name would keep both sets of findings and only the last locationless
+    #      count - the ledger above would then be quietly wrong rather than loudly
+    #      absent. `build_payload` already refused this; `normalize` is reachable
+    #      directly and must refuse it too, or the guarantee depends on the caller.
+    dup = [("roslyn", os.path.join(FIX, "roslyn.sarif")),
+           ("roslyn", os.path.join(FIX, "own-check.sarif"))]
+    try:
+        normalize(dup, tax, list(STRIPS))
+        check(False, "normalize() accepted two inputs under one producer name: the "
+                     "locationless ledger silently drops the first input's count")
+    except prov.ProvenanceError:
+        pass
+    except Exception as exc:                                        # noqa: BLE001
+        check(False, f"normalize() must refuse duplicates with ProvenanceError, "
+                     f"got {type(exc).__name__}: {exc}")
 
     # ---- 6. Coverage notes are routed out of scoring, not counted as verdicts.
     check(cov["analysis_skipped_by"] == {"OWN050": 1},
@@ -558,27 +570,21 @@ def _reference_checks(ref: str) -> None:
         with open(out, encoding="utf-8") as fh:
             regenerated = fh.read()
 
-    # The golden is reference-derived EXCEPT for the #57 coverage keys. The
-    # reference cannot emit them - it is the implementation that dropped
-    # locationless results without counting them, which is the whole defect - so
-    # requiring byte equality against it would now fail forever, and relaxing the
-    # comparison to "close enough" would let real drift hide behind the intended
-    # divergence. Instead: lift out exactly the divergent keys, assert their shape
-    # separately, and hold everything else to the same byte standard as before.
-    with open(GOLDEN, encoding="utf-8") as fh:
-        golden = json.loads(fh.read())
-    divergent = {k: golden["coverage"].pop(k)
-                 for k in DIVERGES_FROM_REFERENCE if k in golden["coverage"]}
-    check(divergent == {"no_physical_location": 1,
-                        "no_physical_location_by": {"own-check": {"OWN001": 1}}},
-          f"the intended #57 divergence from the reference changed shape: {divergent}")
+    # The golden stays byte-identical to what the reference wrote. #57 adds two
+    # coverage keys the reference cannot emit - it IS the implementation that
+    # dropped locationless results without counting them - and they are excluded
+    # in `project_v1`, exactly where slice 1B put `identity` and
+    # `provenance_unused_entries`. Their values are asserted on their own in
+    # section 5b of `main`, together with the raw-result reconciliation, so
+    # nothing here is weakened by their absence.
     # No trailing newline: that is how the reference writer emits it, and how the
     # committed golden is stored. Adding one here would fail the comparison for a
     # byte nobody changed.
-    check(json.dumps(golden, indent=2, ensure_ascii=False) == regenerated,
-          "outside the two #57 coverage keys the committed golden is no longer what "
-          "the reference implementation produces - regenerate it and re-read the diff "
-          "before trusting either side")
+    with open(GOLDEN, encoding="utf-8") as fh:
+        golden = fh.read()
+    check(golden == regenerated,
+          "the committed golden is no longer what the reference implementation "
+          "produces - regenerate it and re-read the diff before trusting either side")
 
     try:
         import yaml

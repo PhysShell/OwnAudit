@@ -274,7 +274,15 @@ def normalize(sarif_inputs: list[tuple[str, str]], tax: Taxonomy, strips: list[s
     The version rides along from the same parse rather than costing a second read
     of a 35 MB file - and it is *observed*, not asserted: only CodeQL declares one
     in the recorded corpus.
+
+    Producer names must be unique HERE, not only in `build_payload`. `reads` is
+    keyed by producer, so a duplicate name silently keeps both inputs' findings
+    while retaining only the last input's locationless count - the two then no
+    longer reconcile, which is precisely the accounting #57 exists to make
+    trustworthy. Before this function counted anything the collision cost a
+    nullable version string and was harmless; it is not harmless now.
     """
+    prov.check_unique_producers(sarif_inputs)
     raw: list[Any] = []
     versions: dict[str, str | None] = {}
     reads: dict[str, SarifReadResult] = {}
@@ -388,9 +396,11 @@ def build_payload(sarif_inputs: list[tuple[str, str]], tax: Taxonomy, strips: li
     # Before a byte of SARIF is read: two inputs under one producer name cannot be
     # represented, and a malformed manifest is worth finding out about now rather
     # than after parsing 100 MB of input. The manifest is read ONCE here and handed
-    # to both consumers below; `prov.resolve` re-checks uniqueness for callers that
-    # reach it directly, which costs a loop over four items and keeps the invariant
-    # true no matter who calls.
+    # to both consumers below. `normalize` and `prov.resolve` each re-check
+    # uniqueness for callers that reach them directly, which costs a loop over four
+    # items and keeps the invariant true no matter who calls - this comment used to
+    # claim that while `normalize`, which reaches neither, was the one path that
+    # could count a duplicate instead of refusing it.
     prov.check_unique_producers(sarif_inputs)
     entries = prov.load_manifest(manifest_path) if manifest_path else {}
     findings, cov, versions = normalize(sarif_inputs, tax, strips)
@@ -417,9 +427,19 @@ def project_v1(payload: dict[str, Any]) -> dict[str, Any]:
     implementation, not by this code - keeps meaning something after the schema
     grew. If this projection ever stops matching those bytes, 1B changed
     something it promised only to add to.
+
+    Every later slice that ADDS a coverage key excludes it here, and the golden
+    stays exactly what the reference wrote. Editing the golden instead would work
+    once and cost the file its meaning: a diff against a fresh reference run is
+    supposed to say "the port drifted", and a hand-edited golden makes it say
+    "the port drifted, or someone touched this on purpose, and you cannot tell
+    which". `no_physical_location*` are #57's keys; the reference has nothing to
+    say about them by construction, being the implementation that dropped
+    locationless results without counting them.
     """
     cov = {k: v for k, v in payload["coverage"].items()
-           if k not in ("identity", "provenance_unused_entries")}
+           if k not in ("identity", "provenance_unused_entries",
+                        "no_physical_location", "no_physical_location_by")}
     return {"coverage": cov,
             "findings": [{k: r[k] for k in V1_FIELDS} for r in payload["findings"]]}
 
