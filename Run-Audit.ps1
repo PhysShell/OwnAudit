@@ -1,3 +1,8 @@
+#Requires -Version 7
+# PowerShell 7+ only, and stated where the ENGINE can act on it. Windows PowerShell
+# 5.1 reads a BOM-less file as ANSI, so a non-ASCII byte used to surface as a syntax
+# error in whatever word happened to contain it. This file is ASCII so 5.1 can read
+# it, and this line is what 5.1 then reports instead: a refusal about versions.
 <#
 .SYNOPSIS
   Reproduce the STS health report: Own.NET analyzes, OwnAudit aggregates and reports.
@@ -13,7 +18,7 @@
   aggregate/ (Own.NET#266 slice 1A) and produces byte-identical findings.json.
   Scoring/reporting still run from the worktree until they are ported too.
   Two build-free tools means cross-tool AGREEMENT: a site both flag becomes a
-  high-confidence cluster (audit/ §3.5). PYTHONUTF8=1 dodges the cp1251 console crash.
+  high-confidence cluster (audit/ section 3.5). PYTHONUTF8=1 dodges the cp1251 console crash.
 
 .EXAMPLE
   pwsh ./Run-Audit.ps1                 # OwnSharp only (fast)
@@ -39,7 +44,7 @@ param(
                                             # Passing it explicitly always wins, including a lower value.
 )
 $ErrorActionPreference = "Stop"
-$env:PYTHONUTF8 = "1"   # report.py prints '>=' / '·' — crashes on a cp1251 console
+$env:PYTHONUTF8 = "1"   # report.py prints '>=' and U+00B7 MIDDLE DOT - both crash a cp1251 console
 New-Item -ItemType Directory -Force -Path $Out | Out-Null
 
 # Read HERE, in this script's own scope: $PSBoundParameters describes this
@@ -49,7 +54,7 @@ New-Item -ItemType Directory -Force -Path $Out | Out-Null
 $lineTolExplicit = $PSBoundParameters.ContainsKey('LineTol')
 . (Join-Path (Join-Path $PSScriptRoot "scripts") "LineTolPolicy.ps1")
 
-# 1. worktree of main — audit/ is on main; the dev checkout may sit on a feature branch.
+# 1. worktree of main - audit/ is on main; the dev checkout may sit on a feature branch.
 git -C $OwnNet fetch origin main -q
 if (Test-Path (Join-Path $Worktree ".git")) {
     git -C $Worktree fetch origin main -q 2>$null
@@ -59,7 +64,7 @@ if (Test-Path (Join-Path $Worktree ".git")) {
     git -C $OwnNet worktree add --detach $Worktree $Ref
 }
 if (-not (Test-Path (Join-Path $Worktree "audit\aggregate\report.py"))) {
-    throw "audit/ not found in $Worktree — is '$Ref' the branch that has audit/?"
+    throw "audit/ not found in $Worktree - is '$Ref' the branch that has audit/?"
 }
 # pyyaml is for the WORKTREE's report.py (it still reads the YAML taxonomy through
 # its own normalize.py). The local aggregate/normalize.py is stdlib-only.
@@ -71,14 +76,14 @@ $sarifInputs = @()   # "tool=path" for normalize
 # ---- provenance (producer-provenance/v1, Own.NET#266 slice 1B) ---------------
 # SARIF carries no run identity, so occurrence identity has to come from outside
 # it. The run id is stamped HERE, before any producer starts, so it names the
-# ANALYSIS rather than the normalization — re-normalizing this same recorded run
+# ANALYSIS rather than the normalization - re-normalizing this same recorded run
 # later reuses this manifest and reproduces the same occurrence ids. The
 # normalizer never invents one: no manifest entry means occurrence_id: null, and
 # the record says why.
 #
 # A GUID, not just a timestamp: two audits started in the same second would
 # otherwise share producer run ids, and "rare" is not a property an identity
-# contract may have. Determinism survives — the id is written to the manifest and
+# contract may have. Determinism survives - the id is written to the manifest and
 # read back from it, never recomputed.
 $auditRunId   = "audit-{0}-{1}" -f [DateTime]::UtcNow.ToString("yyyyMMddTHHmmssZ"),
                                    [Guid]::NewGuid().ToString("N")
@@ -87,7 +92,7 @@ if ([string]::IsNullOrWhiteSpace($sourceCommit)) { $sourceCommit = $null }
 
 # The analyzers read the WORKING TREE, not HEAD. On a dirty target `git rev-parse
 # HEAD` still answers, and recording that answer would attribute findings to a
-# commit that does not contain the analyzed bytes — the same fabrication as
+# commit that does not contain the analyzed bytes - the same fabrication as
 # stamping a reused CodeQL database with today's commit, just harder to notice.
 # Unknown is a value this schema carries, so it is recorded as unknown.
 #
@@ -99,7 +104,7 @@ if ($sourceCommit -and $dirty.Count -gt 0) {
     # One string, one -f: the format operator binds tighter than '+', so a
     # concatenation of two format strings would silently format only the second one
     # and leave the first one's placeholders as literal text.
-    $msg = "Target tree is dirty ({0} changed/untracked path(s)) — recording source_commit as null: the analyzed bytes are not the ones in {1}." -f $dirty.Count, $sourceCommit.Substring(0, 8)
+    $msg = "Target tree is dirty ({0} changed/untracked path(s)) - recording source_commit as null: the analyzed bytes are not the ones in {1}." -f $dirty.Count, $sourceCommit.Substring(0, 8)
     Write-Host $msg
     $sourceCommit = $null
 }
@@ -114,7 +119,7 @@ function Add-Provenance {
       runners (Run-Infersharp.ps1 / Run-Roslyn.ps1), possibly yesterday, possibly
       against another commit and another configuration. Stamping them with this
       run's id and this checkout's HEAD would be provenance about an analysis
-      nobody observed — precisely the fabricated identity the contract exists to
+      nobody observed - precisely the fabricated identity the contract exists to
       prevent. So they get producer_name and input_digest, which are facts about
       the bytes on disk, and nothing else. Their occurrence ids stay null until
       those runners emit their own provenance sidecars.
@@ -124,12 +129,12 @@ function Add-Provenance {
         [Parameter(Mandatory)][string]$SarifPath,
         $RunId        = $null,
         $SourceCommit = $null,
-        $Version      = $null,             # null, not "" — unknown must read as unknown
+        $Version      = $null,             # null, not "" - unknown must read as unknown
         $ConfigDigest = $null
     )
     # Lower-cased on purpose: Get-FileHash returns upper-case hex and the normalizer
     # compares the digest string verbatim, rejecting a mismatch outright. A case
-    # difference would fail the whole run rather than degrade quietly — correct, but
+    # difference would fail the whole run rather than degrade quietly - correct, but
     # a needless way to find out.
     $sha = (Get-FileHash -Algorithm SHA256 -LiteralPath $SarifPath).Hash.ToLowerInvariant()
     $nz  = { param($v) if ([string]::IsNullOrWhiteSpace([string]$v)) { $null } else { [string]$v } }
@@ -152,7 +157,7 @@ try {
         1> $ownsarif 2> (Join-Path $Out "own-check.err")
 } finally { Pop-Location }
 if (-not (Test-Path $ownsarif) -or (Get-Item $ownsarif).Length -lt 2) {
-    throw "OwnSharp produced no SARIF — see $Out\own-check.err"
+    throw "OwnSharp produced no SARIF - see $Out\own-check.err"
 }
 Write-Host "OwnSharp SARIF: $ownsarif ($((Get-Item $ownsarif).Length) bytes)"
 $sarifInputs += "own-check=$ownsarif"
@@ -169,15 +174,15 @@ if ($Codeql) {
     $codeqlDbBuiltNow = $false
     if ($RebuildCodeqlDb -or -not (Test-Path (Join-Path $CodeqlDb "codeql-database.yml"))) {
         New-Item -ItemType Directory -Force -Path (Split-Path $CodeqlDb) | Out-Null
-        Write-Host "CodeQL: building DB (build-free) over $Target — this is the slow step…"
+        Write-Host "CodeQL: building DB (build-free) over $Target - this is the slow step..."
         & $CodeqlExe database create $CodeqlDb --language=csharp --build-mode=none --source-root=$Target --overwrite
         $codeqlDbBuiltNow = $true
     } else {
-        Write-Host "CodeQL: reusing DB at $CodeqlDb (-RebuildCodeqlDb to force) — its source commit is unknown to this run"
+        Write-Host "CodeQL: reusing DB at $CodeqlDb (-RebuildCodeqlDb to force) - its source commit is unknown to this run"
     }
     $cqsarif = Join-Path $Out "codeql.sarif"
     # security-and-quality is the practical max for a desktop app; -Strict adds the
-    # experimental suite (marginal here — mostly web-shaped queries — but complete).
+    # experimental suite (marginal here - mostly web-shaped queries - but complete).
     $suites = @("codeql/csharp-queries:codeql-suites/csharp-security-and-quality.qls")
     if ($Strict) { $suites += "codeql/csharp-queries:codeql-suites/csharp-security-experimental.qls" }
     & $CodeqlExe database analyze $CodeqlDb --format=sarifv2.1.0 --output=$cqsarif --threads=0 @suites
@@ -193,7 +198,7 @@ if ($Codeql) {
         -SourceCommit $(if ($codeqlDbBuiltNow) { $sourceCommit } else { $null })
 }
 
-# Infer# (build-required) — fold in if a SARIF is present. Produce it first with
+# Infer# (build-required) - fold in if a SARIF is present. Produce it first with
 # Run-Infersharp.ps1 (WSL). Infer# reports at the last-access line, so the clustering
 # window is raised to 8 below unless -LineTol was passed explicitly.
 if (Test-Path (Join-Path $Out "infersharp.sarif")) {
@@ -203,7 +208,7 @@ if (Test-Path (Join-Path $Out "infersharp.sarif")) {
     Add-Provenance -Tool "infersharp" -SarifPath (Join-Path $Out 'infersharp.sarif')
 }
 
-# Roslyn analyzer packs (build-required) — fold in if a SARIF is present. Produce it
+# Roslyn analyzer packs (build-required) - fold in if a SARIF is present. Produce it
 # first with Run-Roslyn.ps1 (VS2022 build). High volume and shifted/generated locations,
 # so the clustering window is raised to 8 below unless -LineTol was passed explicitly.
 if (Test-Path (Join-Path $Out "roslyn.sarif")) {
@@ -214,7 +219,7 @@ if (Test-Path (Join-Path $Out "roslyn.sarif")) {
 }
 
 # The folding above is automatic; the clustering window it needs used to be manual.
-# Resolve it now that the input set is final — Infer# and Roslyn report shifted or
+# Resolve it now that the input set is final - Infer# and Roslyn report shifted or
 # generated locations, so at the default window one defect splits into several
 # findings. An explicitly passed -LineTol is honoured exactly, including when it is
 # lower than those tools want: the mismatch is reported, never corrected behind the
@@ -240,13 +245,13 @@ foreach ($s in $sarifInputs) { $nargs += @("--sarif", $s) }
 $absStrip = ($Target -replace '\\', '/').TrimEnd('/')
 # Persist the manifest next to the artifacts it describes. Keep it: re-normalizing
 # this recorded run WITHOUT it produces occurrence_id: null everywhere, because the
-# normalizer will not mint a run id of its own — and it should not, since a run id
+# normalizer will not mint a run id of its own - and it should not, since a run id
 # minted at normalization time would describe the normalization instead.
 $manifest = Join-Path $Out "provenance.json"
 @{ schema_version = "producer-provenance/v1"; inputs = $provenanceInputs } |
     ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $manifest -Encoding utf8
 $withRun = @($provenanceInputs.Values | Where-Object { $_.producer_run_id }).Count
-Write-Host "Provenance manifest: $manifest ($auditRunId; $withRun of $($provenanceInputs.Count) producer(s) carry a run id — the rest are pre-existing SARIF and their occurrence ids stay null)"
+Write-Host "Provenance manifest: $manifest ($auditRunId; $withRun of $($provenanceInputs.Count) producer(s) carry a run id - the rest are pre-existing SARIF and their occurrence ids stay null)"
 python "$PSScriptRoot\aggregate\normalize.py" @nargs --strip "$leaf" --strip $absStrip --strip "/$absStrip" --provenance $manifest --json $findings
 foreach ($fmt in @(@{f='markdown';e='md'}, @{f='html';e='html'}, @{f='json';e='json'})) {
     python "$Worktree\audit\aggregate\report.py" --findings $findings --format $fmt.f --target $leaf --commit $commit --line-tol $LineTol |

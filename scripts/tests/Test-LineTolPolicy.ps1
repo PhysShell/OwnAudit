@@ -171,28 +171,19 @@ Check ((Resolve-LineTol -Requested 3 -Explicit $false -Tools $derived).Value -eq
 #    the script's OWN scope, and the decision is made AFTER the folding blocks
 #    (resolving earlier would consult a tool list that is not final yet).
 #
-#    NOT under Windows PowerShell 5.1. `Run-Audit.ps1` carries 23 non-ASCII
-#    characters (em dashes, a section sign, an ellipsis) in comments and in
-#    user-facing messages, all of which predate this change, and 5.1 reads a
-#    BOM-less file in the system ANSI codepage -- so the runner does not parse
-#    there at all. That is a real property of the repo, tracked separately; it is
-#    not something this suite gets to assert away, and asserting the opposite here
-#    would fail for a reason that has nothing to do with the tolerance policy.
-#
-#    The policy file itself IS held to 5.1 by the ASCII check above, which is what
-#    actually matters: it is dot-sourced, so it must load wherever the runner does.
-if ($PSVersionTable.PSEdition -eq 'Desktop') {
-    Skip ("Windows PowerShell 5.1: Run-Audit.ps1 structural checks did not run - the runner " +
-          "is pwsh-only (23 non-ASCII chars, pre-existing) and 5.1 cannot parse it")
-    $text = $null
-} else {
-    $tokens = $null; $errors = $null
-    $null = [System.Management.Automation.Language.Parser]::ParseFile(
-        (Resolve-Path $runAudit), [ref]$tokens, [ref]$errors)
-    Check ($errors.Count -eq 0) `
-          "Run-Audit.ps1 does not parse: $($errors | ForEach-Object { $_.Message })"
-    $text = Get-Content -LiteralPath $runAudit -Raw
-}
+#    These run on EVERY edition now, 5.1 included. They used to be skipped there:
+#    `Run-Audit.ps1` carried 23 non-ASCII characters and 5.1 reads a BOM-less file
+#    in the system ANSI codepage, so the runner did not parse at all. #64 made the
+#    three runners ASCII and declared them pwsh-only with `#Requires -Version 7`,
+#    which is a different thing from unparseable: 5.1 can now READ the file and
+#    refuse it for a reason that is true. The shell contract itself is asserted in
+#    Test-RunnerShellContract.ps1; what stays here is the tolerance policy.
+$tokens = $null; $errors = $null
+$null = [System.Management.Automation.Language.Parser]::ParseFile(
+    (Resolve-Path $runAudit), [ref]$tokens, [ref]$errors)
+Check ($errors.Count -eq 0) `
+      "Run-Audit.ps1 does not parse: $($errors | ForEach-Object { $_.Message })"
+$text = Get-Content -LiteralPath $runAudit -Raw
 
 if ($null -ne $text) {
     Check ($text -match [regex]::Escape("PSBoundParameters.ContainsKey('LineTol')")) `

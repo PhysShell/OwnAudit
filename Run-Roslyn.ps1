@@ -1,3 +1,8 @@
+#Requires -Version 7
+# PowerShell 7+ only, and stated where the ENGINE can act on it. Windows PowerShell
+# 5.1 reads a BOM-less file as ANSI, so a non-ASCII byte used to surface as a syntax
+# error in whatever word happened to contain it. This file is ASCII so 5.1 can read
+# it, and this line is what 5.1 then reports instead: a refusal about versions.
 <#
 .SYNOPSIS
   Run the NuGet Roslyn analyzer packs (build-required tier) over STS via VS2022 and
@@ -7,7 +12,7 @@
   Roslyn analyzers run DURING compilation, so this rebuilds the target with the packs
   injected (canonical inject props, gated on /p:OwnAudit=true) plus an is_global config
   that downgrades every analyzer diagnostic to 'warning' (so an error-default rule like
-  Meziantou MA0037 is COLLECTED, not build-breaking — real CS#### errors still fail).
+  Meziantou MA0037 is COLLECTED, not build-breaking - real CS#### errors still fail).
 
   Needs VS2022 BuildTools (Roslyn 4.x): the modern packs no-load on VS2019/Roslyn 3.x
   (Gu.Roslyn.Extensions version conflict). Each pack is cached in its OWN subdir so it
@@ -35,7 +40,7 @@ $ErrorActionPreference = 'Stop'
 $env:PYTHONUTF8 = '1'
 $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
 $msbuild = (& $vswhere -products * -version "[17.0,18.0)" -latest -find "MSBuild\**\Bin\MSBuild.exe" 2>$null | Select-Object -First 1)
-if (-not $msbuild) { throw "VS2022 msbuild not found — BuildTools 17.x (Roslyn 4.x) is required for the modern packs." }
+if (-not $msbuild) { throw "VS2022 msbuild not found - BuildTools 17.x (Roslyn 4.x) is required for the modern packs." }
 $nuget = 'C:\Repos\_ownaudit\tools\nuget.exe'
 
 # 1. per-pack analyzer cache (each pack in its OWN subdir -> its own Gu.Roslyn.Extensions)
