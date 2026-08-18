@@ -40,9 +40,10 @@ sys.path.insert(0, ROOT)
 from aggregate import provenance as prov                                         # noqa: E402
 from aggregate.normalize import (                                                # noqa: E402
     DEFAULT_TAXONOMY, SCHEMA_VERSION, V1_FIELDS, TaxonomyError, build_payload,
-    categorize, coverage, finding_to_dict, load_taxonomy, normalize_results, project_v1,
+    categorize, coverage, finding_to_dict, load_taxonomy, normalize, normalize_results,
+    project_v1,
 )
-from aggregate.sarif_read import norm_path, parse_sarif                          # noqa: E402
+from aggregate.sarif_read import norm_path, parse_sarif, read_sarif              # noqa: E402
 from identity.occurrence import (                                                # noqa: E402
     LIMIT_AMBIGUOUS_ANCHOR, LIMIT_NO_RUN_ID, LIMIT_NO_START_COLUMN, LIMIT_NO_START_LINE,
 )
@@ -138,15 +139,43 @@ def main() -> int:
           "a result with no message text must read as an empty message")
     check(by_path.get("Broker/EmptyRule.cs", {}).get("category") == 0,
           "an empty ruleId must land in uncategorized, not match a glob")
-    # KNOWN GAP, pinned so it cannot change unnoticed: a result with no location is
-    # dropped and counted nowhere. own-check.sarif carries 20 results; the ledger
-    # sees 19. Fixing that is a separate change with a separate payload.
-    own_results = json.load(open(os.path.join(FIX, "own-check.sarif"), encoding="utf-8"))
-    n_own = sum(len(run.get("results", [])) for run in own_results["runs"])
-    n_read = len(parse_sarif(open(os.path.join(FIX, "own-check.sarif"), encoding="utf-8").read(),
-                             "own-check", []))
-    check((n_own, n_read) == (20, 19),
-          f"locationless-result handling changed: {n_read} read of {n_own} results")
+    # ---- 4b. A locationless result is ACCOUNTED FOR, not dropped silently (#57).
+    #      own-check.sarif carries 20 results; 19 have a usable physical location.
+    #      The 20th does not become a finding - there is no anchor for it to hang
+    #      on, and inventing `path: ""` / `line: 0` would manufacture a physical
+    #      coordinate the producer never reported. But it stops evaporating: the
+    #      reader counts it, by tool and by rule, and the ledger reports it.
+    own_text = open(os.path.join(FIX, "own-check.sarif"), encoding="utf-8").read()
+    n_own = sum(len(run.get("results", [])) for run in json.loads(own_text)["runs"])
+    read = read_sarif(own_text, "own-check", [])
+    check(n_own == 20, f"fixture drifted: own-check.sarif now carries {n_own} results")
+    check(len(read.findings) == 19,
+          f"{len(read.findings)} results read of {n_own}; usable-location count changed")
+    check(read.no_physical_location == 1,
+          f"the locationless result must be counted, got {read.no_physical_location}")
+    check(len(read.findings) + read.no_physical_location == n_own,
+          "every raw SARIF result must be either read or counted as locationless")
+    check(read.no_physical_location_by_rule == {"OWN001": 1},
+          f"the loss must name its rule, got {read.no_physical_location_by_rule}")
+
+    # ---- 4c. A first location without a uri must not mask a usable second one.
+    #      `_first_location` already scans past it; the issue asked for this to be
+    #      measured rather than assumed, so here is the specimen that measures it.
+    multi = json.dumps({"runs": [{"results": [{
+        "ruleId": "OWN001",
+        "message": {"text": "the SECOND location is the one carrying a uri"},
+        "locations": [
+            {"physicalLocation": {"region": {"startLine": 7}}},          # no artifactLocation
+            {"physicalLocation": {"artifactLocation": {"uri": "Broker/Second.cs"},
+                                  "region": {"startLine": 42, "startColumn": 5}}},
+        ]}]}]})
+    second = read_sarif(multi, "own-check", [])
+    check(len(second.findings) == 1
+          and second.findings[0].path == "Broker/Second.cs"
+          and second.findings[0].line == 42,
+          f"a usable second location must win: {second.findings}")
+    check(second.no_physical_location == 0,
+          "a result WITH a usable location must never be counted as locationless")
 
     # ---- 5. Suppression is by path OR message, counted and never hidden.
     check(cov["suppressed"] == 2 and cov["suppressed_by"] == {"third-party: DevExpress.": 2},
@@ -157,6 +186,42 @@ def main() -> int:
           "suppression must read the message too, not only the path")
     check(cov["total"] - cov["kept"] == cov["suppressed"] + cov["analysis_skipped"],
           "the ledger must account for every finding it drops")
+
+    # ---- 5b. The ledger reconciles against the RAW SARIF, not against itself (#57).
+    #      `total` keeps its meaning - results that could be normalized - and the
+    #      locationless remainder sits beside it, so the two together account for
+    #      every result the producers emitted.
+    raw_total = 0
+    for tool in TOOLS:
+        with open(os.path.join(FIX, f"{tool}.sarif"), encoding="utf-8") as fh:
+            raw_total += sum(len(run.get("results", [])) for run in json.load(fh)["runs"])
+    check(cov["total"] + cov["no_physical_location"] == raw_total,
+          f"ledger does not reconcile: {cov['total']} + "
+          f"{cov['no_physical_location']} != {raw_total} raw results")
+    check(cov["no_physical_location"] == 1,
+          f"expected exactly one locationless result in the fixtures, "
+          f"got {cov['no_physical_location']}")
+    check(cov["no_physical_location_by"] == {"own-check": {"OWN001": 1}},
+          f"the loss must be attributable to a tool and a rule: "
+          f"{cov['no_physical_location_by']}")
+
+    # ---- 5c. That reconciliation is only trustworthy if one producer name means one
+    #      input. `normalize` keys its reads by producer, so two inputs under one
+    #      name would keep both sets of findings and only the last locationless
+    #      count - the ledger above would then be quietly wrong rather than loudly
+    #      absent. `build_payload` already refused this; `normalize` is reachable
+    #      directly and must refuse it too, or the guarantee depends on the caller.
+    dup = [("roslyn", os.path.join(FIX, "roslyn.sarif")),
+           ("roslyn", os.path.join(FIX, "own-check.sarif"))]
+    try:
+        normalize(dup, tax, list(STRIPS))
+        check(False, "normalize() accepted two inputs under one producer name: the "
+                     "locationless ledger silently drops the first input's count")
+    except prov.ProvenanceError:
+        pass
+    except Exception as exc:                                        # noqa: BLE001
+        check(False, f"normalize() must refuse duplicates with ProvenanceError, "
+                     f"got {type(exc).__name__}: {exc}")
 
     # ---- 6. Coverage notes are routed out of scoring, not counted as verdicts.
     check(cov["analysis_skipped_by"] == {"OWN050": 1},
@@ -504,10 +569,22 @@ def _reference_checks(ref: str) -> None:
             return
         with open(out, encoding="utf-8") as fh:
             regenerated = fh.read()
+
+    # The golden stays byte-identical to what the reference wrote. #57 adds two
+    # coverage keys the reference cannot emit - it IS the implementation that
+    # dropped locationless results without counting them - and they are excluded
+    # in `project_v1`, exactly where slice 1B put `identity` and
+    # `provenance_unused_entries`. Their values are asserted on their own in
+    # section 5b of `main`, together with the raw-result reconciliation, so
+    # nothing here is weakened by their absence.
+    # No trailing newline: that is how the reference writer emits it, and how the
+    # committed golden is stored. Adding one here would fail the comparison for a
+    # byte nobody changed.
     with open(GOLDEN, encoding="utf-8") as fh:
-        check(regenerated == fh.read(),
-              "the committed golden is no longer what the reference implementation "
-              "produces - regenerate it and re-read the diff before trusting either side")
+        golden = fh.read()
+    check(golden == regenerated,
+          "the committed golden is no longer what the reference implementation "
+          "produces - regenerate it and re-read the diff before trusting either side")
 
     try:
         import yaml

@@ -63,7 +63,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from aggregate import provenance as prov                                        # noqa: E402
 from aggregate.sarif_read import (                                              # noqa: E402,F401
-    RawFinding, norm_path, parse_sarif, parse_sarif_with_driver,
+    RawFinding, SarifReadResult, norm_path, parse_sarif, parse_sarif_with_driver,
+    read_sarif,
 )
 from identity import occurrence as occ                                          # noqa: E402
 from identity.pattern import pattern_id_of                                      # noqa: E402
@@ -223,14 +224,30 @@ def normalize_results(raw: list[Any], tax: Taxonomy) -> list[AuditFinding]:
     return out
 
 
-def coverage(findings: list[AuditFinding]) -> dict[str, Any]:
+def coverage(findings: list[AuditFinding],
+             reads: dict[str, SarifReadResult]) -> dict[str, Any]:
     """The honesty ledger: what was categorized, what was suppressed, which rules
     are analysis-skipped coverage notes, and which rules have no taxonomy entry yet
-    (so they are visibly pending, not lost)."""
+    (so they are visibly pending, not lost).
+
+    `total` keeps the meaning it has always had - results that could be
+    normalized - and does NOT grow to include locationless ones. They are not
+    findings; they are results that could not become findings, and the ledger
+    states them separately so the two together reconcile against the raw SARIF:
+
+        total + no_physical_location == sum(len(run.results))
+
+    `reads` is required rather than optional. Defaulting it would let a caller
+    that never measured the loss emit `no_physical_location: 0`, which reads
+    downstream as "measured, none found" - the report-health-you-never-measured
+    failure this ledger exists to prevent.
+    """
     kept = [f for f in findings if f.scored]
     suppressed = [f for f in findings if f.suppressed]
     notes = [f for f in findings if f.note and not f.suppressed]
     uncategorized = Counter(f.rule for f in kept if f.category == 0)
+    lost_by = {tool: dict(r.no_physical_location_by_rule)
+               for tool, r in sorted(reads.items()) if r.no_physical_location}
     return {
         "tools": sorted({f.tool for f in findings}),
         "total": len(findings),
@@ -241,6 +258,12 @@ def coverage(findings: list[AuditFinding]) -> dict[str, Any]:
         "analysis_skipped_by": dict(Counter(f.rule for f in notes)),
         "by_category": dict(Counter(f.category for f in kept)),
         "uncategorized_rules": dict(uncategorized),
+        #: Results the producers emitted that carry no usable physical location,
+        #: so they could not be anchored into findings (#57). Reported, never
+        #: silently dropped; see `aggregate/sarif_read.py` for why they are not
+        #: admitted with a fabricated `path`/`line`.
+        "no_physical_location": sum(r.no_physical_location for r in reads.values()),
+        "no_physical_location_by": lost_by,
     }
 
 
@@ -251,16 +274,25 @@ def normalize(sarif_inputs: list[tuple[str, str]], tax: Taxonomy, strips: list[s
     The version rides along from the same parse rather than costing a second read
     of a 35 MB file - and it is *observed*, not asserted: only CodeQL declares one
     in the recorded corpus.
+
+    Producer names must be unique HERE, not only in `build_payload`. `reads` is
+    keyed by producer, so a duplicate name silently keeps both inputs' findings
+    while retaining only the last input's locationless count - the two then no
+    longer reconcile, which is precisely the accounting #57 exists to make
+    trustworthy. Before this function counted anything the collision cost a
+    nullable version string and was harmless; it is not harmless now.
     """
+    prov.check_unique_producers(sarif_inputs)
     raw: list[Any] = []
     versions: dict[str, str | None] = {}
+    reads: dict[str, SarifReadResult] = {}
     for tool, path in sarif_inputs:
-        found, version = parse_sarif_with_driver(
-            Path(path).read_text(encoding="utf-8"), tool, strips)
-        raw += found
-        versions[tool] = version
+        read = read_sarif(Path(path).read_text(encoding="utf-8"), tool, strips)
+        raw += read.findings
+        versions[tool] = read.driver_version
+        reads[tool] = read
     findings = normalize_results(raw, tax)
-    return findings, coverage(findings), versions
+    return findings, coverage(findings, reads), versions
 
 
 def finding_to_dict(f: AuditFinding) -> dict[str, Any]:
@@ -364,9 +396,11 @@ def build_payload(sarif_inputs: list[tuple[str, str]], tax: Taxonomy, strips: li
     # Before a byte of SARIF is read: two inputs under one producer name cannot be
     # represented, and a malformed manifest is worth finding out about now rather
     # than after parsing 100 MB of input. The manifest is read ONCE here and handed
-    # to both consumers below; `prov.resolve` re-checks uniqueness for callers that
-    # reach it directly, which costs a loop over four items and keeps the invariant
-    # true no matter who calls.
+    # to both consumers below. `normalize` and `prov.resolve` each re-check
+    # uniqueness for callers that reach them directly, which costs a loop over four
+    # items and keeps the invariant true no matter who calls - this comment used to
+    # claim that while `normalize`, which reaches neither, was the one path that
+    # could count a duplicate instead of refusing it.
     prov.check_unique_producers(sarif_inputs)
     entries = prov.load_manifest(manifest_path) if manifest_path else {}
     findings, cov, versions = normalize(sarif_inputs, tax, strips)
@@ -393,9 +427,19 @@ def project_v1(payload: dict[str, Any]) -> dict[str, Any]:
     implementation, not by this code - keeps meaning something after the schema
     grew. If this projection ever stops matching those bytes, 1B changed
     something it promised only to add to.
+
+    Every later slice that ADDS a coverage key excludes it here, and the golden
+    stays exactly what the reference wrote. Editing the golden instead would work
+    once and cost the file its meaning: a diff against a fresh reference run is
+    supposed to say "the port drifted", and a hand-edited golden makes it say
+    "the port drifted, or someone touched this on purpose, and you cannot tell
+    which". `no_physical_location*` are #57's keys; the reference has nothing to
+    say about them by construction, being the implementation that dropped
+    locationless results without counting them.
     """
     cov = {k: v for k, v in payload["coverage"].items()
-           if k not in ("identity", "provenance_unused_entries")}
+           if k not in ("identity", "provenance_unused_entries",
+                        "no_physical_location", "no_physical_location_by")}
     return {"coverage": cov,
             "findings": [{k: r[k] for k in V1_FIELDS} for r in payload["findings"]]}
 
@@ -492,7 +536,8 @@ def _selftest() -> int:
     check(tax.rules.get("OWN014", {}).get("name") == "region-escape",
           "shipped categories.json: OWN014 must be region-escape, not subscription-leak")
 
-    own = normalize_results(parse_sarif(_own_sarif(), "own-check", []), tax)
+    own_read = read_sarif(_own_sarif(), "own-check", [])
+    own = normalize_results(own_read.findings, tax)
     by_file = {f.fkey: f for f in own}
 
     # OWN001 umbrella split by [resource: ...] tag.
@@ -516,14 +561,19 @@ def _selftest() -> int:
           "OWN050 must be a coverage note (note=True, scored=False)")
 
     # Glob mapping + uncategorized + DevExpress suppression on the CodeQL run.
-    cq = normalize_results(parse_sarif(_codeql_sarif(), "codeql", []), tax)
+    cq_read = read_sarif(_codeql_sarif(), "codeql", [])
+    cq = normalize_results(cq_read.findings, tax)
     cq_by = {f.fkey: f for f in cq}
     check(cq_by["io.cs"].category == 1, "cs/local-not-disposed should map to category 1")
     check(cq_by["helper.cs"].suppressed, "DevExpress finding must be baseline-suppressed")
     check(cq_by["misc.cs"].category == 0, "unmapped FOO999 must be uncategorized (category 0)")
 
-    cov = coverage(own + cq)
+    cov = coverage(own + cq, {"own-check": own_read, "codeql": cq_read})
     check(cov["suppressed"] == 1, f"coverage suppressed count wrong: {cov['suppressed']}")
+    # These inline samples are all anchored, so the ledger must say so with a
+    # measured zero - which it may, having actually read them.
+    check(cov["no_physical_location"] == 0 and cov["no_physical_location_by"] == {},
+          f"inline samples carry no locationless results: {cov['no_physical_location']}")
     check(cov["analysis_skipped"] == 1 and cov["analysis_skipped_by"].get("OWN050") == 1,
           "OWN050 must be counted as analysis-skipped in coverage")
     check("OWN050" not in cov["uncategorized_rules"],

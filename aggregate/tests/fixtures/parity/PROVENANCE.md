@@ -24,6 +24,31 @@ at an Own.NET checkout and diffs the result against the committed bytes. Without
 `OWNNET_REF` the test still compares the port's output to these bytes — it just
 cannot re-attest where they came from, and says so.
 
+## One deliberate divergence from the reference (#57)
+
+The committed golden carries two `coverage` keys the reference implementation
+does not emit:
+
+```jsonc
+"no_physical_location": 1,
+"no_physical_location_by": { "own-check": { "OWN001": 1 } }
+```
+
+They were **added on purpose**, not regenerated. `own-check.sarif` carries 20
+results and 19 have a usable physical location; the reference dropped the 20th
+and counted it nowhere, which is precisely the defect #57 fixes — so the
+reference cannot produce these keys by construction, and waiting for it to would
+mean never fixing the hole.
+
+The change to the payload here is the **goal** of that slice, not a side effect
+of it. Everything else in this file is untouched: `findings` is byte-identical to
+what the reference produced, and the edit that added the two keys was an
+additions-only diff. `_reference_checks` lifts exactly these two keys out (they
+are listed in `DIVERGES_FROM_REFERENCE`), asserts their shape separately, and
+holds the remaining bytes to the same equality it always did — so a real drift
+cannot hide behind an intended divergence, and the intended divergence cannot
+quietly grow.
+
 ## What the four SARIF inputs are for
 
 They are hand-built, not captured, so every branch that matters is exercised at
