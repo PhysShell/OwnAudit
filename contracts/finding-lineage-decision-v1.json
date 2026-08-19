@@ -1,0 +1,263 @@
+{
+  "contract": "finding-lineage-decision/v1",
+  "status": "frozen-unimplemented",
+  "builds_on": "finding-lineage/v1",
+  "notes": [
+    "Own.NET#266 slice 2, step 1. finding-lineage/v1 froze WHAT a mapping may",
+    "conclude and what it must show. This freezes WHICH EVIDENCE LICENSES WHICH",
+    "conclusion - and, just as load-bearing, what happens when two answers apply",
+    "at once. Still no mapper: this is the decision policy, not the code.",
+    "Everything here is subordinate to the outcome contract. Where they appear to",
+    "disagree, finding-lineage/v1 wins and this file is the thing that is wrong."
+  ],
+  "why_rule_ids_and_not_a_confidence_score": [
+    "A scalar confidence collapses WHICH signals fired into a number, and the",
+    "outcome contract already forbids exactly that for evidence. Two different",
+    "evidence sets scoring 0.8 become indistinguishable in the record, and the",
+    "question 'would this mapping still be made under the new rule' stops having",
+    "an answer - which is the promise mapping_provenance exists to keep.",
+    "So a mapping cites the RULE that licensed it, by id, in `licensed_by`.",
+    "Changing a rule then has a mechanical consequence: every mapping citing it",
+    "can be found and re-judged. A threshold moving from 0.7 to 0.75 leaves no",
+    "such trail.",
+    "This is a deliberate NO to a confidence class, not an omission. If one is",
+    "ever wanted, it must be derived FROM the cited rules and stored beside them,",
+    "never instead of them."
+  ],
+  "decision_procedure": [
+    "1. COLLECT the signals that were actually evaluated. A signal that could not",
+    "   be evaluated is not absent - see `unavailable_inputs`.",
+    "2. DEFEAT: remove every signal an explaining record accounts for. A defeated",
+    "   signal is REMOVED, never weighed. finding-lineage/v1 owns the defeaters",
+    "   for boundary evidence; `signal_defeaters` here owns the rest.",
+    "3. APPLY every rule to the surviving set. All of them, not the first match.",
+    "4. ARBITRATE by `arbitration`, below.",
+    "5. RECORD the outcome, `licensed_by` (every rule that applied, not just the",
+    "   winner), the evidence, and the provenance."
+  ],
+  "order_independence": [
+    "Step 3 evaluates a SET, not a sequence, and step 4 resolves by a declared",
+    "relation rather than by position. This is the whole reason the procedure is",
+    "written this way: an `if/elif` chain makes the answer depend on the order",
+    "someone happened to type the branches in, and that order is invisible in the",
+    "output. Two mappers implementing this contract must agree, and they cannot",
+    "agree about something neither of them records."
+  ],
+  "rules": {
+    "R-CONT-SAME-SITE": {
+      "outcome": "continued",
+      "requires_all": [
+        "same_path",
+        "structural_context",
+        "anchored_content"
+      ],
+      "means": "the occurrence is where it was, in the symbol it was in, saying what it said"
+    },
+    "R-CONT-DRIFT": {
+      "outcome": "continued",
+      "requires_all": [
+        "same_path",
+        "structural_context",
+        "line_drift"
+      ],
+      "means": "same file and same enclosing symbol, moved by an edit elsewhere",
+      "note": "content is NOT required: a defect may be edited without ceasing to be the same defect"
+    },
+    "R-CONT-RENAME": {
+      "outcome": "continued",
+      "requires_all": [
+        "path_rename",
+        "structural_context",
+        "anchored_content"
+      ],
+      "means": "the file moved and the occurrence moved with it, unchanged inside",
+      "note": "path_rename alone can never do this. A rename relates FILES; the other two are what relate the occurrence."
+    },
+    "R-BRANCH-COPY": {
+      "outcome": "branched",
+      "requires_all": [
+        "copy_record"
+      ],
+      "requires_per_successor": "a rule of outcome `continued`",
+      "means": "one predecessor, several successors, and a RECORD explaining why there are several",
+      "note": "the copy record is what separates a branch from an ambiguity. Without it, several equally-supported candidates are `unresolved` - see `arbitration.multiplicity`."
+    },
+    "R-MERGE-FOLD": {
+      "outcome": "merged",
+      "requires_all": [
+        "merge_record"
+      ],
+      "requires_per_predecessor": "a rule of outcome `continued`",
+      "means": "several predecessors, one successor, and a RECORD explaining the fold"
+    }
+  },
+  "rules_note": [
+    "This set is deliberately SMALL and deliberately not exhaustive. Every rule",
+    "here names at least two evidence kinds, because finding-lineage/v1 sets that",
+    "floor and this file may not sit under it.",
+    "There is no rule licensing `ended` or `new`: those are earned by boundary",
+    "evidence, which the outcome contract already governs. Adding a rule for them",
+    "here would create a second, competing route to a death or a birth - the",
+    "exact defect that contract was corrected for."
+  ],
+  "signal_defeaters": {
+    "structural_context": {
+      "defeated_by": "revision_b.renamed_symbols[].from",
+      "why": "an enclosing symbol that was RENAMED still matches by name only by accident; the rename record says the site moved, and a name match across a rename is coincidence rather than continuity"
+    },
+    "anchored_content": {
+      "defeated_by": "revision_b.reformatted_paths",
+      "why": "content equality across a reformatting pass is a property of the formatter, not of the occurrence - it neither confirms nor denies that this is the same defect"
+    }
+  },
+  "defeater_rule": [
+    "A defeated signal is REMOVED from the set before rules are applied. It is not",
+    "given a lower weight, because weight is the thing this contract refuses to",
+    "have. A rule that needed it simply stops applying, and the record says which",
+    "signal was defeated and by which record.",
+    "Defeaters therefore always beat positive signals - not because they are",
+    "'stronger', but because they act EARLIER and on a different object: they",
+    "remove an input rather than argue with a conclusion."
+  ],
+  "unavailable_inputs": {
+    "meaning": "a signal that could not be EVALUATED at all: no symbol index, no diff, no content for the revision",
+    "distinct_from": "a signal that was evaluated and did not hold",
+    "effect": "rules depending on it do not apply; they do not fail, and they certainly do not count against the mapping",
+    "recorded_as": "inputs_unavailable, listing the signal names",
+    "why": [
+      "This is the absence-of-record doctrine at a third layer. The runtime witness",
+      "refuses to read an unread heap as a clean one; the occurrence contract",
+      "refuses an ambiguous anchor rather than guessing; here, a diff that was not",
+      "available must not read as 'the file did not move'.",
+      "Concretely: with no diff, `path_rename` cannot be evaluated, so R-CONT-RENAME",
+      "cannot apply - and an occurrence that really did move with a renamed file",
+      "comes out `unresolved`, naming the missing input, instead of `ended` plus",
+      "`new`. Slower, and true."
+    ]
+  },
+  "arbitration": {
+    "none_applies": {
+      "outcome": "unresolved",
+      "reason": "lineage-id-unavailable:no-mapping-evidence"
+    },
+    "all_agree": {
+      "outcome": "the shared outcome",
+      "licensed_by": "EVERY applicable rule, not the first or the strongest",
+      "why": "the record has to survive one of those rules being retired later"
+    },
+    "conflict": {
+      "outcome": "unresolved",
+      "reason": "lineage-id-unavailable:conflicting-rules",
+      "unless": "exactly one applicable rule DOMINATES every other applicable rule, per `dominance`",
+      "why": "two rules reaching different conclusions from the same evidence is a defect in this contract, and a mapper is the wrong place to paper over it. Refusing makes it visible; picking one hides it behind whichever branch was typed first."
+    },
+    "multiplicity": {
+      "rule": "a 1:1 outcome requires exactly ONE candidate satisfying the licensing rule",
+      "several_candidates_with_a_structural_record": "branched or merged, per R-BRANCH-COPY / R-MERGE-FOLD",
+      "several_candidates_without_one": {
+        "outcome": "unresolved",
+        "reason": "lineage-id-unavailable:ambiguous-candidates"
+      },
+      "why": [
+        "This is what makes twins work without any rule mentioning twins. Two",
+        "occurrences of one pattern in one file agree on path, pattern and content;",
+        "only structural_context tells them apart. A rule that does not include it",
+        "is satisfied by BOTH candidates, and uniqueness turns that into a refusal",
+        "instead of into whichever candidate was enumerated first.",
+        "Uniqueness is checked per RULE, not per outcome: a discriminating rule may",
+        "single out a candidate while a blunter one does not."
+      ]
+    }
+  },
+  "dominance": {
+    "declared_pairs": [
+      {
+        "winner": "R-BRANCH-COPY",
+        "loses": [
+          "R-CONT-SAME-SITE",
+          "R-CONT-DRIFT",
+          "R-CONT-RENAME"
+        ],
+        "why": "a copy record EXPLAINS the multiplicity; a 1:1 rule reached its answer by not looking at the other successor. The more informed reading wins, and the losers are still recorded in licensed_by so the disagreement stays visible."
+      },
+      {
+        "winner": "R-MERGE-FOLD",
+        "loses": [
+          "R-CONT-SAME-SITE",
+          "R-CONT-DRIFT",
+          "R-CONT-RENAME"
+        ],
+        "why": "the mirror case: a merge record explains why several predecessors reach one successor, and continuing just one of them would report the others as fixed."
+      }
+    ],
+    "rule": [
+      "These two pairs are NOT decoration. finding-lineage/v1 preregisters",
+      "`copy-branches-without-a-winner`, where the original site continues AND a copy",
+      "exists: R-CONT-SAME-SITE and R-BRANCH-COPY both apply and disagree. That",
+      "fixture forbids 'continued to exactly one of them', so the outcome contract",
+      "has already decided this conflict - and a decision policy that left it",
+      "unresolved would contradict a frozen case rather than implement it.",
+      "An earlier draft of this file declared dominance empty 'on purpose'. It was",
+      "checked against the step 0 matrix and was simply wrong: the conflict is",
+      "constructible, and the answer was already frozen.",
+      "Dominance is declared PAIRWISE and explicitly. There is no global ranking,",
+      "no rule priority number, and no tie-break by name - all three would decide",
+      "conflicts nobody has looked at yet."
+    ]
+  },
+  "record_additions": {
+    "licensed_by": "the ids of every rule that applied. Required for continued, branched and merged.",
+    "signals_defeated": "signal name -> the record that defeated it. Present whenever step 2 removed anything.",
+    "inputs_unavailable": "signal names that could not be evaluated. Present whenever any were."
+  },
+  "new_limitations": {
+    "conflicting-rules": "lineage-id-unavailable:conflicting-rules",
+    "input-unavailable": "lineage-id-unavailable:input-unavailable"
+  },
+  "preregistered_cases": [
+    "copy-record-dominates-the-single-match",
+    "merge-record-dominates-the-single-match",
+    "defeated-signal-drops-below-the-floor",
+    "renamed-symbol-defeats-structural-context",
+    "unavailable-diff-is-not-a-deletion",
+    "blunt-rule-loses-to-uniqueness"
+  ],
+  "preregistration_rule": [
+    "Fixed before the mapper, same as slice 2 step 0. These six are about the",
+    "POLICY rather than the vocabulary: each is a shape where two answers are",
+    "available and the contract has to say which, or say neither."
+  ],
+  "conflict_completeness_rule": [
+    "Every pair of rules that (a) can be satisfied by one evidence set and (b) names",
+    "a different outcome MUST either appear in `dominance.declared_pairs` or be",
+    "listed in `deliberately_unresolved_conflicts`. The integrity suite computes the",
+    "pairs from `requires_all` and fails on any that is in neither list.",
+    "This is a proof over the RULE SET rather than an example: a fixture can only",
+    "show that one conflict is handled, while this says none is unhandled. It is",
+    "also what caught the empty-dominance error, and it will catch the next rule",
+    "added without a thought about what it argues with."
+  ],
+  "deliberately_unresolved_conflicts": [
+    {
+      "between": [
+        "R-BRANCH-COPY",
+        "R-MERGE-FOLD"
+      ],
+      "outcome": "unresolved",
+      "reason": "lineage-id-unavailable:conflicting-rules",
+      "why": [
+        "One occurrence that is both a copy source and a participant in a fold is an",
+        "N:M shape, and finding-lineage/v1 has six outcomes among which none is N:M.",
+        "Neither rule dominates, because neither is more informed: each holds a",
+        "structural record the other does not consult, and both records are true.",
+        "Picking `branched` would drop the predecessors the fold names; picking",
+        "`merged` would drop the successors the copy names. Refusing loses nothing",
+        "except the pretence, and the record names both rules in licensed_by so the",
+        "shape is visible to whoever decides whether v2 needs a seventh outcome.",
+        "This pair was not noticed while the rules were being written. The",
+        "completeness check found it on its first run, which is the argument for",
+        "having a proof over the rule set rather than only fixtures."
+      ]
+    }
+  ]
+}
