@@ -115,6 +115,37 @@ jobs:
         shell: powershell
         run: ./scripts/tests/Test-LineTolPolicy.ps1
 
+  runner-shell-contract:
+    # OwnAudit#64. The runners are pwsh-only; the contract is that Windows
+    # PowerShell 5.1 can still READ them and refuse them for a true reason,
+    # instead of dying on a syntax error inside a word in a comment. Windows only:
+    # the defect is Windows 5.1 decoding a BOM-less file in the system ANSI
+    # codepage, and no Linux runner reproduces it.
+    name: runner shell contract (windows-latest / pwsh)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
+      - name: ASCII, #Requires, and parse under pwsh
+        shell: pwsh
+        run: ./scripts/tests/Test-RunnerShellContract.ps1
+
+  runner-shell-contract-ps51:
+    # The leg that actually covers the defect. Split out for the same reason as
+    # linetol-policy-ps51: `shell:` accepts no expression, so a matrix cannot
+    # carry it. Here the suite invokes each runner for real and asserts the
+    # refusal names the version and leaves no -Out directory behind.
+    name: runner shell contract (windows-latest / Windows PowerShell 5.1)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
+      - name: 5.1 reads the runners and refuses them by version
+        shell: powershell
+        run: ./scripts/tests/Test-RunnerShellContract.ps1
+
   audit-report:
     name: SARIF export + dashboard smoke
     runs-on: ubuntu-latest

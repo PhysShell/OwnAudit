@@ -1,15 +1,20 @@
+#Requires -Version 7
+# PowerShell 7+ only, and stated where the ENGINE can act on it. Windows PowerShell
+# 5.1 reads a BOM-less file as ANSI, so a non-ASCII byte used to surface as a syntax
+# error in whatever word happened to contain it. This file is ASCII so 5.1 can read
+# it, and this line is what 5.1 then reports instead: a refusal about versions.
 <#
 .SYNOPSIS
   Run Infer# (build-required) over STS's own built binaries via the WSL2 infersharp
   distro, and write artifacts/infersharp.sarif for the audit to fold in.
 
 .DESCRIPTION
-  Infer# analyzes COMPILED binaries (.dll + .pdb) — build-required (audit/ §3.2). It
-  copies the source-mappable STS assemblies (those with a .pdb — which skips the
+  Infer# analyzes COMPILED binaries (.dll + .pdb) - build-required (audit/ section 3.2). It
+  copies the source-mappable STS assemblies (those with a .pdb - which skips the
   DevExpress / 3rd-party DLLs that ship no PDB and couldn't be source-mapped anyway)
   out of the build output, runs Infer# inside the WSL distro, and drops the SARIF where
   Run-Audit.ps1 folds it in. Infer#'s Pulse analysis is SLOW (minutes to hours,
-  dominated by the big assemblies — Broker, BrokerDataClasses).
+  dominated by the big assemblies - Broker, BrokerDataClasses).
 
   Infer# reports a leak at the LAST-ACCESS line (the alloc line is in the message), so
   fold with a wider Run-Audit.ps1 -LineTol (e.g. 8) to cluster it with own-check/codeql.
@@ -46,7 +51,7 @@ $wslSarif = & $toWsl (Join-Path $Out "infersharp.sarif")
 wsl -d $Distro -- bash -lc "cd ~/infersharp && rm -rf infer-out && ./run_infersharp.sh $wslBin && cp infer-out/report.sarif $wslSarif && echo OK"
 if (-not (Test-Path "$Out\infersharp.sarif")) { throw "Infer# produced no SARIF (wsl exit $LASTEXITCODE)" }
 # Drop findings in third-party assemblies Infer# pulled in via their PDBs (paths like
-# 'file:/_/BASE/src/...') and any generated files — keep STS code only.
+# 'file:/_/BASE/src/...') and any generated files - keep STS code only.
 $env:PYTHONUTF8 = '1'
 python -c @"
 import json,re
