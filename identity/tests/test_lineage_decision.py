@@ -28,6 +28,13 @@ THE THREE PROPERTIES, AND WHICH ARE INDEPENDENT
   3. TOTALITY - every non-empty subset of declared ids yields exactly one
      result, independent of enumeration order.
 
+Arbitration is read here the way `arbitration.conflict` states it: remove every
+rule some other applicable rule dominates, and the SURVIVORS decide. If they all
+name one outcome that is the outcome, and they are all named in `licensed_by`.
+Not "one rule dominates all the others" - that is a strictly narrower policy, it
+is not what properties 1 and 2 imply, and while the contract said it the sweep
+below was proving totality of a policy the contract did not describe.
+
 1 and 2 are independent axioms, and two probes show neither implies the other.
 3 is NOT a third axiom: it is a THEOREM of 1 and 2 plus the absorbing refusal
 rule, and the suite says so rather than staging it as one.
@@ -60,6 +67,11 @@ sys.path.insert(0, ROOT)
 
 SENIOR = os.path.join(ROOT, "contracts", "finding-lineage-v1.json")
 POLICY = os.path.join(ROOT, "contracts", "finding-lineage-decision-v1.json")
+
+# Reviewed cost ceiling for the 3^k totality enumeration, in arbitrations. The
+# current policy spends 2187 * 31 = 67797 of it. Exceeding it is a FAILURE, not a
+# downgrade: see meta-check 5d.
+EXHAUSTIVE_PROOF_BUDGET = 250_000
 
 fails: list[str] = []
 
@@ -162,9 +174,10 @@ def dominance_sanity_failures(ids, outcomes, raw_edges) -> list:
 
 
 def arbitrate(subset, outcomes, edges, refusals):
-    """The contract's procedure, read structurally. Returns None for 'no defined
-    result', which the theorem says is unreachable - the sweep is what keeps that
-    honest after a future edit."""
+    """The contract's procedure, read structurally. Returns (outcome, licensed_by)
+    where licensed_by is the SURVIVOR set - empty on a refusal - or None for 'no
+    defined result', which the theorem says is unreachable. The sweep is what
+    keeps that honest after a future edit."""
     s = set(subset)
     if not s:
         return None
@@ -198,6 +211,16 @@ def main() -> int:
           f"the policy must declare what it is subordinate to, got {policy.get('builds_on')!r}")
     check(policy["status"] == "frozen-unimplemented",
           "the policy must declare itself unimplemented until a mapper exists")
+    # `licensed_by` has ONE definition, and `arbitrate` below implements it. A
+    # policy that drops the definition and leaves the branches to imply it is how
+    # the survivor reading and the single-winner reading drifted apart the first
+    # time.
+    check("licensed_by_rule" in policy["arbitration"],
+          "`arbitration` must define `licensed_by` once, for every branch; "
+          "without it each branch states its own and they drift")
+    check("licensed_by_on_refusal" in policy["arbitration"]["conflict"],
+          "`arbitration.conflict` must say what `licensed_by` is on a refusal; "
+          "empty is a claim, and it has to be written down as one")
 
     senior_limitations = set(senior["limitations"].values())
     emitted = {v["reason"] for v in policy["reason_mapping"].values()}
@@ -292,14 +315,29 @@ def main() -> int:
     # properties above are pure functions rather than inline loops.
 
     # 5a. Property 1 bites, and property 2 stays green while it does.
-    no_refusals = ([], [])
-    broke_1 = pair_completeness_failures(ids, outcomes, raw_edges, no_refusals[1])
-    check(bool(broke_1),
-          "dropping every refusal classification left pair completeness satisfied; "
-          "the check does not bite")
-    check(not dominance_sanity_failures(ids, outcomes, raw_edges),
-          "dropping a refusal classification also tripped dominance sanity; the two "
-          "properties are supposed to be independent")
+    # The mutation drops ONE declared classification of whichever kind the policy
+    # happens to carry. An earlier version dropped every refusal, which made the
+    # probe an assertion about this policy having refusals: a policy that declared
+    # none would have failed here for having nothing to break, and one that later
+    # resolved its last refused pair into a dominance edge would have taken the
+    # suite red for an improvement.
+    if raw_edges:
+        mut_edges, mut_refusals, dropped = raw_edges[1:], raw_refusals, "dominance edge"
+    elif raw_refusals:
+        mut_edges, mut_refusals, dropped = raw_edges, raw_refusals[1:], "refusal"
+    else:
+        mut_edges, mut_refusals, dropped = None, None, ""
+    if mut_edges is None:
+        check(not conflicting,
+              "the policy declares different-outcome pairs but no classification of "
+              "any kind, so property 1 cannot be probed by removing one")
+    else:
+        check(bool(pair_completeness_failures(ids, outcomes, mut_edges, mut_refusals)),
+              f"dropping one declared {dropped} left pair completeness satisfied; "
+              "the check does not bite")
+        check(not dominance_sanity_failures(ids, outcomes, mut_edges),
+              f"dropping one declared {dropped} also tripped dominance sanity; the "
+              "two properties are supposed to be independent")
 
     # 5b. Property 2 bites, and property 1 stays green while it does.
     cyc_ids = [r for r in ids if outcomes[r] == "continued"][:1] + \
@@ -338,12 +376,21 @@ def main() -> int:
     # satisfying properties 1 and 2 must satisfy totality - if one did not, the
     # theorem would be false and the contract would be claiming a proof it does
     # not have.
+    # The budget is FAIL-CLOSED. Growing the rule set past it takes the suite red
+    # with a message naming the choice, because the alternative - printing a note,
+    # skipping the enumeration and still reporting OK - leaves the contract's proof
+    # claim standing with nothing behind it, and nobody reads a green run's notes.
     k = len(conflicting)
     space = 3 ** k
-    budget = 300_000
-    if space * (2 ** len(ids)) > budget * 40:
-        print(f"NOTE: policy space 3^{k} = {space} is too large to enumerate here; "
-              "the theorem check ran on pairs only")
+    cost = space * (2 ** len(ids) - 1)
+    if cost > EXHAUSTIVE_PROOF_BUDGET:
+        check(False,
+              f"policy-space exceeded exhaustive-proof budget: 3^{k} = {space} "
+              f"classifications x {2 ** len(ids) - 1} subsets = {cost} arbitrations, "
+              f"over the reviewed budget of {EXHAUSTIVE_PROOF_BUDGET}. Either raise "
+              "the reviewed budget or replace the finite enumeration with another "
+              "checked argument. Do not skip it: `what_the_subset_sweep_proves` "
+              "claims totality is proven, and this is where that is paid for.")
     else:
         pair_list = [tuple(sorted(pr)) for pr in sorted(conflicting, key=sorted)]
         satisfying, counterexamples = 0, []
@@ -377,7 +424,8 @@ def main() -> int:
               f"counterexample(s), first {counterexamples[:1]}. The contract claims a "
               "proof it does not have.")
         print(f"       theorem: {satisfying} of {space} classifications satisfy both "
-              f"axioms, 0 break totality")
+              f"axioms, 0 break totality ({cost} arbitrations, budget "
+              f"{EXHAUSTIVE_PROOF_BUDGET})")
 
     for f in fails:
         print(f"FAIL: {f}")

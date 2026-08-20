@@ -149,13 +149,37 @@
     "all_agree": {
       "outcome": "the shared outcome",
       "licensed_by": "EVERY applicable rule, not the first or the strongest",
-      "why": "the record has to survive one of those rules being retired later"
+      "why": "the record has to survive one of those rules being retired later",
+      "this_is_not_a_separate_law": [
+        "It is the general rule read on a set that happens to agree. Dominance",
+        "never spans two rules naming the same outcome - `dominance sanity`",
+        "forbids exactly that - so no rule here can be dominated by another",
+        "applicable one, and every applicable rule survives. The branch is kept",
+        "because it is the common case and reading it out of the general rule",
+        "each time invites a mapper to get it subtly wrong."
+      ]
     },
     "conflict": {
       "outcome": "unresolved",
       "reason": "lineage-id-unavailable:conflicting-evidence",
-      "unless": "exactly one applicable rule DOMINATES every other applicable rule, per `dominance`",
-      "why": "two rules reaching different conclusions from the same evidence is a defect in this contract, and a mapper is the wrong place to paper over it. Refusing makes it visible; picking one hides it behind whichever branch was typed first."
+      "unless": "after removing every rule dominated by another APPLICABLE rule, the surviving rules are non-empty and all name the same outcome; then the outcome is that shared outcome and `licensed_by` is EVERY surviving rule",
+      "licensed_by_on_refusal": "EMPTY. Nothing licensed the refusal.",
+      "why": "two rules reaching different conclusions from the same evidence is a defect in this contract, and a mapper is the wrong place to paper over it. Refusing makes it visible; picking one hides it behind whichever branch was typed first.",
+      "why_survivors_and_not_a_single_winner": [
+        "An earlier wording read `unless exactly ONE applicable rule dominates",
+        "every other applicable rule`. That is a different policy, and a narrower",
+        "one: {R-CONT-DRIFT, R-CONT-RENAME, R-MERGE-FOLD} has both continued rules",
+        "dominating the merge rule and neither dominating the other, so the old",
+        "wording refused while the survivor reading answers `continued`. Refusing",
+        "there would be wrong on its own terms - both survivors agree, and there is",
+        "nothing left to disagree with them.",
+        "It also cost the contract its theorem. Totality follows from pair",
+        "completeness and acyclicity precisely because survivors cannot span two",
+        "outcome classes and cannot be empty; `exactly one dominating rule` is not",
+        "implied by either axiom, so the proof in `what_the_subset_sweep_proves`",
+        "supported the survivor reading and the prose asked for something else.",
+        "The suite was proving totality of a policy this file did not describe."
+      ]
     },
     "multiplicity": {
       "rule": "a 1:1 outcome requires exactly ONE candidate satisfying the licensing rule",
@@ -173,7 +197,14 @@
         "Uniqueness is checked per RULE, not per outcome: a discriminating rule may",
         "single out a candidate while a blunter one does not."
       ]
-    }
+    },
+    "licensed_by_rule": [
+      "ONE definition, and the branches above are readings of it: `licensed_by` is",
+      "the set of SURVIVING rules - the applicable rules that no other applicable",
+      "rule dominates - and it is empty exactly when the outcome is a refusal.",
+      "Dominated rules never appear in it. They stay in `applicable_rules`, where",
+      "the disagreement remains readable without being credited with the answer."
+    ]
   },
   "dominance": {
     "declared_pairs": [
@@ -213,7 +244,7 @@
   },
   "record_additions": {
     "applicable_rules": "the DISTINCT ids of rules having at least one surviving application. A set of ids, not a count of applications: one rule may fire on several candidate edges, and this field does not carry that multiplicity. The bindings live in `evidence` and `decision_detail`.",
-    "licensed_by": "the rule(s) the outcome rests on. Required for continued, branched and merged; EMPTY on a refused conflict.",
+    "licensed_by": "the SURVIVING rules the outcome rests on - the applicable rules that no other applicable rule dominates, per `arbitration.licensed_by_rule`. Non-empty for continued, branched and merged; EMPTY on a refused conflict.",
     "decision_detail": "decision-layer precision that the senior contract's `reason` vocabulary does not carry: conflicting_rules, inputs_unavailable, defeated_signals.",
     "signals_defeated": "signal name -> the record that defeated it. Present whenever step 2 removed anything.",
     "inputs_unavailable": "signal names that could not be evaluated. Present whenever any were."
@@ -284,7 +315,9 @@
     "  including the ones that lost arbitration. This is the audit trail: retiring",
     "  a rule later means finding every mapping it touched, and the losers are",
     "  exactly the mappings that would change if the winner were retired.",
-    "`licensed_by` - the rule or rules the OUTCOME actually rests on. Nothing else.",
+    "`licensed_by` - the SURVIVING rules, and only those: the applicable rules that",
+    "  no other applicable rule dominates. Several may survive together, and all of",
+    "  them are named; see `arbitration.licensed_by_rule`.",
     "The draft put both into `licensed_by`, so a branched mapping asserted that",
     "R-CONT-SAME-SITE licensed `branched`. It did not: it proposed `continued` and",
     "lost. A record that says otherwise is wrong in the same way a fabricated",
@@ -446,6 +479,15 @@
     "sweep re-checks it after every future edit - including an edit that quietly",
     "moves an assumption the proof leans on. It costs 2^n - 1 evaluations, computed",
     "from the rule count rather than written down, so a sixth rule makes it 63",
-    "without anyone having to remember a sacred number."
+    "without anyone having to remember a sacred number.",
+    "",
+    "The 3^k enumeration is FAIL-CLOSED on cost. A sixth rule multiplies both the",
+    "classification space and the subset sweep, and past a reviewed budget the",
+    "suite stops with `policy-space exceeded exhaustive-proof budget` rather than",
+    "printing a note and going green on the pair checks alone. A run that quietly",
+    "stopped proving the theorem while still reporting OK is worse than a red one:",
+    "the claim in this section would go on standing with nothing behind it. Raising",
+    "the budget is a reviewed edit, and so is replacing the enumeration with another",
+    "checked argument."
   ]
 }
