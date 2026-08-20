@@ -28,12 +28,11 @@
     "1. COLLECT the signals that were actually evaluated. A signal that could not",
     "   be evaluated is not absent - see `unavailable_inputs`.",
     "2. DEFEAT: remove every signal an explaining record accounts for. A defeated",
-    "   signal is REMOVED, never weighed. finding-lineage/v1 owns the defeaters",
-    "   for boundary evidence; `signal_defeaters` here owns the rest.",
+    "   signal is REMOVED, never weighed.",
     "3. APPLY every rule to the surviving set. All of them, not the first match.",
-    "4. ARBITRATE by `arbitration`, below.",
-    "5. RECORD the outcome, `licensed_by` (every rule that applied, not just the",
-    "   winner), the evidence, and the provenance."
+    "   The result is `applicable_rules`.",
+    "4. ARBITRATE by `arbitration`. The result is the outcome and `licensed_by`.",
+    "5. RECORD both lists, the evidence, `decision_detail`, and the provenance."
   ],
   "order_independence": [
     "Step 3 evaluates a SET, not a sequence, and step 4 resolves by a declared",
@@ -102,11 +101,11 @@
   ],
   "signal_defeaters": {
     "structural_context": {
-      "defeated_by": "revision_b.renamed_symbols[].from",
-      "why": "an enclosing symbol that was RENAMED still matches by name only by accident; the rename record says the site moved, and a name match across a rename is coincidence rather than continuity"
+      "defeated_by_signal": "renamed_symbol_record",
+      "why": "an enclosing symbol that was RENAMED matches by name only by accident; the rename record says the site moved, so a name match across it is coincidence rather than continuity"
     },
     "anchored_content": {
-      "defeated_by": "revision_b.reformatted_paths",
+      "defeated_by_signal": "reformatted_paths",
       "why": "content equality across a reformatting pass is a property of the formatter, not of the occurrence - it neither confirms nor denies that this is the same defect"
     }
   },
@@ -206,13 +205,11 @@
     ]
   },
   "record_additions": {
-    "licensed_by": "the ids of every rule that applied. Required for continued, branched and merged.",
+    "applicable_rules": "every rule that fired after defeaters, winners and losers alike. Required whenever any fired.",
+    "licensed_by": "the rule(s) the outcome rests on. Required for continued, branched and merged; EMPTY on a refused conflict.",
+    "decision_detail": "decision-layer precision that the senior contract's `reason` vocabulary does not carry: conflicting_rules, inputs_unavailable, defeated_signals.",
     "signals_defeated": "signal name -> the record that defeated it. Present whenever step 2 removed anything.",
     "inputs_unavailable": "signal names that could not be evaluated. Present whenever any were."
-  },
-  "new_limitations": {
-    "conflicting-rules": "lineage-id-unavailable:conflicting-rules",
-    "input-unavailable": "lineage-id-unavailable:input-unavailable"
   },
   "preregistered_cases": [
     "copy-record-dominates-the-single-match",
@@ -259,5 +256,134 @@
         "having a proof over the rule set rather than only fixtures."
       ]
     }
+  ],
+  "applicable_rules_vs_licensed_by": [
+    "Two lists, because they answer two different questions, and an earlier draft",
+    "of this file conflated them into a claim that was simply false.",
+    "`applicable_rules` - every rule that fired on the surviving evidence set,",
+    "  including the ones that lost arbitration. This is the audit trail: retiring",
+    "  a rule later means finding every mapping it touched, and the losers are",
+    "  exactly the mappings that would change if the winner were retired.",
+    "`licensed_by` - the rule or rules the OUTCOME actually rests on. Nothing else.",
+    "The draft put both into `licensed_by`, so a branched mapping asserted that",
+    "R-CONT-SAME-SITE licensed `branched`. It did not: it proposed `continued` and",
+    "lost. A record that says otherwise is wrong in the same way a fabricated",
+    "successor is wrong - it attributes a conclusion to something that never",
+    "reached it.",
+    "On a refused conflict `licensed_by` is EMPTY, and the disagreeing rules appear",
+    "in `applicable_rules` and in `decision_detail.conflicting_rules`. Nothing",
+    "licensed the refusal; the refusal is what happens when nothing can."
+  ],
+  "reason_mapping": {
+    "no_rule_applied": {
+      "reason": "lineage-id-unavailable:no-mapping-evidence",
+      "detail": "inputs_unavailable, when the reason nothing applied is that a signal could not be evaluated"
+    },
+    "conflicting_rules": {
+      "reason": "lineage-id-unavailable:ambiguous-candidates",
+      "detail": "conflicting_rules: the ids that disagreed"
+    },
+    "several_candidates": {
+      "reason": "lineage-id-unavailable:ambiguous-candidates",
+      "detail": "the candidate ids"
+    }
+  },
+  "reason_mapping_rule": [
+    "THE DECISION LAYER INVENTS NO REASON VALUES. Every `unresolved.reason` it can",
+    "emit is drawn from finding-lineage/v1's `limitations`, and the integrity suite",
+    "asserts that against the SENIOR contract rather than against a union of both.",
+    "A draft of this file declared two new values, `conflicting-rules` and",
+    "`input-unavailable`, while also declaring itself subordinate to a contract",
+    "whose vocabulary is frozen and whose own suite builds the allowed set from its",
+    "own `limitations`. Those two claims cannot both hold. Teaching the junior test",
+    "to accept the union would have been a test granting a contract what the senior",
+    "contract withheld.",
+    "The resolution is that both situations are already sayable. `unresolved` means",
+    "'the evidence does not decide', so a rule conflict IS ambiguous-candidates -",
+    "one relation with two incompatible readings rather than two candidate",
+    "occurrences, and the distinction between those is precision, not outcome.",
+    "An input that could not be evaluated leaves nothing to license a link, which",
+    "is no-mapping-evidence.",
+    "The precision is not lost: it moves to `decision_detail`, a junior field, where",
+    "a junior contract is entitled to speak. If a future situation genuinely cannot",
+    "be said in the senior vocabulary, the honest move is to amend the senior",
+    "contract in the open - not to widen it from below."
+  ],
+  "arbitration_invariant": [
+    "PAIRWISE COMPLETENESS IS NOT ENOUGH. A > B, B > C, C > A covers every pair and",
+    "decides nothing; a mapper implementing only the pairwise law would then resolve",
+    "by enumeration order, which is the defect this whole section exists to remove.",
+    "The invariant is set-level:",
+    "  For every jointly satisfiable non-empty SET of applicable rules, arbitration",
+    "  yields exactly one defined result, independent of enumeration order.",
+    "With five rules that is 31 subsets, so the suite checks them exhaustively",
+    "rather than by argument. It also checks the dominance graph is ACYCLIC, that",
+    "every declared pair names existing rules with different outcomes, and that",
+    "permuting the rule order changes nothing.",
+    "Any subset containing both R-BRANCH-COPY and R-MERGE-FOLD stays unresolved",
+    "until some rule explicitly represents N:M - adding one is a visible act, and",
+    "silently letting a superset resolve would be how N:M starts being reported as",
+    "whichever half was checked first."
+  ],
+  "structural_signals": {
+    "copy_record": {
+      "observable_from": "revision_b.copies",
+      "entry_shape": {
+        "from": "path",
+        "to": "path",
+        "similarity": "int"
+      },
+      "matches": {
+        "from": "predecessor.path",
+        "to": "successor.path"
+      },
+      "why": "the record that explains why one predecessor has several successors"
+    },
+    "merge_record": {
+      "observable_from": "revision_b.merged_symbols",
+      "entry_shape": {
+        "from": "list of enclosing symbols",
+        "to": "enclosing symbol"
+      },
+      "matches": {
+        "from": "predecessor.enclosing_symbol",
+        "to": "successor.enclosing_symbol"
+      },
+      "why": "the record that explains why several predecessors reach one successor"
+    },
+    "renamed_symbol_record": {
+      "observable_from": "revision_b.renamed_symbols",
+      "entry_shape": {
+        "from": "enclosing symbol",
+        "to": "enclosing symbol"
+      },
+      "matches": {
+        "from": "predecessor.enclosing_symbol"
+      },
+      "why": "defeats structural_context: a name that matches across a rename matches by accident",
+      "note": "not exercised by any finding-lineage/v1 fixture; the step 1 fixtures introduce it"
+    },
+    "reformatted_paths": {
+      "observable_from": "revision_b.reformatted_paths",
+      "entry_shape": "path",
+      "matches": {
+        "path": "predecessor.path"
+      },
+      "why": "defeats anchored_content: equality across a formatter pass is a property of the formatter",
+      "note": "not exercised by any finding-lineage/v1 fixture; the step 1 fixtures introduce it"
+    }
+  },
+  "structural_signals_rule": [
+    "`copy_record` and `merge_record` were bare atoms in the first draft - named in",
+    "rules, observable from nowhere stated. That is exactly the gap step 0 closed",
+    "for boundary evidence when it required `observable_from` and `match`, on the",
+    "grounds that evidence living only in prose is not evidence.",
+    "`observable_from` here names REAL fields of the step 0 fixtures: `copies` and",
+    "`merged_symbols` are the ones copy-branches-without-a-winner and",
+    "duplicate-sites-merge-into-one already carry. The two defeater sources are",
+    "declared as not yet exercised, which is a fact worth stating rather than",
+    "leaving to be discovered.",
+    "`signal_defeaters` is validated against this catalog, so a defeater cannot",
+    "name a source that does not exist."
   ]
 }
