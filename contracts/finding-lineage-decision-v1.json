@@ -198,7 +198,8 @@
       "cannot apply - and an occurrence that really did move with a renamed file",
       "comes out `unresolved`, naming the missing input, instead of `ended` plus",
       "`new`. Slower, and true."
-    ]
+    ],
+    "observable_from": "revision_b.unavailable_signals"
   },
   "arbitration": {
     "none_applies": {
@@ -323,22 +324,36 @@
   "record_additions": {
     "applicable_rules": "the DISTINCT ids of rules having at least one surviving application. A set of ids, not a count of applications: one rule may fire on several candidate edges, and this field does not carry that multiplicity. The bindings live in `evidence` and `decision_detail`.",
     "licensed_by": "the SURVIVING rules the outcome rests on - the applicable rules that no other applicable rule dominates, per `arbitration.licensed_by_rule`. Non-empty for continued, branched and merged; EMPTY on a refused conflict.",
-    "decision_detail": "decision-layer precision that the senior contract's `reason` vocabulary does not carry: conflicting_rules, inputs_unavailable, defeated_signals.",
+    "decision_detail": "decision-layer precision that the senior contract's `reason` vocabulary does not carry: conflicting_rules, inputs_unavailable, defeated_signals, and rules_without_a_unique_candidate - the rules that fired on several candidates and so licensed no 1:1 mapping. That last one is not cosmetic: without it a blunt rule losing to a discriminating one leaves no trace, and `applicable_rules` would either have to omit it (losing the recall set) or include it (claiming it supported the answer). It did neither; it failed to single anyone out.",
     "signals_defeated": "signal name -> the record that defeated it. Present whenever step 2 removed anything.",
     "inputs_unavailable": "signal names that could not be evaluated. Present whenever any were."
   },
   "preregistered_cases": [
     "copy-record-dominates-the-single-match",
     "merge-record-dominates-the-single-match",
+    "copy-at-one-to-one-is-not-a-branch",
     "defeated-signal-drops-below-the-floor",
     "renamed-symbol-defeats-structural-context",
     "unavailable-diff-is-not-a-deletion",
     "blunt-rule-loses-to-uniqueness"
   ],
   "preregistration_rule": [
-    "Fixed before the mapper, same as slice 2 step 0. These six are about the",
-    "POLICY rather than the vocabulary: each is a shape where two answers are",
-    "available and the contract has to say which, or say neither."
+    "Fixed before the mapper, same as slice 2 step 0. These are about the POLICY",
+    "rather than the vocabulary: each is a shape where two answers are available",
+    "and the contract has to say which, or say neither.",
+    "The matrix on disk must equal this list EXACTLY - the same gate step 0 uses.",
+    "It has already paid for itself once: trying to write the first two cases is",
+    "what proved the structural rules could not license the outcomes the senior",
+    "contract had frozen. A half-matrix of the cases that happened to pass would",
+    "have hidden that, which is the whole reason partial credit is not offered.",
+    "SEVEN, not the six first listed. `copy-at-one-to-one-is-not-a-branch` was",
+    "added during review: `copy-record-dominates-the-single-match` shows a copy",
+    "record licensing a branch, and nothing showed the same record at 1:1, where",
+    "the cardinality guard means it explains a MOVE instead. One record, two",
+    "readings, and cardinality is what chooses - a boundary worth a case of its",
+    "own rather than a sentence in someone else's. A case may be ADDED with its",
+    "entry here; none may be removed or renamed to make an implementation look",
+    "better."
   ],
   "conflict_completeness_rule": [
     "PAIR COMPLETENESS. Every pair of DECLARED rule ids naming a different outcome",
@@ -413,6 +428,23 @@
     "no_rule_applied": {
       "reason": "lineage-id-unavailable:no-mapping-evidence",
       "detail": "inputs_unavailable, when the reason nothing applied is that a signal could not be evaluated"
+    },
+    "no_rule_applied_after_a_defeat": {
+      "reason": "lineage-id-unavailable:insufficient-evidence-kind",
+      "detail": "defeated_signals: signal -> the record that removed it",
+      "why": [
+        "Distinguished from `no-mapping-evidence` because the two are not the same",
+        "situation and a consumer reads this field. When a defeater fires, evidence",
+        "WAS observed - it was removed because a record explained it away - and",
+        "saying `no mapping evidence` would be false in the plain meaning of the",
+        "words.",
+        "`insufficient-evidence-kind` is already in the senior vocabulary and was",
+        "unused. This is the case it was for: the KINDS that survive do not reach",
+        "what any rule requires. Note that they may still clear the senior floor -",
+        "in `defeated-signal-drops-below-the-floor` three kinds survive against a",
+        "floor of two - which is the sharpest demonstration available that the",
+        "floor is not the algorithm."
+      ]
     },
     "conflicting_rules": {
       "reason": "lineage-id-unavailable:conflicting-evidence",
@@ -628,5 +660,53 @@
     "`N:1` with `min_predecessors: 2` for the fold. These mirror the shape rules",
     "finding-lineage/v1 already enforces on its fixtures, which is the point: the",
     "policy states them where a mapper reads them."
-  ]
+  ],
+  "case_obligations": {
+    "why": [
+      "What each case must MECHANICALLY exhibit, beyond reaching the right answer.",
+      "Without this a case can be right for the wrong reason and stay green: drop",
+      "R-CONT-SAME-SITE out of `copy-record-dominates-the-single-match` and into",
+      "`not_applicable`, and the fixture still reports `branched` licensed by",
+      "R-BRANCH-COPY - correct, and no longer showing dominance doing any work at",
+      "all. The suite cannot catch that on its own, because deciding which rules",
+      "really fired is applicability, and a checker doing applicability is a second",
+      "mapper. So the obligation is PREREGISTERED here instead, and checked against",
+      "the fixture's own declarations."
+    ],
+    "obligations": {
+      "copy-record-dominates-the-single-match": [
+        "dominance_did_work"
+      ],
+      "merge-record-dominates-the-single-match": [
+        "dominance_did_work"
+      ],
+      "copy-at-one-to-one-is-not-a-branch": [
+        "cardinality_excluded_a_rule"
+      ],
+      "defeated-signal-drops-below-the-floor": [
+        "defeat_removed_a_signal"
+      ],
+      "renamed-symbol-defeats-structural-context": [
+        "defeat_removed_a_signal"
+      ],
+      "unavailable-diff-is-not-a-deletion": [
+        "input_was_unavailable"
+      ],
+      "blunt-rule-loses-to-uniqueness": [
+        "blunt_rule_recorded"
+      ]
+    },
+    "meanings": {
+      "dominance_did_work": "some rule in `applicable_rules` is absent from `licensed_by` AND is dominated by a rule that is in it. The conflict is real and arbitration resolved it, rather than there having been one candidate all along.",
+      "cardinality_excluded_a_rule": "the case names `excluded_by_cardinality`, and each rule there is genuinely unable to fit the declared shape - checked against its own `min_successors` / `min_predecessors`, not against prose.",
+      "defeat_removed_a_signal": "`signals_defeated` is non-empty, the defeating record is carried by revision B, and it names this occurrence.",
+      "input_was_unavailable": "`inputs_unavailable` is non-empty and revision B declares the same signal in `unavailable_signals`.",
+      "blunt_rule_recorded": "`decision_detail.rules_without_a_unique_candidate` is non-empty. The blunt rule must be visible as having failed to choose, not merely absent."
+    },
+    "rule": [
+      "Every preregistered case must appear here, and every obligation must be one",
+      "of the meanings above. A case added without an obligation is a case nobody",
+      "has said what to expect of, which is how a matrix drifts into decoration."
+    ]
+  }
 }

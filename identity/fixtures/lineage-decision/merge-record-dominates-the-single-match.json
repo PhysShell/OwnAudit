@@ -1,0 +1,89 @@
+{
+  "case": "merge-record-dominates-the-single-match",
+  "title": "A fold into a surviving symbol, and the one predecessor that still matches it",
+  "why": "The mirror, and deliberately shaped so dominance has work to do. The fold keeps the name DocView.WireA, so occ-a1 matches the successor on path, symbol and content and R-CONT-SAME-SITE fires on that edge alone. occ-a2 does not - its symbol is gone. A mapper that stops there continues occ-a1 and then reads removed_symbols as proof that occ-a2 was fixed, reporting a repair that never happened. The merge record knows better, and it must be recorded as the rule that won rather than as the only rule there was.",
+  "revision_a": {
+    "revision": "r1",
+    "occurrences": [
+      {
+        "occurrence_id": "occ-a1",
+        "path": "Broker/Doc.cs",
+        "start_line": 42,
+        "start_column": null,
+        "pattern_id": "pat-A",
+        "enclosing_symbol": "DocView.WireA",
+        "anchored_content": "_store.Changed += OnChanged;"
+      },
+      {
+        "occurrence_id": "occ-a2",
+        "path": "Broker/Doc.cs",
+        "start_line": 88,
+        "start_column": null,
+        "pattern_id": "pat-A",
+        "enclosing_symbol": "DocView.WireB",
+        "anchored_content": "_store.Changed += OnChanged;"
+      }
+    ]
+  },
+  "revision_b": {
+    "revision": "r2",
+    "removed_symbols": [
+      "DocView.WireB"
+    ],
+    "merged_symbols": [
+      {
+        "from": [
+          "DocView.WireA",
+          "DocView.WireB"
+        ],
+        "to": "DocView.WireA"
+      }
+    ],
+    "occurrences": [
+      {
+        "occurrence_id": "occ-b1",
+        "path": "Broker/Doc.cs",
+        "start_line": 42,
+        "start_column": null,
+        "pattern_id": "pat-A",
+        "enclosing_symbol": "DocView.WireA",
+        "anchored_content": "_store.Changed += OnChanged;"
+      }
+    ]
+  },
+  "expect": [
+    {
+      "outcome": "merged",
+      "frm": [
+        "occ-a1",
+        "occ-a2"
+      ],
+      "to": [
+        "occ-b1"
+      ],
+      "applicable_rules": [
+        "R-CONT-SAME-SITE",
+        "R-MERGE-FOLD"
+      ],
+      "licensed_by": [
+        "R-MERGE-FOLD"
+      ],
+      "not_applicable": {
+        "R-CONT-DRIFT": "occ-a1 and occ-b1 share a line; no drift fired",
+        "R-CONT-RENAME": "no rename record",
+        "R-CONT-COPY": "no copy record",
+        "R-BRANCH-COPY": "no copy record, and the shape is N:1"
+      },
+      "note": "the partner profile is what makes R-MERGE-FOLD reach occ-a2 at all: same_pattern_id and anchored_content hold across the fold, while structural_context does not and must not be faked into holding. occ-a2 is a predecessor of the merge, NOT an `ended` - removed_symbols says its site is gone and merged_symbols says where it went, and the boundary contract already ranks the second above the first."
+    }
+  ],
+  "forbid": [
+    "continued from occ-a1 with occ-a2 reported as ended",
+    "R-CONT-SAME-SITE named in licensed_by",
+    "R-CONT-SAME-SITE missing from applicable_rules",
+    "occ-a2 dropped from the merge because its enclosing symbol no longer exists",
+    "unresolved - this pair is classified in dominance"
+  ],
+  "contract": "finding-lineage-decision/v1",
+  "status": "preregistered-unimplemented"
+}

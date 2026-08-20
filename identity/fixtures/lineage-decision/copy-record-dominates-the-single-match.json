@@ -1,0 +1,82 @@
+{
+  "case": "copy-record-dominates-the-single-match",
+  "title": "A copy record and a perfectly good 1:1 match, disagreeing",
+  "why": "The conflict the dominance table exists for, made mechanical. occ-b1 really does satisfy R-CONT-SAME-SITE - same file, same symbol, same content - so a mapper reading one edge at a time reaches `continued` honestly and drops occ-b2 on the floor. R-BRANCH-COPY reads the successor SET and the record that explains it. Both fire; the case pins that both must be RECORDED as firing and that the branch reading wins. A fixture that showed only the right outcome would pass while dominance did no work at all.",
+  "revision_a": {
+    "revision": "r1",
+    "occurrences": [
+      {
+        "occurrence_id": "occ-a1",
+        "path": "Broker/Doc.cs",
+        "start_line": 42,
+        "start_column": null,
+        "pattern_id": "pat-A",
+        "enclosing_symbol": "DocView.Wire",
+        "anchored_content": "_store.Changed += OnChanged;"
+      }
+    ]
+  },
+  "revision_b": {
+    "revision": "r2",
+    "copies": [
+      {
+        "from": "Broker/Doc.cs",
+        "to": "Broker/DocCopy.cs",
+        "similarity": 100
+      }
+    ],
+    "occurrences": [
+      {
+        "occurrence_id": "occ-b1",
+        "path": "Broker/Doc.cs",
+        "start_line": 42,
+        "start_column": null,
+        "pattern_id": "pat-A",
+        "enclosing_symbol": "DocView.Wire",
+        "anchored_content": "_store.Changed += OnChanged;"
+      },
+      {
+        "occurrence_id": "occ-b2",
+        "path": "Broker/DocCopy.cs",
+        "start_line": 42,
+        "start_column": null,
+        "pattern_id": "pat-A",
+        "enclosing_symbol": "DocCopyView.Wire",
+        "anchored_content": "_store.Changed += OnChanged;"
+      }
+    ]
+  },
+  "expect": [
+    {
+      "outcome": "branched",
+      "frm": "occ-a1",
+      "to": [
+        "occ-b1",
+        "occ-b2"
+      ],
+      "applicable_rules": [
+        "R-BRANCH-COPY",
+        "R-CONT-SAME-SITE"
+      ],
+      "licensed_by": [
+        "R-BRANCH-COPY"
+      ],
+      "not_applicable": {
+        "R-CONT-DRIFT": "occ-b1 is at the same line; no line_drift fired",
+        "R-CONT-RENAME": "there is no rename record - a copy is not a rename",
+        "R-CONT-COPY": "cardinality 1:1, and the copy record explains a second successor here",
+        "R-MERGE-FOLD": "no merge record, and the shape is 1:N not N:1"
+      },
+      "note": "R-CONT-SAME-SITE stays in applicable_rules and out of licensed_by. It proposed `continued` to occ-b1 and lost; recording it as licensing `branched` would attribute a conclusion to a rule that never reached it, and dropping it would lose the recall set - retiring R-BRANCH-COPY later must find exactly this mapping."
+    }
+  ],
+  "forbid": [
+    "continued to occ-b1 with occ-b2 dropped",
+    "R-CONT-SAME-SITE named in licensed_by",
+    "R-CONT-SAME-SITE missing from applicable_rules - the disagreement IS the record",
+    "unresolved - this pair is classified in dominance, not refused",
+    "an empty licensed_by on an outcome that is not a refusal"
+  ],
+  "contract": "finding-lineage-decision/v1",
+  "status": "preregistered-unimplemented"
+}

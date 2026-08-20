@@ -1,0 +1,81 @@
+{
+  "case": "copy-at-one-to-one-is-not-a-branch",
+  "title": "The same copy record, at one successor",
+  "why": "One record, two readings, and cardinality is what chooses between them. Here Broker/Doc.cs is deleted and its contents live on at Broker/Moved.cs: the copy record explains a MOVE, not a multiplicity, so R-BRANCH-COPY does not apply at all rather than applying and being overturned later. The second half is the boundary: deleted_paths would earn `ended` for occ-a1 on its own, and the copy record defeats it, because the same deletion appearing as a copy source is one story told twice. finding-lineage/v1 freezes this scenario as continued and forbids even unresolved.",
+  "revision_a": {
+    "revision": "r1",
+    "occurrences": [
+      {
+        "occurrence_id": "occ-a1",
+        "path": "Broker/Doc.cs",
+        "start_line": 42,
+        "start_column": null,
+        "pattern_id": "pat-A",
+        "enclosing_symbol": "DocView.Wire",
+        "anchored_content": "_store.Changed += OnChanged;"
+      }
+    ]
+  },
+  "revision_b": {
+    "revision": "r2",
+    "deleted_paths": [
+      "Broker/Doc.cs"
+    ],
+    "copies": [
+      {
+        "from": "Broker/Doc.cs",
+        "to": "Broker/Moved.cs",
+        "similarity": 100
+      }
+    ],
+    "occurrences": [
+      {
+        "occurrence_id": "occ-b1",
+        "path": "Broker/Moved.cs",
+        "start_line": 42,
+        "start_column": null,
+        "pattern_id": "pat-A",
+        "enclosing_symbol": "DocView.Wire",
+        "anchored_content": "_store.Changed += OnChanged;"
+      }
+    ]
+  },
+  "expect": [
+    {
+      "outcome": "continued",
+      "frm": "occ-a1",
+      "to": [
+        "occ-b1"
+      ],
+      "applicable_rules": [
+        "R-CONT-COPY"
+      ],
+      "licensed_by": [
+        "R-CONT-COPY"
+      ],
+      "excluded_by_cardinality": [
+        "R-BRANCH-COPY"
+      ],
+      "boundary_defeated": {
+        "boundary:containing-file-deleted": "revision_b.copies[].from"
+      },
+      "not_applicable": {
+        "R-BRANCH-COPY": "cardinality 1:N with min_successors 2, and there is exactly one successor. This is a PRECONDITION, not something arbitration repairs afterwards.",
+        "R-CONT-SAME-SITE": "the path changed",
+        "R-CONT-DRIFT": "the path changed, so same_path did not fire",
+        "R-CONT-RENAME": "the record is a copy, not a rename; path_rename did not fire",
+        "R-MERGE-FOLD": "no merge record"
+      },
+      "note": "R-CONT-COPY is the rule whose absence made this scenario a contradiction rather than a gap: before it existed the only rule that fired here was R-BRANCH-COPY, naming an outcome the senior contract had already ruled out."
+    }
+  ],
+  "forbid": [
+    "branched from a single successor",
+    "ended for occ-a1 on the strength of deleted_paths - the copy record defeats it",
+    "unresolved - the frozen case forbids it by name",
+    "new for occ-b1",
+    "R-BRANCH-COPY appearing in applicable_rules - it is guarded out, not out-argued"
+  ],
+  "contract": "finding-lineage-decision/v1",
+  "status": "preregistered-unimplemented"
+}

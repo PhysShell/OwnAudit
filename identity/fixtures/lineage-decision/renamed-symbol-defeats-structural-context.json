@@ -1,0 +1,87 @@
+{
+  "case": "renamed-symbol-defeats-structural-context",
+  "title": "The enclosing symbol matches by name, and the name was reused",
+  "why": "ADVERSARIAL about a coincidence that looks exactly like continuity. DocView.Wire was renamed to DocView.Connect, and something else in the file is now called DocView.Wire. A mapper comparing symbol names sees a match and continues into a site that has nothing to do with the predecessor. The rename record is what makes the match a coincidence: it says where the old site went, so a name agreeing across it agrees by accident. Every continued rule requires structural_context, so removing it leaves nothing standing - which is the correct outcome and a slow one.",
+  "revision_a": {
+    "revision": "r1",
+    "occurrences": [
+      {
+        "occurrence_id": "occ-a1",
+        "path": "Broker/Doc.cs",
+        "start_line": 42,
+        "start_column": null,
+        "pattern_id": "pat-A",
+        "enclosing_symbol": "DocView.Wire",
+        "anchored_content": "_store.Changed += OnChanged;"
+      }
+    ]
+  },
+  "revision_b": {
+    "revision": "r2",
+    "renamed_symbols": [
+      {
+        "from": "DocView.Wire",
+        "to": "DocView.Connect"
+      }
+    ],
+    "occurrences": [
+      {
+        "occurrence_id": "occ-b1",
+        "path": "Broker/Doc.cs",
+        "start_line": 47,
+        "start_column": null,
+        "pattern_id": "pat-A",
+        "enclosing_symbol": "DocView.Wire",
+        "anchored_content": "_store.Changed += OnChanged;"
+      }
+    ]
+  },
+  "expect": [
+    {
+      "outcome": "unresolved",
+      "side": "a",
+      "frm": [
+        "occ-a1"
+      ],
+      "to": [],
+      "reason": "lineage-id-unavailable:insufficient-evidence-kind",
+      "applicable_rules": [],
+      "licensed_by": [],
+      "signals_defeated": {
+        "structural_context": "renamed_symbol_record"
+      },
+      "not_applicable": {
+        "R-CONT-SAME-SITE": "structural_context was defeated",
+        "R-CONT-DRIFT": "structural_context was defeated; line_drift alone carries nothing",
+        "R-CONT-RENAME": "structural_context was defeated, and there is no path rename either",
+        "R-CONT-COPY": "no copy record",
+        "R-BRANCH-COPY": "no copy record",
+        "R-MERGE-FOLD": "no merge record"
+      },
+      "note": "same_path, same_pattern_id, anchored_content and line_drift all survive. They are not enough, and no combination of them is a rule - which is the point of naming combinations instead of counting them."
+    },
+    {
+      "outcome": "unresolved",
+      "side": "b",
+      "frm": [],
+      "to": [
+        "occ-b1"
+      ],
+      "reason": "lineage-id-unavailable:insufficient-evidence-kind",
+      "applicable_rules": [],
+      "licensed_by": [],
+      "signals_defeated": {
+        "structural_context": "renamed_symbol_record"
+      },
+      "note": "occ-b1 is not `new` either: nothing records its site as added, and a birth is earned rather than left over."
+    }
+  ],
+  "forbid": [
+    "continued into the reused name",
+    "structural_context counted because the strings are equal",
+    "new for occ-b1 - no boundary evidence names its site as added",
+    "ended for occ-a1 - the symbol was renamed, not removed"
+  ],
+  "contract": "finding-lineage-decision/v1",
+  "status": "preregistered-unimplemented"
+}

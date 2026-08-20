@@ -81,6 +81,7 @@ sys.path.insert(0, ROOT)
 
 SENIOR = os.path.join(ROOT, "contracts", "finding-lineage-v1.json")
 POLICY = os.path.join(ROOT, "contracts", "finding-lineage-decision-v1.json")
+FIXDIR = os.path.join(ROOT, "identity", "fixtures", "lineage-decision")
 
 # Reviewed cost ceiling for the theorem falsifier, in arbitrations. It bounds a
 # FIXED four-rule model - 3^5 * 15 = 3645 - and not this policy's own
@@ -99,6 +100,46 @@ def check(cond: bool, msg: str) -> None:
 def load(path: str) -> dict:
     with open(path, encoding="utf-8") as fh:
         return json.load(fh)
+
+
+def as_list(v) -> list:
+    if v is None:
+        return []
+    return list(v) if isinstance(v, list) else [v]
+
+
+def collect(rev: dict, dotted: str) -> list:
+    """Read `revision_b.field[].sub` out of a fixture. Lifted from the step 0
+    suite deliberately: `the fixture must CARRY the fact` is the same rule here,
+    and a second, subtly different reader would be a second rule."""
+    head, _, rest = dotted.partition(".")
+    if head != "revision_b":
+        return []
+    field, _, sub = rest.partition("[].")
+    raw = rev.get(field, [])
+    if not sub:
+        return [x for x in raw if isinstance(x, str)]
+    out = []
+    for entry in raw:
+        if isinstance(entry, dict) and sub in entry:
+            val = entry[sub]
+            out.extend(val if isinstance(val, list) else [val])
+    return out
+
+
+def read_signal(rev: dict, spec: dict) -> list:
+    """Read the values a structural signal matches on, following the catalog's own
+    `entry_shape`. `observable_from` names the FIELD; whether the entries are bare
+    strings or objects is `entry_shape`'s to say, and guessing instead is how a
+    checker silently reads an empty list and reports a record as present."""
+    field = str(spec.get("observable_from", ""))
+    shape = spec.get("entry_shape")
+    if isinstance(shape, dict):
+        out = []
+        for key in shape:
+            out.extend(collect(rev, f"{field}[].{key}"))
+        return out
+    return collect(rev, field)
 
 
 def raw_dominance_edges(policy: dict) -> list:
@@ -378,6 +419,296 @@ def main() -> int:
                   "nor a catalogued structural signal")
 
 
+    # ---- 4b. THE PREREGISTERED MATRIX. --------------------------------------
+    # Not a mapper test. This suite never decides which rules a real evidence
+    # record produces - that is applicability, and a checker doing it becomes a
+    # second mapper. What it checks is that each case's DECLARED rule set agrees
+    # with the arbitration algebra, that every id and reason exists, and that a
+    # claimed record is actually carried by the fixture rather than by prose.
+    preregistered = policy["preregistered_cases"]
+    on_disk = sorted(f[:-5] for f in os.listdir(FIXDIR) if f.endswith(".json"))
+    check(on_disk == sorted(preregistered),
+          "the decision fixture matrix drifted from the preregistered list.\n"
+          f"  on disk:       {on_disk}\n"
+          f"  preregistered: {sorted(preregistered)}\n"
+          "  A case may be ADDED with its contract entry. None may be removed or "
+          "renamed to make an implementation look better - and trying to write the "
+          "first two is what falsified the rule set, so partial credit is not on offer.")
+
+    senior_limitations_set = set(senior["limitations"].values())
+    obligations = policy["case_obligations"]["obligations"]
+    obligation_meanings = policy["case_obligations"]["meanings"]
+    check(sorted(obligations) == sorted(preregistered),
+          "`case_obligations` and `preregistered_cases` disagree:\n"
+          f"  obligations:   {sorted(obligations)}\n"
+          f"  preregistered: {sorted(preregistered)}")
+    for cname, duties in obligations.items():
+        check(bool(duties), f"{cname}: an empty obligation list says nothing")
+        for duty in duties:
+            check(duty in obligation_meanings,
+                  f"{cname}: obligation {duty!r} has no entry in `meanings`")
+    licensed_outcomes: set[str] = set()
+    for name in sorted(set(on_disk) & set(preregistered)):
+        with open(os.path.join(FIXDIR, f"{name}.json"), encoding="utf-8") as fh:
+            case = json.load(fh)
+        check(case.get("case") == name, f"{name}: case field is {case.get('case')!r}")
+        check(case.get("contract") == "finding-lineage-decision/v1",
+              f"{name}: wrong contract {case.get('contract')!r}")
+        check(case.get("status") == "preregistered-unimplemented",
+              f"{name}: a decision fixture stays preregistered until a mapper exists")
+        check(len(case.get("why", "")) > 40, f"{name}: `why` must state what the case defends")
+        check(bool(case.get("expect")), f"{name}: nothing is preregistered")
+
+        rev_a, rev_b = case.get("revision_a", {}), case.get("revision_b", {})
+        occ_a = {o["occurrence_id"] for o in rev_a.get("occurrences", [])}
+        occ_b = {o["occurrence_id"] for o in rev_b.get("occurrences", [])}
+        by_id = {o["occurrence_id"]: o for o in
+                 rev_a.get("occurrences", []) + rev_b.get("occurrences", [])}
+        claimed_a, claimed_b = set(), set()
+
+        for i, exp in enumerate(case.get("expect", [])):
+            where = f"{name}[{i}]"
+            outcome = exp.get("outcome")
+            check(outcome in senior_outcomes,
+                  f"{where}: outcome {outcome!r} is not in the frozen vocabulary")
+            frm, to = as_list(exp.get("frm")), as_list(exp.get("to"))
+            claimed_a.update(frm)
+            claimed_b.update(to)
+            for o in frm:
+                check(o in occ_a, f"{where}: predecessor {o!r} is not in revision A")
+            for o in to:
+                check(o in occ_b, f"{where}: successor {o!r} is not in revision B")
+
+            app = exp.get("applicable_rules")
+            lic = exp.get("licensed_by")
+            check(isinstance(app, list) and isinstance(lic, list),
+                  f"{where}: a decision fixture must declare applicable_rules and licensed_by")
+            if not (isinstance(app, list) and isinstance(lic, list)):
+                continue
+            for rid in app + lic:
+                check(rid in rules, f"{where}: names unknown rule {rid!r}")
+            check(len(set(app)) == len(app), f"{where}: applicable_rules repeats an id")
+            check(set(lic) <= set(app),
+                  f"{where}: licensed_by {sorted(set(lic) - set(app))} is not in "
+                  "applicable_rules; a rule cannot license what it never applied to")
+            licensed_outcomes.add(outcome)
+
+            # THE BINDING CHECK. Applicability is the fixture's to declare;
+            # arbitration is mechanical, so the fixture may not disagree with it.
+            if all(rid in rules for rid in app):
+                if not app:
+                    check(outcome == "unresolved",
+                          f"{where}: no rule applied, so the outcome is unresolved")
+                    check(not lic, f"{where}: nothing applied, so nothing licensed")
+                else:
+                    got = arbitrate(app, outcomes, edges, refusals)
+                    check(got is not None, f"{where}: arbitration has no result for {sorted(app)}")
+                    if got is not None:
+                        check(got[0] == outcome,
+                              f"{where}: declares {outcome!r}, but arbitrating {sorted(app)} "
+                              f"yields {got[0]!r}. The fixture and the algebra must not "
+                              "describe two different policies.")
+                        check(set(lic) == set(got[1]),
+                              f"{where}: declares licensed_by {sorted(lic)}, but the surviving "
+                              f"rules are {sorted(got[1])}")
+
+            # Cardinality is a precondition, so the shape must match what licensed it.
+            for rid in lic:
+                card = rules[rid].get("cardinality", {})
+                shape = card.get("shape")
+                if shape == "1:1":
+                    check(len(frm) == 1 and len(to) == 1,
+                          f"{where}: {rid} is 1:1 but licenses {len(frm)}:{len(to)}")
+                elif shape == "1:N":
+                    check(len(frm) == 1 and len(to) >= card.get("min_successors", 2),
+                          f"{where}: {rid} is 1:N with min {card.get('min_successors')} "
+                          f"but licenses {len(frm)}:{len(to)}")
+                elif shape == "N:1":
+                    check(len(to) == 1 and len(frm) >= card.get("min_predecessors", 2),
+                          f"{where}: {rid} is N:1 with min {card.get('min_predecessors')} "
+                          f"but licenses {len(frm)}:{len(to)}")
+
+            # NOTHING MAY BE DROPPED IN SILENCE - the occurrence-accounting rule,
+            # applied to rules. Every declared rule must be accounted for by name:
+            # applicable, explicitly not applicable with a reason, or recorded as
+            # having failed to single out a candidate. A rule nobody mentions is
+            # indistinguishable from one the case author forgot existed, and that
+            # is precisely how R-CONT-COPY stayed missing.
+            # Mirror sides (`side: b`) are exempt: they restate the other half of a
+            # refusal already accounted for and raise no new rule question.
+            if exp.get("side") != "b":
+                named = (set(app) | set(exp.get("not_applicable") or {})
+                         | set((exp.get("decision_detail") or {})
+                               .get("rules_without_a_unique_candidate") or []))
+                check(named >= set(ids),
+                      f"{where}: says nothing about {sorted(set(ids) - named)}. Every rule "
+                      "must be accounted for - applicable, not applicable with a reason, or "
+                      "unable to choose.")
+
+            for rid, reason in (exp.get("not_applicable") or {}).items():
+                check(rid in rules, f"{where}: not_applicable names unknown rule {rid!r}")
+                check(rid not in app,
+                      f"{where}: {rid} is in applicable_rules AND not_applicable")
+                check(isinstance(reason, str) and len(reason) > 10,
+                      f"{where}: not_applicable[{rid}] must say WHY, not just list the id")
+
+            if outcome == "unresolved":
+                check(exp.get("side") in ("a", "b"),
+                      f"{where}: unresolved needs side 'a' or 'b', got {exp.get('side')!r}")
+                check(exp.get("reason") in senior_limitations_set,
+                      f"{where}: reason {exp.get('reason')!r} is not a senior limitation")
+                check(not lic, f"{where}: a refusal licenses nothing")
+            else:
+                check("reason" not in exp,
+                      f"{where}: {outcome} must not carry an identity limitation")
+                check(bool(lic), f"{where}: {outcome} must name what licensed it")
+
+            # A defeat must be CARRIED by revision B, exactly as a boundary is.
+            for signal, source in (exp.get("signals_defeated") or {}).items():
+                spec = policy["signal_defeaters"].get(signal)
+                check(spec is not None,
+                      f"{where}: {signal!r} is not a defeatable signal in the policy")
+                if spec is None:
+                    continue
+                check(spec["defeated_by_signal"] == source or
+                      catalog.get(spec["defeated_by_signal"], {}).get("observable_from", "")
+                      .endswith("." + str(source)),
+                      f"{where}: {signal!r} is defeated by {spec['defeated_by_signal']!r}, "
+                      f"not by {source!r}")
+                cat = catalog.get(spec["defeated_by_signal"], {})
+                observed = read_signal(rev_b, cat)
+                check(bool(observed),
+                      f"{where}: claims {signal!r} was defeated, but "
+                      f"{cat.get('observable_from')} carries nothing to match on. A defeat "
+                      "asserted in a note is a note.")
+                # And it must name THIS occurrence. A record about some other symbol
+                # in the same file defeats nothing here, which is exactly the trap
+                # `renamed-symbol-defeats-structural-context` is built out of.
+                for side, ids_ in (("a", frm), ("b", to)):
+                    for oid in ids_:
+                        subj = by_id.get(oid, {})
+                        wanted = {subj.get(attr) for attr in
+                                  ("path", "enclosing_symbol") if attr in subj}
+                        if observed and side == "a":
+                            check(bool(wanted & set(observed)),
+                                  f"{where}: {spec['defeated_by_signal']!r} holds "
+                                  f"{sorted(observed)!r}, which names neither the path nor "
+                                  f"the enclosing symbol of {oid}; it defeats nothing here")
+                for rid in app:
+                    check(signal not in rules[rid].get("requires_all", []),
+                          f"{where}: {rid} is applicable but requires the defeated "
+                          f"signal {signal!r}")
+
+            for sig in as_list(exp.get("inputs_unavailable")):
+                check(sig in senior["evidence_kinds"] or sig in catalog,
+                      f"{where}: unavailable input {sig!r} is neither a frozen evidence "
+                      "kind nor a catalogued structural signal")
+                declared = rev_b.get("unavailable_signals", [])
+                check(sig in declared,
+                      f"{where}: claims {sig!r} was unavailable, but revision B's "
+                      f"`unavailable_signals` holds {declared!r}. Unavailability is a "
+                      "RECORD, which is the entire point of the case.")
+                for rid in app:
+                    check(sig not in rules[rid].get("requires_all", []),
+                          f"{where}: {rid} is applicable but requires the unevaluable "
+                          f"signal {sig!r}")
+
+            for rid in ((exp.get("decision_detail") or {})
+                        .get("rules_without_a_unique_candidate") or []):
+                check(rid in rules, f"{where}: unknown rule {rid!r} in decision_detail")
+                check(rid not in app,
+                      f"{where}: {rid} had no unique candidate, so it had no surviving "
+                      "application and must not be in applicable_rules")
+
+            for kind, defeater in (exp.get("boundary_defeated") or {}).items():
+                spec = next((s for s in senior["boundary_evidence_kinds"].values()
+                             if s["value"] == kind), None)
+                check(spec is not None, f"{where}: unknown boundary kind {kind!r}")
+                if spec is None:
+                    continue
+                check(defeater in [d.strip() for d in spec["defeated_by"].split(",")],
+                      f"{where}: {kind!r} is not defeated by {defeater!r} in the senior "
+                      f"contract, which lists {spec['defeated_by']!r}")
+                check(bool(collect(rev_b, defeater)),
+                      f"{where}: claims {kind!r} is defeated by {defeater}, which is empty")
+                subject = by_id.get((frm or to or [None])[0], {})
+                role, attr = spec["match"].split(".")
+                check(subject.get(attr) in collect(rev_b, spec["observable_from"]),
+                      f"{where}: {kind!r} would not have applied anyway - "
+                      f"{spec['observable_from']} does not name {subject.get(attr)!r}, so "
+                      "defeating it proves nothing")
+
+        # ---- the case's PREREGISTERED OBLIGATION, not just its answer. -------
+        # A case can reach the right outcome for the wrong reason: move the losing
+        # rule out of `applicable_rules` and the copy case still reports `branched`
+        # while showing dominance doing nothing. The suite cannot notice on its own
+        # - which rules really fired is applicability - so the obligation is
+        # declared in the contract and checked against the fixture's declarations.
+        duties = obligations.get(name)
+        check(duties is not None,
+              f"{name}: no entry in `case_obligations`; nothing says what this case "
+              "must exhibit beyond being green")
+        for duty in duties or []:
+            check(duty in obligation_meanings, f"{name}: unknown obligation {duty!r}")
+            met = False
+            for exp in case.get("expect", []):
+                app_s = set(exp.get("applicable_rules") or [])
+                lic_s = set(exp.get("licensed_by") or [])
+                if duty == "dominance_did_work":
+                    met |= any((w, r) in edges for r in app_s - lic_s for w in lic_s)
+                elif duty == "defeat_removed_a_signal":
+                    met |= bool(exp.get("signals_defeated"))
+                elif duty == "input_was_unavailable":
+                    met |= bool(exp.get("inputs_unavailable"))
+                elif duty == "blunt_rule_recorded":
+                    met |= bool((exp.get("decision_detail") or {})
+                                .get("rules_without_a_unique_candidate"))
+                elif duty == "cardinality_excluded_a_rule":
+                    excluded = exp.get("excluded_by_cardinality") or []
+                    for rid in excluded:
+                        check(rid in rules, f"{name}: unknown rule {rid!r} in "
+                                            "excluded_by_cardinality")
+                        check(rid not in app_s,
+                              f"{name}: {rid} is excluded by cardinality and also "
+                              "applicable")
+                        card = rules.get(rid, {}).get("cardinality", {})
+                        nf, nt = len(as_list(exp.get("frm"))), len(as_list(exp.get("to")))
+                        blocked = (card.get("min_successors", 0) > nt
+                                   or card.get("min_predecessors", 0) > nf)
+                        check(blocked,
+                              f"{name}: {rid} is claimed excluded by cardinality, but "
+                              f"{card} does not rule out a {nf}:{nt} shape. The guard has "
+                              "to do the excluding, not the note.")
+                        met = True
+            check(met, f"{name}: preregistered to exhibit {duty!r}, and no expectation "
+                       f"does. {obligation_meanings.get(duty, '')}")
+
+        check(claimed_a == occ_a,
+              f"{name}: revision A occurrences unaccounted for: {sorted(occ_a - claimed_a)}")
+        check(claimed_b == occ_b,
+              f"{name}: revision B occurrences unaccounted for: {sorted(occ_b - claimed_b)}")
+
+        seen_forbid: set[str] = set()
+        for forbidden in case.get("forbid", []):
+            check(isinstance(forbidden, str) and len(forbidden) > 5,
+                  f"{name}: empty or stub entry in `forbid`")
+            check(forbidden not in seen_forbid,
+                  f"{name}: `forbid` repeats an entry verbatim: {forbidden[:60]!r}")
+            seen_forbid.add(forbidden)
+        check(bool(seen_forbid), f"{name}: `forbid` is empty - the case rules nothing out")
+
+    # Every outcome a RULE can license must be licensed by some case, or it is
+    # frozen in name only and a mapper may reach it however it likes. This is the
+    # analogue of step 0's outcome sweep; it is not a demand for one happy-path
+    # case per rule, because this matrix is about shapes where two answers are
+    # available and a rename that simply works is not one. R-CONT-RENAME is
+    # constrained by the senior corpus, where `rename-with-context-continues` is
+    # the only rule that licenses it.
+    for wanted in sorted({rules[r]["outcome"] for r in ids} | {"unresolved"}):
+        check(wanted in licensed_outcomes,
+              f"no preregistered case reaches {wanted!r}; the policy can license it and "
+              "nothing pins how")
+
     # ---- 5. META: the proof checks are checked, in-process. ----------------
     # a05edeb was titled "move the arbitration proofs out of the terminal" and
     # moved the RESULT while the meta-proofs stayed in scratch scripts. These are
@@ -510,8 +841,9 @@ def main() -> int:
         print(f"identity/lineage-decision: FAIL - {len(fails)} check(s) failed")
         return 1
     print(f"identity/lineage-decision: OK - {len(ids)} rules, {len(conflicting)} "
-          f"different-outcome pairs all classified, {len(results)} subsets total "
-          f"(totality is a theorem of completeness and acyclicity, swept anyway)")
+          f"different-outcome pairs all classified, {len(results)} subsets total, "
+          f"{len(preregistered)} preregistered cases (totality is a theorem of "
+          "completeness and acyclicity, swept anyway; mapper not implemented)")
     return 0
 
 

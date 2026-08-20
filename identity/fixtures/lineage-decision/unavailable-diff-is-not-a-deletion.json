@@ -1,0 +1,85 @@
+{
+  "case": "unavailable-diff-is-not-a-deletion",
+  "title": "No diff was available, and the file moved",
+  "why": "The absence-of-record doctrine at the decision layer. The occurrence really did move with a renamed file, but the rename cannot be seen because path_rename could not be EVALUATED - no diff. A signal that was not evaluated is not a signal that failed, and the difference decides the answer: treating the missing diff as `the file did not move` produces a confident `ended` here plus a confident `new` there, which is a fabricated death and a fabricated birth from one missing input. Unresolved naming the missing input is slower and true.",
+  "revision_a": {
+    "revision": "r1",
+    "occurrences": [
+      {
+        "occurrence_id": "occ-a1",
+        "path": "Broker/Old.cs",
+        "start_line": 42,
+        "start_column": null,
+        "pattern_id": "pat-A",
+        "enclosing_symbol": "DocView.Wire",
+        "anchored_content": "_store.Changed += OnChanged;"
+      }
+    ]
+  },
+  "revision_b": {
+    "revision": "r2",
+    "unavailable_signals": [
+      "path_rename"
+    ],
+    "occurrences": [
+      {
+        "occurrence_id": "occ-b1",
+        "path": "Broker/New.cs",
+        "start_line": 42,
+        "start_column": null,
+        "pattern_id": "pat-A",
+        "enclosing_symbol": "DocView.Wire",
+        "anchored_content": "_store.Changed += OnChanged;"
+      }
+    ]
+  },
+  "expect": [
+    {
+      "outcome": "unresolved",
+      "side": "a",
+      "frm": [
+        "occ-a1"
+      ],
+      "to": [],
+      "reason": "lineage-id-unavailable:no-mapping-evidence",
+      "applicable_rules": [],
+      "licensed_by": [],
+      "inputs_unavailable": [
+        "path_rename"
+      ],
+      "not_applicable": {
+        "R-CONT-SAME-SITE": "the paths differ",
+        "R-CONT-DRIFT": "the paths differ, so same_path did not fire",
+        "R-CONT-RENAME": "path_rename could not be evaluated; the rule does not apply, and it did not fail",
+        "R-CONT-COPY": "no copy record",
+        "R-BRANCH-COPY": "no copy record",
+        "R-MERGE-FOLD": "no merge record"
+      },
+      "note": "the reason stays `no-mapping-evidence` rather than `insufficient-evidence-kind`: nothing was observed and removed here, the input was never readable. `inputs_unavailable` carries which one, so the record says why the search was blind instead of implying the tree was clean."
+    },
+    {
+      "outcome": "unresolved",
+      "side": "b",
+      "frm": [],
+      "to": [
+        "occ-b1"
+      ],
+      "reason": "lineage-id-unavailable:no-mapping-evidence",
+      "applicable_rules": [],
+      "licensed_by": [],
+      "inputs_unavailable": [
+        "path_rename"
+      ],
+      "note": "the mirror. Broker/New.cs is not recorded as added, so nothing earns a birth."
+    }
+  ],
+  "forbid": [
+    "ended for occ-a1",
+    "new for occ-b1",
+    "the missing diff read as evidence that the file did not move",
+    "path_rename recorded as evaluated-and-false",
+    "insufficient-evidence-kind as the reason - nothing was defeated here"
+  ],
+  "contract": "finding-lineage-decision/v1",
+  "status": "preregistered-unimplemented"
+}
