@@ -18,7 +18,21 @@
     "gave 'unresolved' only an A-side anchor - so every unmatched B occurrence was",
     "pushed toward 'new'. That is the fabricated-birth defect the contract exists to",
     "forbid, written into the contract itself. It is fixed in place rather than as a",
-    "v2 because v1 has never been implemented or released: nothing is built on it."
+    "v2 because v1 has never been implemented or released: nothing is built on it.",
+    "",
+    "Amended again by slice 2 STEP 1, which added 'conflicting-evidence'. Step 1",
+    "built a decision policy on this contract and found it had no way to say that",
+    "one observed structure supports two incompatible conclusions - a copy record",
+    "and a merge record touching one occurrence, which is N:M and therefore none of",
+    "the six outcomes. Step 1 first tried to report that as 'ambiguous-candidates',",
+    "which is a different thing: candidates are partners you cannot choose between,",
+    "not readings that contradict each other.",
+    "It was corrected here, in the senior contract, rather than by the junior one",
+    "inventing a value in a vocabulary it declares itself subordinate to. That the",
+    "junior contract had a written rule saying exactly this, and that the rule fired",
+    "on the very next review, is the reason it is written down at all.",
+    "Still frozen-unimplemented: no mapper exists, so nothing is built on the old",
+    "shape and nothing has to be migrated."
   ],
   "outcomes": {
     "continued": {
@@ -120,6 +134,7 @@
   "limitations": {
     "no-mapping-evidence": "lineage-id-unavailable:no-mapping-evidence",
     "ambiguous-candidates": "lineage-id-unavailable:ambiguous-candidates",
+    "conflicting-evidence": "lineage-id-unavailable:conflicting-evidence",
     "missing-occurrence-id": "lineage-id-unavailable:missing-occurrence-id",
     "no-predecessor-revision": "lineage-id-unavailable:no-predecessor-revision",
     "insufficient-evidence-kind": "lineage-id-unavailable:insufficient-evidence-kind"
@@ -129,7 +144,13 @@
     "nothing else. An identity limitation is a statement about the mapper's reach;",
     "'ended' and 'new' are statements about the world, and cannot be earned by one.",
     "'no-predecessor-revision' means there is no revision A to compare against at",
-    "all - a first run. It must never be used while a predecessor revision exists."
+    "all - a first run. It must never be used while a predecessor revision exists.",
+    "'ambiguous-candidates' and 'conflicting-evidence' are neighbours and opposites,",
+    "and the difference is worth keeping sharp. Ambiguous candidates: SEVERAL",
+    "possible partners, nothing prefers one - the shape of two-candidates-unresolved.",
+    "Conflicting evidence: ONE observed structure that supports incompatible",
+    "conclusions about the same relation. The first is a choice with no grounds; the",
+    "second is grounds that argue with each other."
   ],
   "boundary_evidence_kinds": {
     "containing-file-deleted": {
