@@ -16,10 +16,17 @@
     "evidence sets scoring 0.8 become indistinguishable in the record, and the",
     "question 'would this mapping still be made under the new rule' stops having",
     "an answer - which is the promise mapping_provenance exists to keep.",
-    "So a mapping cites the RULE that licensed it, by id, in `licensed_by`.",
-    "Changing a rule then has a mechanical consequence: every mapping citing it",
-    "can be found and re-judged. A threshold moving from 0.7 to 0.75 leaves no",
-    "such trail.",
+    "So a mapping cites RULES BY ID, and the two id lists answer two questions.",
+    "`applicable_rules` is the RECALL SET for re-judgement. Retiring or changing a",
+    "rule means finding every mapping it touched - including the ones where it",
+    "LOST, because those are exactly the mappings that change if the winner is",
+    "later retired or if arbitration moves. A recall set built from `licensed_by`",
+    "would miss them, and miss them silently.",
+    "`licensed_by` answers a different question: why this outcome and not another.",
+    "Neither list substitutes for the other, and an earlier draft of this file",
+    "claimed the historical-re-judgement property for `licensed_by` while it still",
+    "held both. Splitting the fields moved that property to the other list.",
+    "A threshold moving from 0.7 to 0.75 leaves no such trail at all.",
     "This is a deliberate NO to a confidence class, not an omission. If one is",
     "ever wanted, it must be derived FROM the cited rules and stored beside them,",
     "never instead of them."
@@ -177,7 +184,7 @@
           "R-CONT-DRIFT",
           "R-CONT-RENAME"
         ],
-        "why": "a copy record EXPLAINS the multiplicity; a 1:1 rule reached its answer by not looking at the other successor. The more informed reading wins, and the losers are still recorded in licensed_by so the disagreement stays visible."
+        "why": "a copy record EXPLAINS the multiplicity; a 1:1 rule reached its answer by not looking at the other successor. The more informed reading wins, and the losers stay in `applicable_rules` so the disagreement remains visible - not in `licensed_by`, which names only what the outcome rests on."
       },
       {
         "winner": "R-MERGE-FOLD",
@@ -225,14 +232,23 @@
     "available and the contract has to say which, or say neither."
   ],
   "conflict_completeness_rule": [
-    "Every pair of rules that (a) can be satisfied by one evidence set and (b) names",
-    "a different outcome MUST either appear in `dominance.declared_pairs` or be",
-    "listed in `deliberately_unresolved_conflicts`. The integrity suite computes the",
-    "pairs from `requires_all` and fails on any that is in neither list.",
-    "This is a proof over the RULE SET rather than an example: a fixture can only",
-    "show that one conflict is handled, while this says none is unhandled. It is",
-    "also what caught the empty-dominance error, and it will catch the next rule",
-    "added without a thought about what it argues with."
+    "PAIR COMPLETENESS. Every pair of DECLARED rule ids naming a different outcome",
+    "must appear either in `dominance.declared_pairs` or in",
+    "`deliberately_unresolved_conflicts`. The suite enumerates pairs from the rule",
+    "ids and their outcomes, and fails on any pair in neither list.",
+    "It does NOT ask whether the pair is reachable from a real evidence record. An",
+    "earlier wording said 'can be satisfied by one evidence set' and had the suite",
+    "compute that from `requires_all` - which is the applicability reasoning that",
+    "`what_the_subset_sweep_proves` forbids the checker to do, in the same file. A",
+    "contract cannot hold both, and a suite author would have had to pick which",
+    "half to believe.",
+    "Checking every declared pair is also the stronger rule: an unreachable pair",
+    "costs one line to declare and stops being a question, while a pair judged",
+    "unreachable by a checker's guess is a decision nobody reviewed.",
+    "This is a proof over the RULE SET rather than an example: a fixture shows one",
+    "conflict is handled, this says none is unhandled. It caught the empty-dominance",
+    "error and then the N:M pair, and it will catch the next rule added without a",
+    "thought about what it argues with."
   ],
   "deliberately_unresolved_conflicts": [
     {
@@ -249,11 +265,15 @@
         "structural record the other does not consult, and both records are true.",
         "Picking `branched` would drop the predecessors the fold names; picking",
         "`merged` would drop the successors the copy names. Refusing loses nothing",
-        "except the pretence, and the record names both rules in licensed_by so the",
-        "shape is visible to whoever decides whether v2 needs a seventh outcome.",
-        "This pair was not noticed while the rules were being written. The",
-        "completeness check found it on its first run, which is the argument for",
-        "having a proof over the rule set rather than only fixtures."
+        "except the pretence.",
+        "The shape stays visible without being licensed: both ids appear in",
+        "`applicable_rules` and in `decision_detail.conflicting_rules`, while",
+        "`licensed_by` is EMPTY. Nothing licensed the refusal - the refusal is what",
+        "happens when nothing can, and whoever decides whether a v2 needs a seventh",
+        "outcome reads it from there.",
+        "This pair was not noticed while the rules were being written. The pair",
+        "completeness check found it on its first run, which is the argument for a",
+        "proof over the rule set rather than fixtures alone."
       ]
     }
   ],
