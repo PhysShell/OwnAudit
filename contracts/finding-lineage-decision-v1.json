@@ -146,7 +146,7 @@
     },
     "conflict": {
       "outcome": "unresolved",
-      "reason": "lineage-id-unavailable:conflicting-rules",
+      "reason": "lineage-id-unavailable:conflicting-evidence",
       "unless": "exactly one applicable rule DOMINATES every other applicable rule, per `dominance`",
       "why": "two rules reaching different conclusions from the same evidence is a defect in this contract, and a mapper is the wrong place to paper over it. Refusing makes it visible; picking one hides it behind whichever branch was typed first."
     },
@@ -205,7 +205,7 @@
     ]
   },
   "record_additions": {
-    "applicable_rules": "every rule that fired after defeaters, winners and losers alike. Required whenever any fired.",
+    "applicable_rules": "the DISTINCT ids of rules having at least one surviving application. A set of ids, not a count of applications: one rule may fire on several candidate edges, and this field does not carry that multiplicity. The bindings live in `evidence` and `decision_detail`.",
     "licensed_by": "the rule(s) the outcome rests on. Required for continued, branched and merged; EMPTY on a refused conflict.",
     "decision_detail": "decision-layer precision that the senior contract's `reason` vocabulary does not carry: conflicting_rules, inputs_unavailable, defeated_signals.",
     "signals_defeated": "signal name -> the record that defeated it. Present whenever step 2 removed anything.",
@@ -241,7 +241,7 @@
         "R-MERGE-FOLD"
       ],
       "outcome": "unresolved",
-      "reason": "lineage-id-unavailable:conflicting-rules",
+      "reason": "lineage-id-unavailable:conflicting-evidence",
       "why": [
         "One occurrence that is both a copy source and a participant in a fold is an",
         "N:M shape, and finding-lineage/v1 has six outcomes among which none is N:M.",
@@ -272,7 +272,11 @@
     "reached it.",
     "On a refused conflict `licensed_by` is EMPTY, and the disagreeing rules appear",
     "in `applicable_rules` and in `decision_detail.conflicting_rules`. Nothing",
-    "licensed the refusal; the refusal is what happens when nothing can."
+    "licensed the refusal; the refusal is what happens when nothing can.",
+    "One more thing this field is NOT: a trace. A rule that fires on two candidate",
+    "edges appears once. Promising multiplicity in a set of ids would be a claim the",
+    "shape cannot keep, and the place for per-candidate bindings is the evidence and",
+    "the decision detail, where they can be recorded without being counted twice."
   ],
   "reason_mapping": {
     "no_rule_applied": {
@@ -280,7 +284,7 @@
       "detail": "inputs_unavailable, when the reason nothing applied is that a signal could not be evaluated"
     },
     "conflicting_rules": {
-      "reason": "lineage-id-unavailable:ambiguous-candidates",
+      "reason": "lineage-id-unavailable:conflicting-evidence",
       "detail": "conflicting_rules: the ids that disagreed"
     },
     "several_candidates": {
@@ -292,38 +296,40 @@
     "THE DECISION LAYER INVENTS NO REASON VALUES. Every `unresolved.reason` it can",
     "emit is drawn from finding-lineage/v1's `limitations`, and the integrity suite",
     "asserts that against the SENIOR contract rather than against a union of both.",
-    "A draft of this file declared two new values, `conflicting-rules` and",
-    "`input-unavailable`, while also declaring itself subordinate to a contract",
-    "whose vocabulary is frozen and whose own suite builds the allowed set from its",
-    "own `limitations`. Those two claims cannot both hold. Teaching the junior test",
-    "to accept the union would have been a test granting a contract what the senior",
-    "contract withheld.",
-    "The resolution is that both situations are already sayable. `unresolved` means",
-    "'the evidence does not decide', so a rule conflict IS ambiguous-candidates -",
-    "one relation with two incompatible readings rather than two candidate",
-    "occurrences, and the distinction between those is precision, not outcome.",
-    "An input that could not be evaluated leaves nothing to license a link, which",
-    "is no-mapping-evidence.",
-    "The precision is not lost: it moves to `decision_detail`, a junior field, where",
-    "a junior contract is entitled to speak. If a future situation genuinely cannot",
-    "be said in the senior vocabulary, the honest move is to amend the senior",
-    "contract in the open - not to widen it from below."
+    "A draft of this file declared two new values of its own. A second draft mapped",
+    "a rule conflict onto `ambiguous-candidates`, which was closer but still wrong:",
+    "ambiguous candidates are several partners with nothing to prefer between them,",
+    "while a rule conflict is ONE structure read two incompatible ways. Reusing the",
+    "word would have left that distinction alive only in a junior field.",
+    "So the senior contract was amended, in the open, to carry",
+    "`conflicting-evidence` - which is what the rule two paragraphs down demands,",
+    "and it demanded it of this file first.",
+    "An unevaluable input stays `no-mapping-evidence`: there really is nothing",
+    "observed to license a link, and `inputs_unavailable` keeps the reason why.",
+    "If a future situation is genuinely unsayable in the senior vocabulary, amend",
+    "the senior contract. Do not widen it from below, and do not teach a junior",
+    "test to accept a union - that is a test granting a contract what the senior",
+    "contract withheld."
   ],
   "arbitration_invariant": [
     "PAIRWISE COMPLETENESS IS NOT ENOUGH. A > B, B > C, C > A covers every pair and",
-    "decides nothing; a mapper implementing only the pairwise law would then resolve",
-    "by enumeration order, which is the defect this whole section exists to remove.",
-    "The invariant is set-level:",
-    "  For every jointly satisfiable non-empty SET of applicable rules, arbitration",
-    "  yields exactly one defined result, independent of enumeration order.",
-    "With five rules that is 31 subsets, so the suite checks them exhaustively",
-    "rather than by argument. It also checks the dominance graph is ACYCLIC, that",
-    "every declared pair names existing rules with different outcomes, and that",
-    "permuting the rule order changes nothing.",
-    "Any subset containing both R-BRANCH-COPY and R-MERGE-FOLD stays unresolved",
-    "until some rule explicitly represents N:M - adding one is a visible act, and",
-    "silently letting a superset resolve would be how N:M starts being reported as",
-    "whichever half was checked first."
+    "decides nothing; a mapper implementing only the pairwise law would resolve by",
+    "enumeration order, which is the defect this section exists to remove.",
+    "The invariant is TOTALITY over the declared rule ids:",
+    "",
+    "  Arbitration is a total function on every non-empty subset of the declared",
+    "  rule IDs - whether or not that subset is reachable from a valid evidence",
+    "  record - and its result does not depend on enumeration order.",
+    "",
+    "An earlier draft said 'every jointly satisfiable set', then counted 31 subsets",
+    "in the next line. That does not follow: five rules give 31 mathematical",
+    "subsets, not 31 realisable evidence states. `same_path` and `path_rename` are",
+    "normally exclusive for one predecessor-successor edge, and the branch/merge",
+    "rules apply at a different cardinality scope entirely.",
+    "Totality is the stronger and cleaner property anyway, and it keeps the suite",
+    "out of a job it must not have: deciding which signal combinations are",
+    "physically possible is domain reasoning, and a checker doing it would become a",
+    "second mapper, hidden and worse dressed than the first."
   ],
   "structural_signals": {
     "copy_record": {
@@ -385,5 +391,25 @@
     "leaving to be discovered.",
     "`signal_defeaters` is validated against this catalog, so a defeater cannot",
     "name a source that does not exist."
+  ],
+  "what_the_subset_sweep_proves": [
+    "The 31-subset sweep proves ARBITRATION ALGEBRA: given a set of rule ids, the",
+    "policy yields one answer, always, regardless of order.",
+    "It does NOT prove APPLICABILITY SEMANTICS: that some real evidence record can",
+    "actually produce that set. That is what the fixtures are for, and keeping the",
+    "two apart is why neither has to pretend to be the other.",
+    "Three properties, checked separately because two probes show they do not",
+    "subsume one another:",
+    "  1. PAIR COMPLETENESS - every different-outcome pair of ids is either an",
+    "     explicit dominance or an explicit deliberate refusal.",
+    "  2. DOMINANCE SANITY - the graph is acyclic, has no self-edge, and every",
+    "     declared pair names existing ids whose outcomes really differ.",
+    "  3. TOTALITY / ORDER-INDEPENDENCE - all 31 subsets yield exactly one result,",
+    "     and every permutation yields the same one.",
+    "A three-cycle is caught by (2) and NOT by (3): with a cycle every rule is",
+    "dominated, nothing survives, and the answer is stably `unresolved` - defined-",
+    "looking and wrong. Conversely, with A>B and B>C declared but A vs C not, the",
+    "subset {A,B,C} resolves because A survives - a defined answer resting on a",
+    "comparison nobody declared, which only (1) catches."
   ]
 }
