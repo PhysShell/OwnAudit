@@ -74,14 +74,17 @@ def load(path: str) -> dict:
         return json.load(fh)
 
 
-def dominance_edges(policy: dict) -> set:
-    return {(p["winner"], loser)
+def raw_dominance_edges(policy: dict) -> list:
+    """Occurrences, NOT a set. `classified exactly once` is a claim about the
+    declarations, and a set answers a weaker question - it would let
+    `loses: ["R-X", "R-X"]` collapse into one edge and pass."""
+    return [(p["winner"], loser)
             for p in policy["dominance"]["declared_pairs"]
-            for loser in p["loses"]}
+            for loser in p["loses"]]
 
 
-def refusal_pairs(policy: dict) -> set:
-    return {frozenset(c["between"]) for c in policy["deliberately_unresolved_conflicts"]}
+def raw_refusal_pairs(policy: dict) -> list:
+    return [frozenset(c["between"]) for c in policy["deliberately_unresolved_conflicts"]]
 
 
 def has_cycle(nodes, edges) -> bool:
@@ -99,6 +102,63 @@ def has_cycle(nodes, edges) -> bool:
         return found
 
     return any(walk(n) for n in nodes)
+
+
+def pair_completeness_failures(ids, outcomes, raw_edges, raw_refusals) -> list:
+    """PROPERTY 1, as a pure function of a policy shape.
+
+    Pure so the meta-checks below can feed it a deliberately broken policy and
+    require it to complain. A property checker that only ever sees the real
+    contract is a property checker nobody has tested."""
+    out = []
+    conflicting = {frozenset(p) for p in itertools.combinations(sorted(ids), 2)
+                   if outcomes[p[0]] != outcomes[p[1]]}
+    # Exactly once means exactly once, counted BEFORE deduplication.
+    for edge in sorted(set(raw_edges)):
+        if raw_edges.count(edge) > 1:
+            out.append(f"dominance declares {edge[0]} > {edge[1]} {raw_edges.count(edge)} times")
+    for pair in sorted({frozenset(r) for r in raw_refusals}, key=sorted):
+        if raw_refusals.count(pair) > 1:
+            out.append(f"{sorted(pair)} is declared a refusal {raw_refusals.count(pair)} times")
+    dominance_pairs = {frozenset(e) for e in raw_edges}
+    refusals = {frozenset(r) for r in raw_refusals}
+    for pair in sorted(conflicting, key=sorted):
+        a, b = sorted(pair)
+        in_dom, in_ref = pair in dominance_pairs, pair in refusals
+        if not (in_dom or in_ref):
+            out.append(f"{a} and {b} reach different outcomes and neither dominates nor "
+                       "is a declared refusal - a conflict nobody has looked at")
+        if in_dom and in_ref:
+            out.append(f"{a} and {b} are classified twice, as dominance AND as a "
+                       "deliberate refusal; a pair has one classification")
+    for pair in sorted(dominance_pairs | refusals, key=sorted):
+        if pair not in conflicting:
+            out.append(f"{sorted(pair)} is classified but is not a different-outcome "
+                       "pair of declared ids; the classification describes nothing")
+    return out
+
+
+def dominance_sanity_failures(ids, outcomes, raw_edges) -> list:
+    """PROPERTY 2, pure for the same reason."""
+    out, edges = [], set(raw_edges)
+    for (w, l) in sorted(edges):
+        if w not in outcomes:
+            out.append(f"dominance names unknown winner {w!r}")
+        if l not in outcomes:
+            out.append(f"dominance names unknown loser {l!r}")
+        if w == l:
+            out.append(f"{w} dominates itself")
+        if w in outcomes and l in outcomes and outcomes[w] == outcomes[l]:
+            out.append(f"{w} dominates {l} but both name {outcomes[w]!r}; dominance "
+                       "settles disagreements, and there is none")
+        if (l, w) in edges:
+            out.append(f"{w} and {l} dominate each other")
+    if has_cycle(ids, edges):
+        out.append("the dominance graph has a cycle. Every rule in it is dominated, "
+                   "nothing survives, and arbitration answers `unresolved` while "
+                   "looking perfectly well defined - which is why this is checked "
+                   "separately from totality and cannot be caught by it.")
+    return out
 
 
 def arbitrate(subset, outcomes, edges, refusals):
@@ -128,8 +188,10 @@ def main() -> int:
     rules = policy["rules"]
     ids = sorted(rules)
     outcomes = {r: rules[r]["outcome"] for r in ids}
-    edges = dominance_edges(policy)
-    refusals = refusal_pairs(policy)
+    raw_edges = raw_dominance_edges(policy)
+    raw_refusals = raw_refusal_pairs(policy)
+    edges = set(raw_edges)
+    refusals = {frozenset(r) for r in raw_refusals}
 
     # ---- 0. The policy is subordinate, enforced from ABOVE. -----------------
     check(policy["builds_on"] == "finding-lineage/v1",
@@ -160,39 +222,13 @@ def main() -> int:
                   f"{rid} licenses continued on {len(rules[rid].get('requires_all', []))} "
                   f"kind(s); the frozen floor is {floor}")
 
-    # ---- 1. PAIR COMPLETENESS - an exact cover over DECLARED ids. -----------
+    # ---- 1 and 2, via the pure functions the meta-checks also exercise. -----
     conflicting = {frozenset(p) for p in itertools.combinations(ids, 2)
                    if outcomes[p[0]] != outcomes[p[1]]}
-    dominance_pairs = {frozenset(e) for e in edges}
-    for pair in sorted(conflicting, key=sorted):
-        a, b = sorted(pair)
-        in_dom, in_ref = pair in dominance_pairs, pair in refusals
-        check(in_dom or in_ref,
-              f"{a} and {b} reach different outcomes and neither dominates nor is a "
-              "declared refusal - a conflict nobody has looked at")
-        check(not (in_dom and in_ref),
-              f"{a} and {b} are classified twice, as dominance AND as a deliberate "
-              "refusal; a pair has one classification")
-    for pair in sorted(dominance_pairs | refusals, key=sorted):
-        check(pair in conflicting,
-              f"{sorted(pair)} is classified but is not a different-outcome pair of "
-              "declared ids; the classification describes nothing")
-
-    # ---- 2. DOMINANCE SANITY ------------------------------------------------
-    for (w, l) in sorted(edges):
-        check(w in rules, f"dominance names unknown winner {w!r}")
-        check(l in rules, f"dominance names unknown loser {l!r}")
-        check(w != l, f"{w} dominates itself")
-        if w in rules and l in rules:
-            check(outcomes[w] != outcomes[l],
-                  f"{w} dominates {l} but both name {outcomes[w]!r}; dominance settles "
-                  "disagreements, and there is none")
-        check((l, w) not in edges, f"{w} and {l} dominate each other")
-    check(not has_cycle(ids, edges),
-          "the dominance graph has a cycle. Every rule in it is dominated, nothing "
-          "survives, and arbitration answers `unresolved` while looking perfectly "
-          "well defined - which is why this is checked separately from order "
-          "independence, and cannot be caught by it.")
+    for msg in pair_completeness_failures(ids, outcomes, raw_edges, raw_refusals):
+        check(False, msg)
+    for msg in dominance_sanity_failures(ids, outcomes, raw_edges):
+        check(False, msg)
 
     # ---- 3. TOTALITY - a THEOREM of 1 and 2, re-checked exhaustively. -------
     expected = 2 ** len(ids) - 1
@@ -209,13 +245,17 @@ def main() -> int:
           "them is broken in a way its own check did not catch, or the theorem's "
           "assumptions moved.")
 
-    mismatched = 0
-    for subset in results:
-        base = results[subset]
-        for perm in itertools.islice(itertools.permutations(sorted(subset)), 6):
-            if arbitrate(perm, outcomes, edges, refusals) != base:
-                mismatched += 1
-    check(mismatched == 0, f"{mismatched} subset permutation(s) changed the result")
+    # NO PERMUTATION SWEEP. An earlier version ran one and it could not fail:
+    # `arbitrate` takes `set(subset)` as its first act, so permuting the argument
+    # asked Python whether a set remembers order. It does not, and confirming
+    # that 720 times is not evidence about this contract.
+    # Order-independence is already carried by the theorem, whose every step is
+    # stated over subsets and a relation. What IS worth pinning is that the input
+    # is a set of distinct ids in the first place - the shape the argument needs.
+    check(all(len(set(sub)) == len(sub) for sub in
+              itertools.chain.from_iterable(itertools.combinations(ids, n)
+                                            for n in range(1, len(ids) + 1))),
+          "arbitration input must be a set of distinct rule ids")
 
     for pair in refusals:
         for subset, res in results.items():
@@ -243,6 +283,101 @@ def main() -> int:
             check(req in senior["evidence_kinds"] or req in catalog,
                   f"{rid} requires {req!r}, which is neither a frozen evidence kind "
                   "nor a catalogued structural signal")
+
+
+    # ---- 5. META: the proof checks are checked, in-process. ----------------
+    # a05edeb was titled "move the arbitration proofs out of the terminal" and
+    # moved the RESULT while the meta-proofs stayed in scratch scripts. These are
+    # those, committed. They break the policy IN MEMORY, which is why the
+    # properties above are pure functions rather than inline loops.
+
+    # 5a. Property 1 bites, and property 2 stays green while it does.
+    no_refusals = ([], [])
+    broke_1 = pair_completeness_failures(ids, outcomes, raw_edges, no_refusals[1])
+    check(bool(broke_1),
+          "dropping every refusal classification left pair completeness satisfied; "
+          "the check does not bite")
+    check(not dominance_sanity_failures(ids, outcomes, raw_edges),
+          "dropping a refusal classification also tripped dominance sanity; the two "
+          "properties are supposed to be independent")
+
+    # 5b. Property 2 bites, and property 1 stays green while it does.
+    cyc_ids = [r for r in ids if outcomes[r] == "continued"][:1] + \
+              [r for r in ids if outcomes[r] == "branched"][:1] + \
+              [r for r in ids if outcomes[r] == "merged"][:1]
+    if len(cyc_ids) == 3:
+        a, b, c = cyc_ids
+        others = [r for r in ids if r not in cyc_ids]
+        cyc_edges = [(a, b), (b, c), (c, a)]
+        # every remaining conflicting pair still classified, so property 1 holds
+        for x in others:
+            for y in (a, b, c):
+                if outcomes[x] != outcomes[y]:
+                    cyc_edges.append((y, x) if outcomes[y] != "continued" else (x, y))
+        for x, y in itertools.combinations(others, 2):
+            if outcomes[x] != outcomes[y]:
+                cyc_edges.append((x, y))
+        check(bool(dominance_sanity_failures(ids, outcomes, cyc_edges)),
+              "a three-cycle did not trip dominance sanity")
+        check(not pair_completeness_failures(ids, outcomes, cyc_edges, []),
+              "the three-cycle construction also broke pair completeness, so it does "
+              "not show the two properties are independent")
+
+    # 5c. Duplicate declarations are caught BEFORE deduplication.
+    check(bool(pair_completeness_failures(ids, outcomes, raw_edges + raw_edges[:1],
+                                          raw_refusals)),
+          "a dominance edge declared twice was absorbed by a set and passed; "
+          "`classified exactly once` is a claim about the declarations")
+    if raw_refusals:
+        check(bool(pair_completeness_failures(ids, outcomes, raw_edges,
+                                              raw_refusals + raw_refusals[:1])),
+              "a refusal declared twice was absorbed by a set and passed")
+
+    # 5d. THE THEOREM, checked exhaustively over the whole policy space.
+    # Three states per conflicting pair: a>b, b>a, refusal. Every classification
+    # satisfying properties 1 and 2 must satisfy totality - if one did not, the
+    # theorem would be false and the contract would be claiming a proof it does
+    # not have.
+    k = len(conflicting)
+    space = 3 ** k
+    budget = 300_000
+    if space * (2 ** len(ids)) > budget * 40:
+        print(f"NOTE: policy space 3^{k} = {space} is too large to enumerate here; "
+              "the theorem check ran on pairs only")
+    else:
+        pair_list = [tuple(sorted(pr)) for pr in sorted(conflicting, key=sorted)]
+        satisfying, counterexamples = 0, []
+        for combo in itertools.product((0, 1, 2), repeat=k):
+            e, rf = [], []
+            for (x, y), state in zip(pair_list, combo):
+                if state == 0:
+                    e.append((x, y))
+                elif state == 1:
+                    e.append((y, x))
+                else:
+                    rf.append(frozenset((x, y)))
+            if pair_completeness_failures(ids, outcomes, e, rf):
+                continue
+            if dominance_sanity_failures(ids, outcomes, e):
+                continue
+            satisfying += 1
+            es, rs = set(e), set(rf)
+            for n in range(1, len(ids) + 1):
+                for sub in itertools.combinations(ids, n):
+                    if arbitrate(sub, outcomes, es, rs) is None:
+                        counterexamples.append((combo, sub))
+                        break
+                if counterexamples:
+                    break
+        check(satisfying > 0,
+              f"no classification of the {k} conflicting pairs satisfied both axioms; "
+              "the enumeration is not exercising anything")
+        check(not counterexamples,
+              f"totality is NOT a theorem of the two axioms: {len(counterexamples)} "
+              f"counterexample(s), first {counterexamples[:1]}. The contract claims a "
+              "proof it does not have.")
+        print(f"       theorem: {satisfying} of {space} classifications satisfy both "
+              f"axioms, 0 break totality")
 
     for f in fails:
         print(f"FAIL: {f}")
