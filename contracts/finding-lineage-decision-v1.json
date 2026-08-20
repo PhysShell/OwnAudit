@@ -52,6 +52,9 @@
   "rules": {
     "R-CONT-SAME-SITE": {
       "outcome": "continued",
+      "cardinality": {
+        "shape": "1:1"
+      },
       "requires_all": [
         "same_path",
         "structural_context",
@@ -61,6 +64,9 @@
     },
     "R-CONT-DRIFT": {
       "outcome": "continued",
+      "cardinality": {
+        "shape": "1:1"
+      },
       "requires_all": [
         "same_path",
         "structural_context",
@@ -71,6 +77,9 @@
     },
     "R-CONT-RENAME": {
       "outcome": "continued",
+      "cardinality": {
+        "shape": "1:1"
+      },
       "requires_all": [
         "path_rename",
         "structural_context",
@@ -79,21 +88,58 @@
       "means": "the file moved and the occurrence moved with it, unchanged inside",
       "note": "path_rename alone can never do this. A rename relates FILES; the other two are what relate the occurrence."
     },
+    "R-CONT-COPY": {
+      "outcome": "continued",
+      "cardinality": {
+        "shape": "1:1"
+      },
+      "requires_all": [
+        "copy_record",
+        "structural_context",
+        "anchored_content"
+      ],
+      "means": "the file was COPIED and this occurrence went with the copy, unchanged inside, in a symbol of the same name",
+      "note": "the literal mirror of R-CONT-RENAME, differing only in where the path relation comes from: `copies` instead of `renames`. Its absence was a hole, not a simplification - finding-lineage/v1 freezes `deleted-source-survives-in-its-copy` as continued and forbids even unresolved there, and with no rule of this shape the only rule that fired on that edge was R-BRANCH-COPY, which names a different outcome. A policy whose single applicable rule contradicts a frozen case is not incomplete; it is wrong."
+    },
     "R-BRANCH-COPY": {
       "outcome": "branched",
+      "cardinality": {
+        "shape": "1:N",
+        "min_successors": 2
+      },
       "requires_all": [
         "copy_record"
       ],
-      "requires_per_successor": "a rule of outcome `continued`",
+      "requires_all_scope": "GROUP. The copy record relates the predecessor's path to the path of at least one successor that is NOT at the predecessor's path - that successor is the one the record explains.",
+      "partner_profile": {
+        "per": "successor",
+        "requires_all": [
+          "same_pattern_id",
+          "anchored_content"
+        ],
+        "why": "what every successor must show ON ITS OWN, across a transformation that changed the path and may have changed the enclosing symbol too"
+      },
       "means": "one predecessor, several successors, and a RECORD explaining why there are several",
       "note": "the copy record is what separates a branch from an ambiguity. Without it, several equally-supported candidates are `unresolved` - see `arbitration.multiplicity`."
     },
     "R-MERGE-FOLD": {
       "outcome": "merged",
+      "cardinality": {
+        "shape": "N:1",
+        "min_predecessors": 2
+      },
       "requires_all": [
         "merge_record"
       ],
-      "requires_per_predecessor": "a rule of outcome `continued`",
+      "requires_all_scope": "GROUP. The record's `from` list must carry every predecessor's enclosing symbol and its `to` must be the successor's.",
+      "partner_profile": {
+        "per": "predecessor",
+        "requires_all": [
+          "same_pattern_id",
+          "anchored_content"
+        ],
+        "why": "the merge record relates the old structural sites to the new one; what each predecessor must show on its own is that it is the same defect, not that it is in a symbol the fold has just renamed out of existence"
+      },
       "means": "several predecessors, one successor, and a RECORD explaining the fold"
     }
   },
@@ -104,7 +150,20 @@
     "There is no rule licensing `ended` or `new`: those are earned by boundary",
     "evidence, which the outcome contract already governs. Adding a rule for them",
     "here would create a second, competing route to a death or a birth - the",
-    "exact defect that contract was corrected for."
+    "exact defect that contract was corrected for.",
+    "",
+    "FALSIFIED ONCE, BY ITS OWN FIXTURE STEP. The first draft gave the structural",
+    "rules a per-partner condition reading `a rule of outcome continued`. Walking",
+    "the frozen finding-lineage/v1 corpus rule by rule showed that condition is",
+    "unsatisfiable on the two cases those rules exist for: in the copy, occ-a1 and",
+    "occ-b2 share neither path nor enclosing symbol, and in the fold both",
+    "predecessors sit in symbols the fold replaced. Every continued rule requires",
+    "`structural_context`, so none applied, so R-BRANCH-COPY and R-MERGE-FOLD",
+    "could never license the outcomes the senior contract had already frozen.",
+    "The same walk found R-CONT-COPY missing, with a worse symptom than a gap.",
+    "This is what a preregistered corpus is FOR. The policy could not quietly",
+    "declare itself ready while failing to reproduce the cases it was written",
+    "against, and no fixture written after the fact would have argued with it."
   ],
   "signal_defeaters": {
     "structural_context": {
@@ -182,8 +241,8 @@
       ]
     },
     "multiplicity": {
-      "rule": "a 1:1 outcome requires exactly ONE candidate satisfying the licensing rule",
-      "several_candidates_with_a_structural_record": "branched or merged, per R-BRANCH-COPY / R-MERGE-FOLD",
+      "rule": "a 1:1 outcome requires exactly ONE candidate satisfying the licensing rule. Rules that are not 1:1 declare so in `cardinality` and are guarded by it instead - see `cardinality_rule`.",
+      "several_candidates_with_a_structural_record": "branched or merged, per R-BRANCH-COPY / R-MERGE-FOLD, whose `cardinality` guards already require the multiplicity rather than tolerating it",
       "several_candidates_without_one": {
         "outcome": "unresolved",
         "reason": "lineage-id-unavailable:ambiguous-candidates"
@@ -195,7 +254,11 @@
         "is satisfied by BOTH candidates, and uniqueness turns that into a refusal",
         "instead of into whichever candidate was enumerated first.",
         "Uniqueness is checked per RULE, not per outcome: a discriminating rule may",
-        "single out a candidate while a blunter one does not."
+        "single out a candidate while a blunter one does not.",
+        "What this section no longer does is overturn a structural rule after the fact.",
+        "Cardinality is a precondition now, so a lone successor never licenses",
+        "`branched` in the first place; see `cardinality_rule` for why that is a",
+        "different thing from arriving at the same answer two sections later."
       ]
     },
     "licensed_by_rule": [
@@ -213,7 +276,8 @@
         "loses": [
           "R-CONT-SAME-SITE",
           "R-CONT-DRIFT",
-          "R-CONT-RENAME"
+          "R-CONT-RENAME",
+          "R-CONT-COPY"
         ],
         "why": "a copy record EXPLAINS the multiplicity; a 1:1 rule reached its answer by not looking at the other successor. The more informed reading wins, and the losers stay in `applicable_rules` so the disagreement remains visible - not in `licensed_by`, which names only what the outcome rests on."
       },
@@ -222,13 +286,14 @@
         "loses": [
           "R-CONT-SAME-SITE",
           "R-CONT-DRIFT",
-          "R-CONT-RENAME"
+          "R-CONT-RENAME",
+          "R-CONT-COPY"
         ],
         "why": "the mirror case: a merge record explains why several predecessors reach one successor, and continuing just one of them would report the others as fixed."
       }
     ],
     "rule": [
-      "These two pairs are NOT decoration. finding-lineage/v1 preregisters",
+      "These two winners are NOT decoration. finding-lineage/v1 preregisters",
       "`copy-branches-without-a-winner`, where the original site continues AND a copy",
       "exists: R-CONT-SAME-SITE and R-BRANCH-COPY both apply and disagree. That",
       "fixture forbids 'continued to exactly one of them', so the outcome contract",
@@ -237,6 +302,19 @@
       "An earlier draft of this file declared dominance empty 'on purpose'. It was",
       "checked against the step 0 matrix and was simply wrong: the conflict is",
       "constructible, and the answer was already frozen.",
+      "For a while the motive was true and the mechanism was not: the same draft's",
+      "per-successor condition made R-BRANCH-COPY unreachable, so the conflict this",
+      "section cited as its reason to exist could not actually arise. Explicit",
+      "partner profiles restore it - on that fixture occ-b1 really does satisfy",
+      "R-CONT-SAME-SITE while the successor SET satisfies R-BRANCH-COPY, so the",
+      "disagreement is real and the branch reading really is the more informed one.",
+      "R-CONT-COPY loses to both for the same reason as the other 1:1 readings: a",
+      "structural record read at group cardinality knows why the partners are several,",
+      "and a 1:1 rule reached its answer by not looking. The cardinality guards make",
+      "this particular pair hard to reach in practice - R-CONT-COPY wants exactly one",
+      "successor and R-BRANCH-COPY wants two - and it is classified anyway, which is",
+      "the price of a completeness law that covers unreachable pairs. That price buys",
+      "the absence of a conflict nobody looked at.",
       "Dominance is declared PAIRWISE and explicitly. There is no global ranking,",
       "no rule priority number, and no tie-break by name - all three would decide",
       "conflicts nobody has looked at yet."
@@ -468,26 +546,87 @@
     "     acyclic digraph has a source. So the result exists and is unique, and",
     "     order never enters the argument.",
     "",
+    "THE ARGUMENT DOES NOT MENTION THE NUMBER OF RULES. Read it again and check:",
+    "every step quantifies over a subset and a relation, and nothing anywhere says",
+    "five, or six, or twenty. That is why the check below is NOT an enumeration of",
+    "this policy's own classification space.",
+    "It used to be. All 3^7 = 2187 classifications of the five-rule set's seven",
+    "conflicting pairs were enumerated, and the run was honest but the design was",
+    "not: it charged an exponential in k for a theorem whose proof is independent",
+    "of k. Adding one ordinary rule took it to 3^9 x 63 = 1240029 arbitrations, so",
+    "the fail-closed budget fired - correctly - and turned `write a sixth rule`",
+    "into `revise the CI compute policy`. Raising the ceiling would have bought one",
+    "more rule and the same bill again after it.",
+    "",
+    "So the two jobs are separated:",
+    "  - THIS POLICY is verified directly and completely: exact pair completeness,",
+    "    dominance sanity, the full 2^n - 1 subset sweep of the real rule set,",
+    "    absorbing refusals, and mutations proving each checker bites. That cost is",
+    "    linear in the policy and it stays.",
+    "  - THE THEOREM is falsified against a FIXED synthetic model - four rules",
+    "    partitioned A, A, B, C, every classification of its pairs enumerated. Its",
+    "    size does not move when a production rule is added, so adding one is a",
+    "    contract edit and nothing else.",
+    "The model is chosen to contain the case the survivor reading turns on: two",
+    "rules of the SAME outcome surviving together, which is exactly what the old",
+    "`exactly one dominating rule` wording got wrong. A model without that shape",
+    "would be a cheaper check of a weaker claim.",
+    "",
+    "And it is called what it is: BOUNDED FALSIFICATION, not proof. The proof is the",
+    "paragraph above, written out and readable. The falsifier is a standing attempt",
+    "to break it, and a general argument that survives every classification of a",
+    "small model is not thereby proven - it is un-refuted at that size. The honest",
+    "claim is the weaker one, and it costs nothing to state it.",
+    "",
     "1 and 2 ARE independent of each other, shown rather than argued: dropping one",
     "pair classification fails 1 with 2 still green, and a three-cycle with every",
-    "pair classified fails 2 with 1 still green.",
-    "3 has no independent probe, and that is a result rather than a gap. All 3^7 =",
-    "2187 classifications of this rule set's seven conflicting pairs were",
-    "enumerated: 1705 satisfy 1 and 2, and none of those breaks totality.",
+    "pair classified fails 2 with 1 still green."
+  ],
+  "partner_profile_rule": [
+    "WHY A PROFILE AND NOT A COUNT, AND NOT A BRIDGE.",
     "",
-    "The sweep is kept anyway. A proof holds for the contract as it stands, and the",
-    "sweep re-checks it after every future edit - including an edit that quietly",
-    "moves an assumption the proof leans on. It costs 2^n - 1 evaluations, computed",
-    "from the rule count rather than written down, so a sixth rule makes it 63",
-    "without anyone having to remember a sacred number.",
+    "Two repairs were available for the falsification above and both are refused",
+    "here, on the record, because both look reasonable from a distance.",
     "",
-    "The 3^k enumeration is FAIL-CLOSED on cost. A sixth rule multiplies both the",
-    "classification space and the subset sweep, and past a reviewed budget the",
-    "suite stops with `policy-space exceeded exhaustive-proof budget` rather than",
-    "printing a note and going green on the pair checks alone. A run that quietly",
-    "stopped proving the theorem while still reporting OK is worse than a red one:",
-    "the claim in this section would go on standing with nothing behind it. Raising",
-    "the budget is a reviewed edit, and so is replacing the enumeration with another",
-    "checked argument."
+    "NOT BRIDGES. A bridge would let `copy_record` be read AS `same_path`, or",
+    "`merge_record` AS `structural_context`, so the ordinary continued rules would",
+    "fire again. That is evidence laundering: a structural record explains why the",
+    "ordinary context CHANGED, and reading it as though the context did not change",
+    "throws away the only thing the record knows. The copy case makes the dishonesty",
+    "concrete - no bridge turns `DocView.Wire` into `DocCopyView.Wire` while telling",
+    "the truth, because the symbol really is a different one.",
+    "",
+    "NOT A BARE COUNT. `minimum_evidence_kinds_for_continued` is 2, and it would",
+    "have been easy to make the per-partner condition `at least two kinds`. But the",
+    "senior contract calls that number a FLOOR, not the algorithm, and it is right:",
+    "the floor forbids resting on one weak signal, it does not promise that any two",
+    "weak signals suffice. `same_path` plus `same_pattern_id` is two kinds and says",
+    "only that one file holds two occurrences of one pattern - which is the twin",
+    "shape the whole contract exists to refuse. Choosing WHICH combinations license",
+    "what is the job the senior contract left to this file, and answering it with a",
+    "cardinal number would be handing the job back.",
+    "",
+    "So each structural rule declares its partner profile EXPLICITLY, by naming the",
+    "kinds. `same_pattern_id` and `anchored_content`: the partner must be an",
+    "occurrence of the same pattern saying the same thing, which is what survives a",
+    "transformation that moved the file, the symbol, or both. The integrity suite",
+    "checks the profile clears the senior floor and that no kind in it is",
+    "`sufficient_alone` - it does NOT derive the profile, because a derived profile",
+    "would be the cardinal number again with extra steps."
+  ],
+  "cardinality_rule": [
+    "Cardinality is a machine-readable PRECONDITION of the rule, not something",
+    "`arbitration.multiplicity` cleans up afterwards.",
+    "The difference is not stylistic. Left to arbitration, a single copy_record",
+    "would first license `branched` for one lonely successor and then have another",
+    "section of this file overturn it - two passages deciding one question, which",
+    "is a theological dispute between halves of a JSON document waiting to be",
+    "debugged at the worst possible moment. Declared as a guard, R-BRANCH-COPY",
+    "simply does not apply below two successors, and R-CONT-COPY - which does - is",
+    "the rule that answers.",
+    "`1:1` for every continued rule, `1:N` with `min_successors: 2` for the branch,",
+    "`N:1` with `min_predecessors: 2` for the fold. These mirror the shape rules",
+    "finding-lineage/v1 already enforces on its fixtures, which is the point: the",
+    "policy states them where a mapper reads them."
   ]
 }

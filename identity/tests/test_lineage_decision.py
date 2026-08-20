@@ -50,9 +50,23 @@ rule, and the suite says so rather than staging it as one.
     Therefore the survivor set is non-empty and single-outcome, so the result
     exists and is unique. Order never enters the argument.
 
-The sweep is kept anyway, because a proof holds for the contract as it is today
-and the sweep re-checks it after every future edit - including edits that break
-an assumption the proof leans on without anyone noticing which one.
+WHAT IS SWEPT, AND WHAT IS NOT
+------------------------------
+The real policy is verified directly and completely: properties 1 and 2 on its
+own declarations, plus the full 2^n - 1 subset sweep of its own rule ids. That
+cost is linear in the policy and it stays.
+
+The THEOREM is not re-derived from this policy's classification space. It used
+to be - 3^k over the k conflicting pairs - and that was an exponential in k paid
+for an argument whose every step quantifies over a subset and a relation and
+never mentions k at all. One extra rule took it from 3^7 x 31 = 67797 to
+3^9 x 63 = 1240029, so adding an ordinary rule became a CI compute decision.
+Instead the theorem is falsified against a FIXED four-rule model (outcomes
+partitioned A, A, B, C), sized by this file and not by the policy. The model is
+chosen to CONTAIN the shape the survivor reading turns on: two rules of one
+outcome surviving together. And it is named for what it is - bounded
+falsification, not proof. The proof is the paragraph above; this is a standing
+attempt to break it at a size where every classification can be tried.
 
 -O-safe (explicit raises, no bare assert). ASCII-only output.
 """
@@ -68,9 +82,10 @@ sys.path.insert(0, ROOT)
 SENIOR = os.path.join(ROOT, "contracts", "finding-lineage-v1.json")
 POLICY = os.path.join(ROOT, "contracts", "finding-lineage-decision-v1.json")
 
-# Reviewed cost ceiling for the 3^k totality enumeration, in arbitrations. The
-# current policy spends 2187 * 31 = 67797 of it. Exceeding it is a FAILURE, not a
-# downgrade: see meta-check 5d.
+# Reviewed cost ceiling for the theorem falsifier, in arbitrations. It bounds a
+# FIXED four-rule model - 3^5 * 15 = 3645 - and not this policy's own
+# classification space, so adding a production rule cannot move it. Exceeding it
+# is a FAILURE, not a downgrade: see meta-check 5d.
 EXHAUSTIVE_PROOF_BUDGET = 250_000
 
 fails: list[str] = []
@@ -245,6 +260,61 @@ def main() -> int:
                   f"{rid} licenses continued on {len(rules[rid].get('requires_all', []))} "
                   f"kind(s); the frozen floor is {floor}")
 
+        # Cardinality is a PRECONDITION of the rule, so it is checked as one. The
+        # alternative - letting `arbitration.multiplicity` overturn a structural
+        # rule after it fired - puts one question in two sections.
+        card = rules[rid].get("cardinality")
+        check(isinstance(card, dict) and "shape" in card,
+              f"{rid} declares no `cardinality`; a mapper would have to guess whether "
+              "the rule is 1:1, and guessing is how a lone successor gets `branched`")
+        if isinstance(card, dict):
+            shape = card.get("shape")
+            if outcomes[rid] == "continued":
+                check(shape == "1:1", f"{rid} licenses continued at cardinality {shape!r}; "
+                                      "continued is 1:1 in the senior contract")
+            elif outcomes[rid] == "branched":
+                check(shape == "1:N", f"{rid} licenses branched at {shape!r}")
+                check(card.get("min_successors", 0) >= 2,
+                      f"{rid} licenses branched without requiring two successors; "
+                      "a branch with one is a continued, and the senior contract says so")
+            elif outcomes[rid] == "merged":
+                check(shape == "N:1", f"{rid} licenses merged at {shape!r}")
+                check(card.get("min_predecessors", 0) >= 2,
+                      f"{rid} licenses merged without requiring two predecessors")
+
+        # A rule whose cardinality is not 1:1 says something about a GROUP, so it
+        # must also say what each partner shows on its own. `a rule of outcome
+        # continued` used to stand here and was unsatisfiable on the very frozen
+        # cases these rules exist for - see `rules_note`.
+        prof = rules[rid].get("partner_profile")
+        if isinstance(card, dict) and card.get("shape") != "1:1":
+            check(isinstance(prof, dict), f"{rid} is a group rule with no `partner_profile`")
+        if prof is not None:
+            check(isinstance(prof, dict) and prof.get("per") in ("successor", "predecessor"),
+                  f"{rid}: partner_profile must say which side it is `per`")
+            req = prof.get("requires_all") if isinstance(prof, dict) else None
+            check(isinstance(req, list) and req,
+                  f"{rid}: partner_profile must NAME the kinds; the contract refuses to "
+                  "derive them, because a derived profile is the floor's cardinal number "
+                  "with extra steps")
+            if isinstance(req, list):
+                for kind in req:
+                    check(kind in senior["evidence_kinds"],
+                          f"{rid}: partner_profile names {kind!r}, not a frozen evidence kind")
+                    check(not senior["evidence_kinds"].get(kind, {}).get("sufficient_alone"),
+                          f"{rid}: partner_profile rests on {kind!r}, which is sufficient "
+                          "alone; a profile of one strong signal is not a profile")
+                check(len(set(req)) == len(req), f"{rid}: partner_profile repeats a kind")
+                check(len(set(req)) >= floor,
+                      f"{rid}: partner_profile names {len(set(req))} kind(s); the frozen "
+                      f"floor is {floor}. The floor is checked, never used to generate.")
+        # The abandoned wording must not creep back in under its old names.
+        for dead in ("requires_per_successor", "requires_per_predecessor"):
+            check(dead not in rules[rid],
+                  f"{rid} still carries {dead!r}. That condition was falsified against the "
+                  "frozen corpus: every continued rule needs `structural_context`, and the "
+                  "copy and fold cases change the enclosing symbol.")
+
     # ---- 1 and 2, via the pure functions the meta-checks also exercise. -----
     conflicting = {frozenset(p) for p in itertools.combinations(ids, 2)
                    if outcomes[p[0]] != outcomes[p[1]]}
@@ -371,61 +441,68 @@ def main() -> int:
                                               raw_refusals + raw_refusals[:1])),
               "a refusal declared twice was absorbed by a set and passed")
 
-    # 5d. THE THEOREM, checked exhaustively over the whole policy space.
-    # Three states per conflicting pair: a>b, b>a, refusal. Every classification
-    # satisfying properties 1 and 2 must satisfy totality - if one did not, the
-    # theorem would be false and the contract would be claiming a proof it does
-    # not have.
-    # The budget is FAIL-CLOSED. Growing the rule set past it takes the suite red
-    # with a message naming the choice, because the alternative - printing a note,
-    # skipping the enumeration and still reporting OK - leaves the contract's proof
-    # claim standing with nothing behind it, and nobody reads a green run's notes.
-    k = len(conflicting)
-    space = 3 ** k
-    cost = space * (2 ** len(ids) - 1)
-    if cost > EXHAUSTIVE_PROOF_BUDGET:
-        check(False,
-              f"policy-space exceeded exhaustive-proof budget: 3^{k} = {space} "
-              f"classifications x {2 ** len(ids) - 1} subsets = {cost} arbitrations, "
-              f"over the reviewed budget of {EXHAUSTIVE_PROOF_BUDGET}. Either raise "
-              "the reviewed budget or replace the finite enumeration with another "
-              "checked argument. Do not skip it: `what_the_subset_sweep_proves` "
-              "claims totality is proven, and this is where that is paid for.")
-    else:
-        pair_list = [tuple(sorted(pr)) for pr in sorted(conflicting, key=sorted)]
-        satisfying, counterexamples = 0, []
-        for combo in itertools.product((0, 1, 2), repeat=k):
-            e, rf = [], []
-            for (x, y), state in zip(pair_list, combo):
-                if state == 0:
-                    e.append((x, y))
-                elif state == 1:
-                    e.append((y, x))
-                else:
-                    rf.append(frozenset((x, y)))
-            if pair_completeness_failures(ids, outcomes, e, rf):
-                continue
-            if dominance_sanity_failures(ids, outcomes, e):
-                continue
-            satisfying += 1
-            es, rs = set(e), set(rf)
-            for n in range(1, len(ids) + 1):
-                for sub in itertools.combinations(ids, n):
-                    if arbitrate(sub, outcomes, es, rs) is None:
-                        counterexamples.append((combo, sub))
-                        break
-                if counterexamples:
-                    break
-        check(satisfying > 0,
-              f"no classification of the {k} conflicting pairs satisfied both axioms; "
-              "the enumeration is not exercising anything")
-        check(not counterexamples,
-              f"totality is NOT a theorem of the two axioms: {len(counterexamples)} "
-              f"counterexample(s), first {counterexamples[:1]}. The contract claims a "
-              "proof it does not have.")
-        print(f"       theorem: {satisfying} of {space} classifications satisfy both "
-              f"axioms, 0 break totality ({cost} arbitrations, budget "
-              f"{EXHAUSTIVE_PROOF_BUDGET})")
+    # 5d. THE THEOREM, falsified against a FIXED model.
+    # Not an enumeration of this policy's classification space. That is what used
+    # to be here, and it was an exponential in k paid for a theorem whose proof
+    # never mentions k: adding one ordinary rule took 3^7 x 31 = 67797 to
+    # 3^9 x 63 = 1240029 and fired the budget, turning `write a sixth rule` into
+    # `revise the CI compute policy`.
+    # The real policy is verified directly and completely above. What is enumerated
+    # here is a four-rule model whose outcomes partition A, A, B, C - chosen because
+    # it CONTAINS the case the survivor reading turns on, two rules of one outcome
+    # surviving together. Its cost is a constant of this file.
+    model_outcomes = {"M-A1": "A", "M-A2": "A", "M-B": "B", "M-C": "C"}
+    model_ids = sorted(model_outcomes)
+    model_pairs = [tuple(sorted(pr)) for pr in
+                   sorted(({frozenset(x) for x in itertools.combinations(model_ids, 2)
+                            if model_outcomes[x[0]] != model_outcomes[x[1]]}), key=sorted)]
+    mk = len(model_pairs)
+    model_space = 3 ** mk
+    model_cost = model_space * (2 ** len(model_ids) - 1)
+    check(model_cost <= EXHAUSTIVE_PROOF_BUDGET,
+          f"the theorem model costs {model_cost} arbitrations, over the reviewed budget "
+          f"of {EXHAUSTIVE_PROOF_BUDGET}. This model is a constant of this file, so "
+          "exceeding it means the model was edited, not that the policy grew.")
+    satisfying, counterexamples, saw_multi_survivor = 0, [], False
+    for combo in itertools.product((0, 1, 2), repeat=mk):
+        e, rf = [], []
+        for (x, y), state in zip(model_pairs, combo):
+            if state == 0:
+                e.append((x, y))
+            elif state == 1:
+                e.append((y, x))
+            else:
+                rf.append(frozenset((x, y)))
+        if pair_completeness_failures(model_ids, model_outcomes, e, rf):
+            continue
+        if dominance_sanity_failures(model_ids, model_outcomes, e):
+            continue
+        satisfying += 1
+        es, rs = set(e), set(rf)
+        for n in range(1, len(model_ids) + 1):
+            for sub in itertools.combinations(model_ids, n):
+                res = arbitrate(sub, model_outcomes, es, rs)
+                if res is None:
+                    counterexamples.append((combo, sub))
+                elif len({model_outcomes[r] for r in sub}) > 1 and len(res[1]) > 1:
+                    saw_multi_survivor = True
+    check(satisfying > 0,
+          f"no classification of the model's {mk} pairs satisfied both axioms; the "
+          "falsifier is not exercising anything")
+    check(not counterexamples,
+          f"totality is NOT a theorem of the two axioms: {len(counterexamples)} "
+          f"counterexample(s), first {counterexamples[:1]}. The contract claims a "
+          "proof it does not have.")
+    # The model has to contain the interesting shape, or it is a cheaper check of
+    # a weaker claim wearing the same name.
+    check(saw_multi_survivor,
+          "no classification of the model produced a disagreeing subset whose SURVIVORS "
+          "were several rules of one outcome. That shape is the whole reason this model "
+          "has two rules of outcome A, and without it the falsifier would pass for a "
+          "policy using the abandoned `exactly one dominating rule` reading.")
+    print(f"       theorem: bounded falsification on a fixed 4-rule model - {satisfying} "
+          f"of {model_space} classifications satisfy both axioms, 0 break totality "
+          f"({model_cost} arbitrations, independent of the {len(ids)} production rules)")
 
     for f in fails:
         print(f"FAIL: {f}")
