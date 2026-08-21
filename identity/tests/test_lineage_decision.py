@@ -698,6 +698,26 @@ def main() -> int:
         if prof is not None:
             check(isinstance(prof, dict) and prof.get("per") in ("successor", "predecessor"),
                   f"{rid}: partner_profile must say which side it is `per`")
+            # ...and it must be the REPEATED side. `per` accepted either value for
+            # either shape, so a 1:N rule could profile the predecessor - the one
+            # occurrence there is exactly one of - and license a branch whose
+            # successors show none of the required evidence. The senior contract
+            # defines `branched` as several EQUALLY SUPPORTED successors, and a
+            # profile aimed at the singleton side supports none of them.
+            #
+            # The repeated side is read off the shape, not chosen: `1:N` means one
+            # predecessor and N successors. There is no policy here to hold an
+            # opinion about, unlike the quantifier, which is why this one is
+            # derived where that one is declared.
+            repeated = {"1:N": "successor", "N:1": "predecessor"}.get(
+                (rules[rid].get("cardinality") or {}).get("shape"))
+            if repeated:
+                check(prof.get("per") == repeated,
+                      f"{rid} is {(rules[rid].get('cardinality') or {}).get('shape')!r}, so "
+                      f"the group is its {repeated}s, but `partner_profile.per` is "
+                      f"{prof.get('per')!r} - the side there is exactly one of. A profile "
+                      "checked against the singleton says nothing about the partners the "
+                      "outcome rests on.")
             req = prof.get("requires_all") if isinstance(prof, dict) else None
             check(isinstance(req, list) and req,
                   f"{rid}: partner_profile must NAME the kinds; the contract refuses to "
