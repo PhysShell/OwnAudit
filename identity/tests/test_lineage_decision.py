@@ -980,6 +980,7 @@ def main() -> int:
     # observation left it unclassified with everything green. That is the same
     # valid-but-not-total defect this map was just fixed for, one layer up, in the
     # section added to fix it.
+    NO_RECORD = "no_structural_record"
     observation = {k: v for k, v in
                    (senior.get("evidence_kind_observation") or {}).items()
                    if isinstance(v, str)}
@@ -1002,8 +1003,27 @@ def main() -> int:
               f"{list(OBSERVATION_CLASSES)}. An unrecognised class says a kind was "
               "classified without saying how it is observed, and every consumer must "
               "then guess exactly what this section exists to settle.")
+        # A `revision_record` classification is a DEMAND for a record, so the
+        # contract has to say which one. It said only that the token was in the
+        # vocabulary: reclassifying `same_pattern_id` - reached solely through
+        # `partner_profile`, and so deliberately outside the kind-to-record map's
+        # domain - left the frozen contract demanding a revision record while
+        # naming nowhere to read it, with the suite green. Both group rules rest
+        # on that kind, so legitimate branch and merge evidence would be refused
+        # or resolved ad hoc.
+        #
+        # No new declaration closes this; the existing ones already contradict
+        # each other. Requiring the record to be NAMED makes the classification
+        # unsatisfiable for a kind the map cannot carry, which is the right
+        # answer rather than a second opinion about which kinds those are.
+        if how == "revision_record":
+            check(kind_records.get(kind) not in (None, NO_RECORD),
+                  f"`evidence_kind_observation[{kind!r}]` says a revision record "
+                  "observes it, and `evidence_kind_records.map` names no record for it "
+                  f"(got {kind_records.get(kind)!r}). A kind reached only through a "
+                  "`partner_profile` is outside that map by design, so classifying one "
+                  "this way demands evidence the contract gives no way to read.")
 
-    NO_RECORD = "no_structural_record"
     direct = {k for r in rules.values() for k in (r.get("requires_all") or [])}
     want_domain = {k for k in direct if k in senior_kinds}
     check(set(kind_records) == want_domain,
