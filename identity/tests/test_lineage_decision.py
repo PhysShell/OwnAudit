@@ -314,6 +314,31 @@ def signal_bindings(spec: dict) -> list:
     return out
 
 
+def boundary_hits(spec: dict, frm, to, by_id: dict, rev_b: dict) -> tuple:
+    """(role, the occurrences this boundary actually applied to) - asked once.
+
+    It was asked twice at different strengths, which is this branch's signature
+    defect arriving in the boundary block. The declared-defeat validation
+    required the boundary to have applied to EVERY occurrence on its side; the
+    converse check requires a defeat when it applied to ANY. A fold falsifies the
+    stronger one: `merged` names two predecessors, only one of whose enclosing
+    symbols is in `removed_symbols`, and the other is the symbol the fold merged
+    INTO. Demanding it applied to both rejects the one shape the fixture exists
+    to preregister.
+
+    `at least one` is what the guard was for - "defeating a boundary that never
+    applied to the side it names proves nothing" - and it still says that. What
+    it stops claiming is that a boundary reaching one member of a group must
+    reach all of them, which the senior contract nowhere says: the boundary is a
+    fact about an occurrence's site, not about the group it was decided with."""
+    role, _, attr = str(spec.get("match", "")).partition(".")
+    if role not in SUBJECT_ROLES or not attr:
+        return role, []
+    subjects = frm if role == "predecessor" else to
+    observed = collect(rev_b, str(spec.get("observable_from", "")))
+    return role, [oid for oid in subjects if by_id.get(oid, {}).get(attr) in observed]
+
+
 def entry_shape_failures(where: str, cat_spec: dict, entries) -> list:
     """The catalog's `entry_shape` says whether a field is a scalar or a list.
 
@@ -1798,6 +1823,33 @@ def main() -> int:
     check(unavailable_from.startswith("revision_b."),
           "`unavailable_inputs.observable_from` must name a revision B field, got "
           f"{unavailable_from!r}")
+    # EVERY RECORD FIELD THIS SUITE VALIDATES IS DECLARED, and every declaration
+    # is a field a fixture may carry. Only `inputs_unavailable` was ever checked
+    # for presence here, so `evidence_surviving` and `boundary_defeated` - both
+    # required by this suite, both validated in detail, both written by any
+    # conforming mapper - appeared in NEITHER contract. That is
+    # `requires_all_scope` inverted: prose nothing read became code nothing
+    # declared, and a mapper following the contract would have omitted two fields
+    # whose absence the suite treats as a violation.
+    #
+    # `not_applicable` and `note` are deliberately not asserted either way.
+    # Whether a mapper writes them, or whether they are annotations the fixtures
+    # carry for the reader, is a question the contract has not answered, and
+    # answering it here would be the checker deciding what belongs in a record.
+    validated_record_fields = {"applicable_rules", "licensed_by", "decision_detail",
+                               "signals_defeated", UNAVAILABLE_FIELD,
+                               "evidence_surviving", "boundary_defeated"}
+    missing_declarations = sorted(validated_record_fields - set(policy["record_additions"]))
+    check(not missing_declarations,
+          f"`record_additions` does not declare {missing_declarations}, which this "
+          "suite requires of an expectation and validates. A field enforced here and "
+          "described nowhere is a field a conforming mapper would not write.")
+    undeclared_fields = sorted(set(policy["record_additions"]) - set(EXPECTATION_KINDS))
+    check(not undeclared_fields,
+          f"`record_additions` declares {undeclared_fields}, which no expectation may "
+          "carry. A record field nothing can hold is a promise to a mapper that the "
+          "corpus cannot keep.")
+
     check(UNAVAILABLE_FIELD in policy["record_additions"],
           f"`unavailable_inputs.recorded_as` names {UNAVAILABLE_FIELD!r}, which is not a "
           "field `record_additions` declares. The suite reads the record through this "
@@ -2416,6 +2468,54 @@ def main() -> int:
                   "excluded by cardinality. A rule lost at one stage, and the two "
                   "answer different questions when the rule is later changed.")
 
+            # THE CONVERSE, which nothing asked. The loop below validates a
+            # DECLARED defeat; nothing ever required one. A boundary whose
+            # evidence revision B carries, and which applies to an occurrence
+            # this expectation names, has to be either HONOURED - concluded as
+            # the outcome it `proves` - or DEFEATED in writing. Deleting
+            # `boundary_defeated` from `copy-at-one-to-one-is-not-a-branch` left
+            # the suite green and the case stopped being adversarial:
+            # `deleted_paths` earns `ended` for that predecessor unless the copy
+            # record defeats it, and with the record gone it was an ordinary
+            # copy-continuation wearing the name of a harder case. Review found
+            # that one; the census here found a second, where the fold's
+            # `removed_symbols` boundary had never been declared defeated at all.
+            #
+            # Derived, not listed: every boundary kind declares `match`,
+            # `observable_from` and what it `proves`, so which boundaries applied
+            # to which occurrence is read off the senior contract and the records
+            # the fixture carries. No applicability is computed.
+            declared_defeats = set(exp.get("boundary_defeated") or {})
+            for bspec in senior["boundary_evidence_kinds"].values():
+                _, hit = boundary_hits(bspec, frm, to, by_id, rev_b)
+                if not hit or outcome == bspec.get("proves"):
+                    continue
+                check(bspec["value"] in declared_defeats,
+                      f"{where}: {bspec['observable_from']} names "
+                      f"{hit!r}, so {bspec['value']!r} "
+                      f"applies to {hit!r} and proves {bspec.get('proves')!r} - but "
+                      f"this expectation concludes {outcome!r} and records no defeat. "
+                      "Boundary evidence carried and not honoured has to be defeated "
+                      "in writing; silence is the absence-of-record defect this "
+                      "contract exists to forbid.")
+
+            # REVISION-LEVEL, so every decision about the pair records it.
+            # `unavailable_inputs` means a signal that "could not be EVALUATED at
+            # all ... for the revision" and is observed from
+            # `revision_b.unavailable_signals`; `record_additions` says the field
+            # is "Present whenever any were". The only check was the per-CASE
+            # obligation, satisfied by whichever expectation happened to carry
+            # it, so the mirror expectation could drop the record and stay green -
+            # one stored refusal missing the machine-readable reason its twin
+            # gives for the same revision pair.
+            revision_unavailable = set(collect(rev_b, unavailable_from))
+            if revision_unavailable:
+                check(set(exp.get(UNAVAILABLE_FIELD) or []) == revision_unavailable,
+                      f"{where}: {unavailable_from} declares "
+                      f"{sorted(revision_unavailable)} unevaluable for the REVISION, "
+                      f"so every decision about it records them; this one records "
+                      f"{sorted(set(exp.get(UNAVAILABLE_FIELD) or []))}.")
+
             for kind, defeater in (exp.get("boundary_defeated") or {}).items():
                 spec = next((s for s in senior["boundary_evidence_kinds"].values()
                              if s["value"] == kind), None)
@@ -2433,20 +2533,13 @@ def main() -> int:
                 # fixture could defeat a boundary that never applied to the side it
                 # names. Every occurrence on the declared side is checked, not the
                 # first one.
-                role, attr = spec["match"].split(".")
-                subjects = frm if role == "predecessor" else to
-                check(bool(subjects),
-                      f"{where}: {kind!r} matches on {spec['match']}, and this "
-                      f"expectation names no {role}. There is nothing for the boundary "
-                      "to have applied to, so defeating it proves nothing.")
-                observed = collect(rev_b, spec["observable_from"])
-                for oid in subjects:
-                    wanted = by_id.get(oid, {}).get(attr)
-                    check(wanted in observed,
-                          f"{where}: {kind!r} would not have applied to {oid} anyway - "
-                          f"{spec['observable_from']} holds {sorted(observed)!r}, which "
-                          f"does not name its {attr} {wanted!r}, so defeating it proves "
-                          "nothing")
+                role, hit = boundary_hits(spec, frm, to, by_id, rev_b)
+                check(bool(hit),
+                      f"{where}: {kind!r} matches on {spec['match']} and "
+                      f"{spec['observable_from']} holds "
+                      f"{sorted(collect(rev_b, spec['observable_from']))!r}, which names "
+                      f"no {role} this expectation declares. The boundary never applied "
+                      "here, so defeating it proves nothing.")
 
         # ---- the case's PREREGISTERED OBLIGATION, not just its answer. -------
         # A case can reach the right outcome for the wrong reason: move the losing
