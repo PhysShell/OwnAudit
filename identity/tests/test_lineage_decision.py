@@ -118,18 +118,27 @@ def load(path: str) -> dict:
 
 
 def duplicate_json_keys(path: str) -> list:
-    """Keys declared twice in one object, found during the RAW parse.
+    """Keys declared twice in ONE object, found during the RAW parse.
 
     Has to be its own read: `json.load` resolves duplicates by keeping the last,
-    so nothing downstream can tell a duplicated key from a single one. Returns
-    dotted paths so the message can name where."""
+    so nothing downstream can tell a duplicated key from a single one.
+
+    Each entry names the key AND the other keys of the object holding it, because
+    the bare name is not enough to find it - `reason` appears in a dozen places in
+    the policy. An earlier docstring promised "dotted paths" while the code
+    returned bare names, which is the same defect these rounds keep finding one
+    layer up: a description claiming more than the code does. `object_pairs_hook`
+    is called innermost-first and never learns where it is, so the siblings are
+    what can honestly be offered, and the docstring says that instead."""
     dups: list = []
 
     def hook(pairs):
         seen = set()
         for key, _ in pairs:
             if key in seen:
-                dups.append(key)
+                siblings = sorted({k for k, _ in pairs} - {key})
+                dups.append(f"{key!r} (in an object also declaring "
+                            f"{', '.join(siblings) or 'nothing else'})")
             seen.add(key)
         return dict(pairs)
 
@@ -588,12 +597,20 @@ def main() -> int:
     # the duplicate is already gone - along with one of the two rules.
     # What CAN fail is the raw parse, so that is what is checked, on the contracts
     # that carry rules and vocabulary this suite reads by key.
-    for label, cpath in (("decision policy", POLICY), ("outcome contract", SENIOR)):
+    scanned = [("decision policy", POLICY), ("outcome contract", SENIOR)]
+    # ...and the FIXTURES, which this suite also reads by key. A case declaring
+    # `licensed_by` twice loses one to `json.load` in the same silent way, and the
+    # case is then checked against half of what it says - verified: the first
+    # declaration vanishes and the suite stays green.
+    scanned += [(f"fixture {f}", os.path.join(FIXDIR, f))
+                for f in sorted(os.listdir(FIXDIR)) if f.endswith(".json")]
+    for label, cpath in scanned:
         for dup in duplicate_json_keys(cpath):
             check(False,
-                  f"the {label} declares {dup!r} twice. `json.load` keeps the last one "
-                  "and drops the other without a word, so a rule, a limitation or an "
-                  "evidence kind would vanish between the file and every check below.")
+                  f"the {label} declares {dup} twice. `json.load` keeps the last one "
+                  "and drops the other without a word, so a rule, a limitation, an "
+                  "evidence kind or half a preregistered expectation would vanish "
+                  "between the file and every check below.")
 
     for pair in refusals:
         for subset, res in results.items():
