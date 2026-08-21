@@ -513,6 +513,17 @@ def main() -> int:
         if node is agree:
             continue
         got = node.get("outcome")
+        # A DECISION LEAF, not a container. `multiplicity` holds two branches that
+        # reach DIFFERENT answers - one is `branched` or `merged` per the
+        # structural rules, the other refuses - so an outcome on the parent
+        # contradicts a child whatever it says. The first version of this check
+        # accepted `unresolved` there because it treated every non-`all_agree`
+        # node carrying an outcome as a refusal.
+        check("reason" in node or "implements" in node,
+              f"{path_a} declares outcome {got!r} but names no reason and implements "
+              "no `reason_mapping` entry, so it is a container rather than a decision. "
+              "Its children reach the outcomes; a parent claiming one contradicts "
+              "whichever child disagrees.")
         check(got == "unresolved",
               f"{path_a} declares outcome {got!r}. Every arbitration branch that is "
               "not `all_agree` refuses, and `arbitrate` answers `unresolved` on all of "
@@ -521,11 +532,23 @@ def main() -> int:
     check("implements" not in agree,
           "`arbitration.all_agree` is not a refusal and must not implement a "
           "`reason_mapping` entry; the record it produces carries no reason at all.")
-    check(agree.get("outcome") not in senior_outcomes,
-          f"`arbitration.all_agree.outcome` names the literal {agree.get('outcome')!r}. "
-          "It is computed from the surviving rules - naming one outcome freezes a law "
-          "about every agreeing set into a claim about one of them, and the survivor "
-          "algebra says otherwise.")
+    # A MARKER, not merely a non-literal. This asked only that the value was none
+    # of the six senior outcomes, so deleting the field or writing `no outcome`
+    # passed - and the field exists precisely to tell a mapper the value is
+    # computed. `not in senior_outcomes` is the check claiming more than it
+    # checks, one more time.
+    agree_out = agree.get("outcome")
+    check(isinstance(agree_out, dict),
+          f"`arbitration.all_agree.outcome` is {agree_out!r}. It must be a machine-"
+          "readable marker saying the value is COMPUTED; a prose string cannot be "
+          "distinguished from a missing field or from a wrong one.")
+    if isinstance(agree_out, dict):
+        check(agree_out.get("computed_from") == "surviving_rules"
+              and agree_out.get("field") == "outcome",
+              f"`arbitration.all_agree.outcome` marks {agree_out.get('computed_from')!r}"
+              f".{agree_out.get('field')!r}; the outcome is the `outcome` shared by the "
+              "SURVIVING rules, which is what `licensed_by_rule` and `arbitrate` both "
+              "implement.")
 
     conflict_reason = (policy["reason_mapping"].get("conflicting_rules") or {}).get("reason")
     for entry in policy["deliberately_unresolved_conflicts"]:
@@ -727,6 +750,8 @@ def main() -> int:
 
     # ---- 4. Structural signals are observable, like boundary evidence. ------
     catalog = policy["structural_signals"]
+    kind_records = {k: v for k, v in (policy.get("evidence_kind_records") or {}).items()
+                    if isinstance(v, str)}
     for name, spec in catalog.items():
         for field in ("observable_from", "matches", "why"):
             check(field in spec, f"structural signal {name!r} must state {field!r}")
@@ -1076,54 +1101,101 @@ def main() -> int:
             # LICENSED, not merely applicable. An applicable-but-dominated rule
             # never named this mapping's group, and on a refused conflict the
             # sides are the unresolved record's own - side a names `frm` with `to`
-            # empty - so there is no group to bind against at all. Checking `app`
-            # here failed all four expectations of
-            # `copy-source-that-is-also-a-fold-refuses`, which is the check being
-            # wrong rather than the fixture.
+            # empty - so there is no group to bind against at all.
+            #
+            # PER ENTRY, CONJUNCTIVELY. The first version of this collected each
+            # matched field independently across every record, which threw away
+            # the relation between them: two copies reading
+            # `Doc.cs -> Unrelated.cs` and `Other.cs -> DocCopy.cs` put the
+            # predecessor somewhere in the pooled `from` and the successor
+            # somewhere in the pooled `to`, and passed, though no single record
+            # connects the two. A record relates a PAIR or it relates nothing.
             for rid in lic:
-                binding = rules[rid].get("record_binding")
+                rule_r = rules[rid]
+                binding = rule_r.get("record_binding")
+                shape_r = (rule_r.get("cardinality") or {}).get("shape")
+                if binding is None and shape_r == "1:1":
+                    # At 1:1 there is exactly one occurrence in each role, so
+                    # `every` and `at_least_one` are the SAME condition and the
+                    # checker chooses no policy by applying it - see
+                    # `record_binding_vocabulary.at_one_to_one`. Skipping instead
+                    # left R-CONT-COPY's record unbound: repointing the copy at an
+                    # unrelated path still licensed `continued`.
+                    binding = {"predecessor": {"quantifier": "every"},
+                               "successor": {"quantifier": "every"}}
                 if not binding:
                     continue
-                for sig in (rules[rid].get("requires_all") or []):
+                for kind in (rule_r.get("requires_all") or []):
+                    sig = kind if kind in catalog else kind_records.get(kind)
                     cat_s = catalog.get(sig)
                     if not cat_s:
                         continue
-                    for read, role, attr in signal_bindings(cat_s):
-                        observed = collect(rev_b, read)
-                        check(bool(observed),
-                              f"{where}: {rid} applies on {sig!r}, but {read} carries "
-                              "nothing. A record cited in `applicable_rules` and absent "
-                              "from revision B is a record asserted in a note.")
-                        subjects = frm if role == "predecessor" else to
+                    read_field = str(cat_s.get("observable_from", "")).split("[].")[0]
+                    entries = (rev_b.get(read_field.partition(".")[2]) or []
+                               if read_field.startswith("revision_b.") else [])
+                    check(bool(entries),
+                          f"{where}: {rid} rests on {sig!r}, but {read_field} carries "
+                          "nothing. A record cited by a licensing rule and absent from "
+                          "revision B is a record asserted in a note.")
+                    # `signal_bindings` yields the full dotted READ PATH, not the
+                    # bare entry key - `revision_b.copies[].from`, not `from`.
+                    pairs = [(read.split("[].")[-1], role, at)
+                             for read, role, at in signal_bindings(cat_s)]
+
+                    # Eligible partners per role, after the declared exclusion.
+                    pools = {}
+                    for _r, role in (("", "predecessor"), ("", "successor")):
                         spec_r = binding.get(role) or {}
-                        quant = spec_r.get("quantifier")
-                        excl = spec_r.get("excluding")
-                        pool = list(subjects)
-                        if excl == "partners_where_same_path_holds":
+                        pool = list(frm if role == "predecessor" else to)
+                        if spec_r.get("excluding") == "partners_where_same_path_holds":
                             others = to if role == "predecessor" else frm
                             paths = {by_id.get(o, {}).get("path") for o in others}
                             pool = [o for o in pool
                                     if by_id.get(o, {}).get("path") not in paths]
                             check(bool(pool),
                                   f"{where}: {rid} excludes partners at the "
-                                  f"predecessor's path and {role}s has none left. The "
-                                  "record would then explain nothing this mapping needs.")
-                        named = [o for o in pool
-                                 if by_id.get(o, {}).get(attr) in observed]
+                                  f"predecessor's path and no {role} is left. The record "
+                                  "would then explain nothing this mapping needs.")
+                        pools[role] = pool
+
+                    def names(entry: dict, key: str, wanted) -> bool:
+                        """One record entry naming one occurrence, on one key.
+                        A fold's `from` is a LIST of symbols and a copy's is a
+                        single path; `entry_shape` says which, so membership and
+                        equality are the same question asked of two shapes."""
+                        if not isinstance(entry, dict) or key not in entry:
+                            return False
+                        val = entry[key]
+                        return wanted in val if isinstance(val, list) else wanted == val
+
+                    related = set()
+                    for entry in entries:
+                        for p in pools["predecessor"]:
+                            for t in pools["successor"]:
+                                subj = {"predecessor": p, "successor": t}
+                                if all(names(entry, key,
+                                             by_id.get(subj[role], {}).get(at))
+                                       for key, role, at in pairs):
+                                    related.add((p, t))
+
+                    for role in ("predecessor", "successor"):
+                        spec_r = binding.get(role) or {}
+                        quant = spec_r.get("quantifier")
+                        idx = 0 if role == "predecessor" else 1
+                        reached = {pair[idx] for pair in related}
+                        pool = pools[role]
                         if quant == "every":
-                            missing = [o for o in pool if o not in named]
+                            missing = [o for o in pool if o not in reached]
                             check(not missing,
-                                  f"{where}: {rid} binds EVERY {role} into {read}, but "
-                                  f"{missing!r} "
-                                  f"({[by_id.get(o, {}).get(attr) for o in missing]!r}) "
-                                  f"is absent; the record holds {sorted(observed)!r}")
+                                  f"{where}: {rid} binds EVERY {role} through {sig}, but "
+                                  f"no single entry of {read_field} relates {missing!r} "
+                                  "to a partner on this mapping")
                         elif quant == "at_least_one":
-                            check(bool(named),
-                                  f"{where}: {rid} binds at least one {role} into "
-                                  f"{read}, and none of {pool!r} "
-                                  f"({[by_id.get(o, {}).get(attr) for o in pool]!r}) is "
-                                  f"there; the record holds {sorted(observed)!r} and so "
-                                  "explains a different transformation than this one")
+                            check(bool(reached),
+                                  f"{where}: {rid} binds at least one {role} through "
+                                  f"{sig}, and no entry of {read_field} relates any of "
+                                  f"{pool!r} to a partner. The record explains a "
+                                  "different transformation than this one.")
 
             # A defeat must be CARRIED by revision B, exactly as a boundary is.
             for signal, source in (exp.get("signals_defeated") or {}).items():

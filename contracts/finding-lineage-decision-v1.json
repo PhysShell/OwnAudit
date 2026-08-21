@@ -255,7 +255,11 @@
       "implements": "no_rule_applied"
     },
     "all_agree": {
-      "outcome": "the shared outcome",
+      "outcome": {
+        "computed_from": "surviving_rules",
+        "field": "outcome",
+        "why": "NOT a literal. The value is whatever outcome the surviving rules share, and this was the prose string `the shared outcome` until review pointed out that a check rejecting only the six senior literals accepts `no outcome`, or the field being deleted. A marker a mapper can read is the whole point of the field."
+      },
       "licensed_by": "EVERY applicable rule, not the first or the strongest",
       "why": "the record has to survive one of those rules being retired later",
       "this_is_not_a_separate_law": [
@@ -310,8 +314,7 @@
         "Cardinality is a precondition now, so a lone successor never licenses",
         "`branched` in the first place; see `cardinality_rule` for why that is a",
         "different thing from arriving at the same answer two sections later."
-      ],
-      "outcome": "unresolved"
+      ]
     },
     "licensed_by_rule": [
       "ONE definition, and the branches above are readings of it: `licensed_by` is",
@@ -624,6 +627,19 @@
       },
       "why": "defeats anchored_content: equality across a formatter pass is a property of the formatter",
       "note": "not exercised by any finding-lineage/v1 fixture; the step 1 fixtures introduce it"
+    },
+    "rename_record": {
+      "observable_from": "revision_b.renames",
+      "entry_shape": {
+        "from": "path",
+        "to": "path",
+        "similarity": "int"
+      },
+      "matches": {
+        "from": "predecessor.path",
+        "to": "successor.path"
+      },
+      "why": "the record that says a file MOVED rather than being deleted and another born"
     }
   },
   "structural_signals_rule": [
@@ -917,6 +933,22 @@
       "A quantifier or exclusion not listed here is REJECTED rather than ignored.",
       "A binding vocabulary that silently accepts unknown tokens is a binding that stops",
       "binding the moment someone invents a word."
+    ],
+    "at_one_to_one": "A 1:1 rule declares NO `record_binding`, because at one occurrence per role `every` and `at_least_one` are the same condition and there is nothing to choose. The record must still relate the pair: skipping the check there let R-CONT-COPY license a `continued` on a copy pointing at an unrelated path."
+  },
+  "evidence_kind_records": {
+    "path_rename": "rename_record",
+    "why": [
+      "Some rules name a senior EVIDENCE KIND in `requires_all` and some name a",
+      "record from `structural_signals` directly. `path_rename` is the first sort, and",
+      "so the record behind it was bound by nothing: R-CONT-RENAME could license a",
+      "`continued` while `revision_b.renames` described two unrelated files. That is",
+      "the same defect review found for R-CONT-COPY, one rule over, and fixing only",
+      "the reported instance would have left the class.",
+      "",
+      "This maps the kind to the record that OBSERVES it. It does not change what any",
+      "rule requires - `requires_all` still names `path_rename` - it says where a",
+      "checker or a mapper must look to see whether the claim is carried."
     ]
   }
 }
