@@ -962,7 +962,6 @@
       "the roles the signal's own `matches` names, and the suite rejects a binding",
       "whose roles disagree with the catalog.",
       "",
-      "The quantifiers differ between the two group rules and that difference is",
       "The quantifiers differ between the two group rules and the difference is a",
       "POLICY CHOICE - see each rule's `why`. An earlier revision of this paragraph",
       "claimed that swapping them 'makes both rules wrong in opposite directions, and",

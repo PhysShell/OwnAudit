@@ -276,9 +276,24 @@ def collect(rev: dict, dotted: str) -> list:
     return out
 
 
+# The two ends of a mapping. Written once: `record_binding` role keys, the
+# catalog's `matches` values and the binding pools all name the same two, and
+# three literal spellings of one vocabulary is how this contract has gone wrong
+# before.
+SUBJECT_ROLES = ("predecessor", "successor")
+
+
 def signal_bindings(spec: dict) -> list:
     """(read path, subject role, subject attribute) for each key the catalog's
-    `matches` names.
+    `matches` names, for the roles a mapping actually has.
+
+    A role outside `SUBJECT_ROLES` is DROPPED here rather than handed on. It is
+    reported by name where the catalog is validated; what this guarantees is that
+    no downstream reader can be given one. `related_by` indexes `subject[role]`
+    directly, so writing `succesor.path` in the catalog killed the whole run on a
+    KeyError - the contract-integrity check above it had already reported the
+    fault, and the crash then threw that report away along with everything else
+    the run had left to say.
 
     `matches` is the NORMATIVE half and `entry_shape` only says how the entries
     are shaped. An earlier version read every key of `entry_shape`, which is a
@@ -292,6 +307,8 @@ def signal_bindings(spec: dict) -> list:
     out = []
     for key, subject in (spec.get("matches") or {}).items():
         role, _, attr = str(subject).partition(".")
+        if role not in SUBJECT_ROLES:
+            continue
         read = f"{field}[].{key}" if isinstance(shape, dict) else field
         out.append((read, role, attr))
     return out
@@ -1581,7 +1598,13 @@ def main() -> int:
               "the record is about and any record in revision B would do")
         for key, subject in (matches or {}).items():
             role, dot, attr = str(subject).partition(".")
-            check(role in ("predecessor", "successor"),
+            # Already asked here. What was missing is not the question but the
+            # consequence: `check` accumulates, so the run continued into
+            # `related_by`, which indexes `subject[role]` and died on a KeyError -
+            # throwing away this very report along with everything else the run
+            # had left to say. `signal_bindings` now declines to pass an unknown
+            # role on, so the report survives to be printed.
+            check(role in SUBJECT_ROLES,
                   f"{where_s}.matches[{key!r}] names role {role!r}; a record relates "
                   "predecessors to successors and nothing else")
             check(bool(dot) and attr in occurrence_attrs,
@@ -1699,6 +1722,37 @@ def main() -> int:
     # ...and the group quantifier, which used to live in `requires_all_scope` as
     # prose. A 1:1 rule could claim GROUP scope and a group rule could drop the
     # declaration entirely, both silently.
+    # A RECORD THAT BINDS A MAPPING HAS TO CONSTRAIN BOTH ENDS OF IT. The loop
+    # below checks that a GROUP rule's declared roles equal the catalog's, which
+    # covers `copy_record` and `merge_record` - but only transitively, through
+    # those rules' own declarations. A 1:1 rule declares no `record_binding` at
+    # all, since the field belongs to group rules and only them, so its binding
+    # is SYNTHESISED further down with both roles and nothing asked whether the
+    # catalog names both. Deleting `rename_record.matches.to` left the suite
+    # green, and a rename record whose `from` matched while its `to` pointed at
+    # an unrelated file then licensed R-CONT-RENAME: with the successor end
+    # unnamed, `related_by` counts every successor as reached.
+    #
+    # Asked of the records rules REST ON, not of every signal. The two defeaters
+    # name one role deliberately - `renamed_symbol_record` matches on `from`
+    # alone, because a record saying something ARRIVED at a name is not evidence
+    # about the predecessor that left it, and pooling the two roles there was a
+    # defect fixed in an earlier round. The contract draws that line itself; this
+    # reads it rather than restating it.
+    rested_on = set()
+    for rule_ in rules.values():
+        for kind_ in rule_needs(rule_):
+            sig_ = kind_ if kind_ in catalog else kind_records.get(kind_)
+            if sig_ in catalog:
+                rested_on.add(sig_)
+    for sig_ in sorted(rested_on):
+        roles_ = {r for _, r, _ in signal_bindings(catalog[sig_])}
+        check(roles_ == set(SUBJECT_ROLES),
+              f"{sig_} is a record that rules rest on, and its `matches` names "
+              f"{sorted(roles_)}. A record explaining a mapping has to constrain BOTH "
+              "ends of it: with one end unnamed, every occurrence on that side counts "
+              "as reached and the record licenses a mapping it does not describe.")
+
     vocab = policy["record_binding_vocabulary"]
     for rid in sorted(rules):
         rule_ = rules[rid]
@@ -1718,12 +1772,12 @@ def main() -> int:
               "the binding is about exactly one record")
         for sig in structural:
             roles = {r for _, r, _ in signal_bindings(policy["structural_signals"][sig])}
-            declared = {k for k in binding if k in ("predecessor", "successor")}
+            declared = {k for k in binding if k in SUBJECT_ROLES}
             check(declared == roles,
                   f"{rid}.record_binding names roles {sorted(declared)} but {sig} "
                   f"matches on {sorted(roles)}. The roles are the catalog's, not a "
                   "second opinion about which side the group is on.")
-        for role in ("predecessor", "successor"):
+        for role in SUBJECT_ROLES:
             spec_r = binding.get(role)
             if role in binding:
                 bad = populated_object_failure(f"{rid}.record_binding.{role}", spec_r)
@@ -2072,7 +2126,7 @@ def main() -> int:
                           "nothing. A record cited by a licensing rule and absent from "
                           "revision B is a record asserted in a note.")
                     pools = {}
-                    for role in ("predecessor", "successor"):
+                    for role in SUBJECT_ROLES:
                         spec_r = binding.get(role) or {}
                         pool = list(frm if role == "predecessor" else to)
                         if spec_r.get("excluding") == "partners_where_same_path_holds":
@@ -2089,7 +2143,7 @@ def main() -> int:
                     def carries(entry: dict) -> bool:
                         rel = related_by(entry, pairs, pools["predecessor"],
                                          pools["successor"], by_id)
-                        for role in ("predecessor", "successor"):
+                        for role in SUBJECT_ROLES:
                             quant = (binding.get(role) or {}).get("quantifier")
                             reached = {p[0 if role == "predecessor" else 1] for p in rel}
                             if quant == "every" and any(o not in reached
