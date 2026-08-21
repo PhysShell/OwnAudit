@@ -418,6 +418,24 @@ def main() -> int:
               f"the policy emits {reason!r}, which finding-lineage/v1 does not define. "
               "Amend the senior contract in the open; do not widen it from below.")
 
+    # A DECLARED REFUSAL MUST SAY WHAT THE ALGEBRA DOES. `raw_refusal_pairs` reads
+    # only `between`, and `arbitrate` hard-codes `unresolved`, so the entry's own
+    # `outcome` and `reason` were decoration: turning the frozen N:M entry into
+    # `outcome: continued` with a no-mapping-evidence reason left the suite green
+    # while that entry, `arbitration.conflict` and `reason_mapping.conflicting_rules`
+    # all disagreed.
+    conflict_reason = (policy["reason_mapping"].get("conflicting_rules") or {}).get("reason")
+    for entry in policy["deliberately_unresolved_conflicts"]:
+        pair = sorted(entry.get("between") or [])
+        check(entry.get("outcome") == "unresolved",
+              f"declared refusal {pair} names outcome {entry.get('outcome')!r}. Arbitration "
+              "answers `unresolved` on a refused pair and nothing else reads this field, "
+              "so any other value is a claim the algebra contradicts.")
+        check(entry.get("reason") == conflict_reason,
+              f"declared refusal {pair} names reason {entry.get('reason')!r}, but "
+              f"`reason_mapping.conflicting_rules` selects {conflict_reason!r}. One "
+              "authority, or a mapper reads whichever it happened to open.")
+
     senior_outcomes = set(senior["outcomes"])
     floor = senior["minimum_evidence_kinds_for_continued"]
     for rid in ids:
@@ -614,6 +632,7 @@ def main() -> int:
             check(duty in obligation_meanings,
                   f"{cname}: obligation {duty!r} has no entry in `meanings`")
     licensed_outcomes: set[str] = set()
+    exercised_refusals: set = set()
     for name in sorted(set(on_disk) & set(preregistered)):
         with open(os.path.join(FIXDIR, f"{name}.json"), encoding="utf-8") as fh:
             case = json.load(fh)
@@ -658,6 +677,9 @@ def main() -> int:
                   f"{where}: licensed_by {sorted(set(lic) - set(app))} is not in "
                   "applicable_rules; a rule cannot license what it never applied to")
             licensed_outcomes.add(outcome)
+            for _pair in refusals:
+                if _pair <= set(app):
+                    exercised_refusals.add(_pair)
 
             # THE BINDING CHECK. Applicability is the fixture's to declare;
             # arbitration is mechanical, so the fixture may not disagree with it.
@@ -893,6 +915,24 @@ def main() -> int:
                               f"{where}: {rid} is recorded as excluded by cardinality, "
                               f"but {card} does not rule out a {nf}:{nt} shape. The "
                               "guard has to do the excluding, not the record of it.")
+            # `conflicting_rules` is the third recorded stage and was checked
+            # nowhere: a conflict fixture could omit it, or name unrelated ids, and
+            # still pass its outcome, reason and arbitration checks.
+            conflicting_ids = detail.get("conflicting_rules")
+            refused = (outcome == "unresolved" and app)
+            if refused:
+                check(conflicting_ids is not None,
+                      f"{where}: rules applied and the answer is a refusal, so the "
+                      "disagreement must be recorded in decision_detail.conflicting_rules")
+                check(set(conflicting_ids or []) == set(app),
+                      f"{where}: conflicting_rules {sorted(conflicting_ids or [])} is not "
+                      f"the set that disagreed, {sorted(app)}. The record is what a later "
+                      "reader uses to decide whether a seventh outcome is needed.")
+            else:
+                check(conflicting_ids is None,
+                      f"{where}: decision_detail.conflicting_rules is set, but nothing "
+                      "was refused for disagreeing here")
+
             overlap = (set(detail.get("rules_without_a_unique_candidate") or [])
                        & set(detail.get("rules_excluded_by_cardinality") or []))
             check(not overlap,
@@ -957,6 +997,18 @@ def main() -> int:
                 elif duty == "blunt_rule_recorded":
                     met |= bool((exp.get("decision_detail") or {})
                                 .get("rules_without_a_unique_candidate"))
+                elif duty == "refusal_was_recorded":
+                    dd = exp.get("decision_detail") or {}
+                    for pair in refusals:
+                        if pair <= app_s:
+                            check(set(dd.get("conflicting_rules") or []) == set(app_s),
+                                  f"{name}: exercises the declared refusal "
+                                  f"{sorted(pair)} but records "
+                                  f"{sorted(dd.get('conflicting_rules') or [])}")
+                            check(not lic_s,
+                                  f"{name}: a refused conflict licenses nothing, got "
+                                  f"{sorted(lic_s)}")
+                            met = True
                 elif duty == "cardinality_excluded_a_rule":
                     excluded = ((exp.get("decision_detail") or {})
                                 .get("rules_excluded_by_cardinality") or [])
@@ -999,6 +1051,16 @@ def main() -> int:
     # available and a rename that simply works is not one. R-CONT-RENAME is
     # constrained by the senior corpus, where `rename-with-context-continues` is
     # the only rule that licenses it.
+    # A declared refusal with no case is a decision nothing pins - the defect this
+    # project keeps finding in its own drafts. The N:M pair was frozen in the
+    # contract and exercised by no fixture at all until this check was written.
+    for pair in sorted(({frozenset(c["between"]) for c in
+                         policy["deliberately_unresolved_conflicts"]}), key=sorted):
+        check(pair in exercised_refusals,
+              f"the declared refusal {sorted(pair)} is exercised by no preregistered "
+              "case. A conflict the contract deliberately refuses is a decision, and a "
+              "decision with no case is frozen in name only.")
+
     for wanted in sorted({rules[r]["outcome"] for r in ids} | {"unresolved"}):
         check(wanted in licensed_outcomes,
               f"no preregistered case reaches {wanted!r}; the policy can license it and "

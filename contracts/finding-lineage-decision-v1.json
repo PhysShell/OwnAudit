@@ -360,7 +360,8 @@
     "defeated-signal-drops-below-the-floor",
     "renamed-symbol-defeats-structural-context",
     "unavailable-diff-is-not-a-deletion",
-    "blunt-rule-loses-to-uniqueness"
+    "blunt-rule-loses-to-uniqueness",
+    "copy-source-that-is-also-a-fold-refuses"
   ],
   "preregistration_rule": [
     "Fixed before the mapper, same as slice 2 step 0. These are about the POLICY",
@@ -734,6 +735,9 @@
       ],
       "blunt-rule-loses-to-uniqueness": [
         "blunt_rule_recorded"
+      ],
+      "copy-source-that-is-also-a-fold-refuses": [
+        "refusal_was_recorded"
       ]
     },
     "meanings": {
@@ -741,7 +745,8 @@
       "cardinality_excluded_a_rule": "the case names `decision_detail.rules_excluded_by_cardinality`, and each rule there is genuinely unable to fit the declared shape - checked against its own `min_successors` / `min_predecessors`, not against prose. An earlier revision of this entry still named a top-level `excluded_by_cardinality`, abandoned when the stage got a declared home; a fixture author following it would have produced a shape the checker rejects and the recall union never sees.",
       "defeat_removed_a_signal": "`signals_defeated` is non-empty, the defeating record is carried by revision B, and it names this occurrence.",
       "input_was_unavailable": "`inputs_unavailable` is non-empty and revision B declares the same signal in `unavailable_signals`.",
-      "blunt_rule_recorded": "`decision_detail.rules_without_a_unique_candidate` is non-empty. The blunt rule must be visible as having failed to choose, not merely absent."
+      "blunt_rule_recorded": "`decision_detail.rules_without_a_unique_candidate` is non-empty. The blunt rule must be visible as having failed to choose, not merely absent.",
+      "refusal_was_recorded": "the case exercises a pair declared in `deliberately_unresolved_conflicts` - both ids applicable together - and records them in `decision_detail.conflicting_rules` with an EMPTY `licensed_by`. Until this obligation existed the N:M refusal was frozen in the contract and pinned by no case at all, which is the shape of defect this matrix exists to catch."
     },
     "rule": [
       "Every preregistered case must appear here, and every obligation must be one",

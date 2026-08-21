@@ -1,0 +1,171 @@
+{
+  "case": "copy-source-that-is-also-a-fold-refuses",
+  "title": "One site is both a copy source and a participant in a fold",
+  "why": "The refusal the contract declares and no case exercised until now. Broker/Doc.cs is copied to Broker/DocCopy.cs, and in the same revision WireA and WireB are folded into Wire - so every occurrence here is at once one predecessor with several successors and one of several predecessors reaching one successor. That is N:M, and finding-lineage/v1 has six outcomes among which none is N:M. Neither structural rule is more informed than the other: each holds a record the other does not consult, and both records are true. Picking `branched` drops the predecessors the fold names; picking `merged` drops the successors the copy names. The honest answer is to refuse and keep both readings visible, which is what `deliberately_unresolved_conflicts` froze - a decision that until this case was pinned by nothing at all.",
+  "revision_a": {
+    "revision": "r1",
+    "occurrences": [
+      {
+        "occurrence_id": "occ-a1",
+        "path": "Broker/Doc.cs",
+        "start_line": 42,
+        "start_column": null,
+        "pattern_id": "pat-A",
+        "enclosing_symbol": "DocView.WireA",
+        "anchored_content": "_store.Changed += OnChanged;"
+      },
+      {
+        "occurrence_id": "occ-a2",
+        "path": "Broker/Doc.cs",
+        "start_line": 88,
+        "start_column": null,
+        "pattern_id": "pat-A",
+        "enclosing_symbol": "DocView.WireB",
+        "anchored_content": "_store.Changed += OnChanged;"
+      }
+    ]
+  },
+  "revision_b": {
+    "revision": "r2",
+    "copies": [
+      {
+        "from": "Broker/Doc.cs",
+        "to": "Broker/DocCopy.cs",
+        "similarity": 100
+      }
+    ],
+    "merged_symbols": [
+      {
+        "from": [
+          "DocView.WireA",
+          "DocView.WireB"
+        ],
+        "to": "DocView.Wire"
+      }
+    ],
+    "occurrences": [
+      {
+        "occurrence_id": "occ-b1",
+        "path": "Broker/Doc.cs",
+        "start_line": 40,
+        "start_column": null,
+        "pattern_id": "pat-A",
+        "enclosing_symbol": "DocView.Wire",
+        "anchored_content": "_store.Changed += OnChanged;"
+      },
+      {
+        "occurrence_id": "occ-b2",
+        "path": "Broker/DocCopy.cs",
+        "start_line": 40,
+        "start_column": null,
+        "pattern_id": "pat-A",
+        "enclosing_symbol": "DocCopyView.Wire",
+        "anchored_content": "_store.Changed += OnChanged;"
+      }
+    ]
+  },
+  "expect": [
+    {
+      "outcome": "unresolved",
+      "side": "a",
+      "frm": [
+        "occ-a1"
+      ],
+      "to": [],
+      "reason": "lineage-id-unavailable:conflicting-evidence",
+      "applicable_rules": [
+        "R-BRANCH-COPY",
+        "R-MERGE-FOLD"
+      ],
+      "licensed_by": [],
+      "decision_detail": {
+        "conflicting_rules": [
+          "R-BRANCH-COPY",
+          "R-MERGE-FOLD"
+        ]
+      },
+      "not_applicable": {
+        "R-CONT-SAME-SITE": "structural_context fails - the fold replaced WireA and WireB with Wire",
+        "R-CONT-DRIFT": "structural_context fails for the same reason; line_drift alone carries nothing",
+        "R-CONT-RENAME": "there is no rename record - the path relation here is a copy",
+        "R-CONT-COPY": "structural_context fails, and the shape is not 1:1 in either direction"
+      }
+    },
+    {
+      "outcome": "unresolved",
+      "side": "a",
+      "frm": [
+        "occ-a2"
+      ],
+      "to": [],
+      "reason": "lineage-id-unavailable:conflicting-evidence",
+      "applicable_rules": [
+        "R-BRANCH-COPY",
+        "R-MERGE-FOLD"
+      ],
+      "licensed_by": [],
+      "decision_detail": {
+        "conflicting_rules": [
+          "R-BRANCH-COPY",
+          "R-MERGE-FOLD"
+        ]
+      },
+      "not_applicable": {
+        "R-CONT-SAME-SITE": "structural_context fails - the fold replaced WireA and WireB with Wire",
+        "R-CONT-DRIFT": "structural_context fails for the same reason; line_drift alone carries nothing",
+        "R-CONT-RENAME": "there is no rename record - the path relation here is a copy",
+        "R-CONT-COPY": "structural_context fails, and the shape is not 1:1 in either direction"
+      }
+    },
+    {
+      "outcome": "unresolved",
+      "side": "b",
+      "frm": [],
+      "to": [
+        "occ-b1"
+      ],
+      "reason": "lineage-id-unavailable:conflicting-evidence",
+      "applicable_rules": [
+        "R-BRANCH-COPY",
+        "R-MERGE-FOLD"
+      ],
+      "licensed_by": [],
+      "decision_detail": {
+        "conflicting_rules": [
+          "R-BRANCH-COPY",
+          "R-MERGE-FOLD"
+        ]
+      }
+    },
+    {
+      "outcome": "unresolved",
+      "side": "b",
+      "frm": [],
+      "to": [
+        "occ-b2"
+      ],
+      "reason": "lineage-id-unavailable:conflicting-evidence",
+      "applicable_rules": [
+        "R-BRANCH-COPY",
+        "R-MERGE-FOLD"
+      ],
+      "licensed_by": [],
+      "decision_detail": {
+        "conflicting_rules": [
+          "R-BRANCH-COPY",
+          "R-MERGE-FOLD"
+        ]
+      }
+    }
+  ],
+  "forbid": [
+    "branched - it drops the predecessors the fold names",
+    "merged - it drops the successors the copy names",
+    "a non-empty licensed_by - nothing licensed this refusal; the refusal is what happens when nothing can",
+    "ambiguous-candidates as the reason - these are not several partners with nothing to prefer between them, they are one structure read two incompatible ways",
+    "decision_detail.conflicting_rules omitted - the shape has to stay visible for whoever decides whether a seventh outcome is needed",
+    "either structural rule dropped from applicable_rules to make the answer look simpler"
+  ],
+  "contract": "finding-lineage-decision/v1",
+  "status": "preregistered-unimplemented"
+}

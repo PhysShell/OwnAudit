@@ -281,7 +281,7 @@ growing quietly until someone notices the bill.
 
 ## The preregistered matrix
 
-Seven cases in `identity/fixtures/lineage-decision/`, fixed before any mapper,
+Eight cases in `identity/fixtures/lineage-decision/`, fixed before any mapper,
 gated on **exact** equality with `preregistered_cases`. Each is a shape where two
 answers are available and the policy has to say which, or say neither.
 
@@ -294,6 +294,7 @@ answers are available and the policy has to say which, or say neither.
 | 5 | `renamed-symbol-defeats-structural-context` | `unresolved` — the name matched by accident |
 | 6 | `unavailable-diff-is-not-a-deletion` | `unresolved` — **not** `ended` plus `new` |
 | 7 | `blunt-rule-loses-to-uniqueness` | `continued` — and the blunt rule recorded as unable to choose |
+| 8 | `copy-source-that-is-also-a-fold-refuses` | `unresolved` / `conflicting-evidence` — N:M, and none of the six outcomes is N:M |
 
 Cases 1 and 2 carry an extra burden, because a fixture can be right for the
 wrong reason: move the losing rule out of `applicable_rules` and the answer is
@@ -301,6 +302,12 @@ still `branched`, with dominance doing no work whatever. The suite cannot notice
 on its own — that is applicability again — so `case_obligations` preregisters
 what each case must *mechanically* exhibit, and both cases fail if their loser is
 quietly reclassified.
+
+Case 8 is the one the contract had already decided and nothing pinned. The N:M
+refusal was frozen in `deliberately_unresolved_conflicts` — found, as that section
+says, by the pair-completeness check rather than by anyone noticing it — and no
+fixture exercised it until a suite check demanded a witness. A declared refusal
+with no case is a decision frozen in name only.
 
 **The matrix has already paid for itself.** Trying to write cases 1 and 2 is what
 proved the structural rules could not license the outcomes step 0 had already
