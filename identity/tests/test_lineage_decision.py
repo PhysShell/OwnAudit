@@ -714,6 +714,11 @@ def main() -> int:
             for rid in app + lic:
                 check(rid in rules, f"{where}: names unknown rule {rid!r}")
             check(len(set(app)) == len(app), f"{where}: applicable_rules repeats an id")
+            # `licensed_by` is a SET of surviving rules in the contract, and every
+            # validation here normalised it through `set(lic)` - so a repeat passed
+            # and the corpus sanctioned two raw shapes for one provenance record.
+            # The uniqueness was checked for one field and not its twin, again.
+            check(len(set(lic)) == len(lic), f"{where}: licensed_by repeats an id")
             check(set(lic) <= set(app),
                   f"{where}: licensed_by {sorted(set(lic) - set(app))} is not in "
                   "applicable_rules; a rule cannot license what it never applied to")
