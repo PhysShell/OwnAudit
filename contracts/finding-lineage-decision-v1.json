@@ -938,7 +938,11 @@
   },
   "evidence_kind_records": {
     "map": {
-      "path_rename": "rename_record"
+      "anchored_content": "no_structural_record",
+      "line_drift": "no_structural_record",
+      "path_rename": "rename_record",
+      "same_path": "no_structural_record",
+      "structural_context": "no_structural_record"
     },
     "why": [
       "Some rules name a senior EVIDENCE KIND in `requires_all` and some name a",
@@ -957,7 +961,14 @@
       "that filter was itself a fail-open: `path_rename: null` dropped out before",
       "validation and resolved to no record, leaving R-CONT-RENAME licensed with its",
       "rename record unchecked. A type filter standing in for a namespace is a check",
-      "that silently agrees with whatever it cannot classify."
-    ]
+      "that silently agrees with whatever it cannot classify.",
+      "",
+      "TOTAL, not merely valid. Every senior evidence kind that a rule names directly in",
+      "`requires_all` must appear here exactly once, with either a record name or",
+      "`no_structural_record`. Kinds reached only through a `partner_profile` are NOT in",
+      "the domain, and a key outside it is rejected: an unused-but-valid mapping is how",
+      "this map was first made to unbind the rule it exists for."
+    ],
+    "no_structural_record": "the explicit value for a kind that is a property of the occurrence PAIR rather than a record in revision B. `same_path` compares two paths; no entry in the diff witnesses it. Written out because the map must be TOTAL over the kinds rules require directly - a map that is merely well-formed can be replaced with a valid entry nobody consumes, and then `path_rename` resolves to nothing and its record goes unchecked while every per-entry check still passes."
   }
 }

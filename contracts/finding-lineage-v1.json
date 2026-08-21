@@ -53,7 +53,14 @@
     "suite deliberately refuses to compute it. Declaring which kinds cannot co-occur",
     "closes part of that gap from the vocabulary side instead, where it costs no",
     "second mapper. It does not close all of it - see the open question recorded in",
-    "the step 1 pull request."
+    "the step 1 pull request.",
+    "",
+    "Amended a FOURTH time by slice 2 step 1, which added",
+    "'evidence_kind_observation'. Step 1's kind-to-record map needed a value for",
+    "kinds that no record witnesses, and any such escape hatch can be pointed at a",
+    "kind that a record DOES witness. Which kinds those are is a fact about this",
+    "vocabulary rather than about any rule, so it is settled here and the junior map",
+    "is checked against it."
   ],
   "outcomes": {
     "continued": {
@@ -368,5 +375,32 @@
     "and the mapping degrades to `unresolved` while the contract still advertises the",
     "rule. Junior contracts are checked against this list; they may not add to it from",
     "below, for the same reason they may not widen `limitations` from below."
-  ]
+  ],
+  "evidence_kind_observation": {
+    "same_pattern_id": "pair_property",
+    "same_path": "pair_property",
+    "path_rename": "revision_record",
+    "structural_context": "pair_property",
+    "anchored_content": "pair_property",
+    "line_drift": "pair_property",
+    "why": [
+      "HOW EACH KIND IS OBSERVED, which decides whether anything in revision B has",
+      "to be produced to support a claim about it.",
+      "",
+      "A `pair_property` is read off the two occurrences themselves: `same_path`",
+      "compares two paths, `anchored_content` two strings. Nothing in the diff",
+      "witnesses it and nothing can be checked against a record.",
+      "",
+      "A `revision_record` is not visible in the pair at all. Two occurrences at",
+      "different paths look identical whether the file MOVED or whether one ended and",
+      "another began; only a record in revision B distinguishes them. That is the",
+      "whole of the absence-of-record doctrine at the evidence layer, and it is why",
+      "`path_rename` is the one kind a junior contract must bind to a record.",
+      "",
+      "Frozen here, above the decision policy, because a junior contract listing its",
+      "own record-less kinds could declare `path_rename` record-less and unbind the",
+      "rename rule while every check on the mapping still passed. That mutation was",
+      "green until this section existed."
+    ]
+  }
 }

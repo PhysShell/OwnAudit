@@ -548,6 +548,23 @@ def main() -> int:
                 yield ".".join(trail), node
             for k, v in node.items():
                 yield from arbitration_nodes(v, trail + [k])
+    # ENUMERATE THE LEAVES, not the nodes that happen to carry the field being
+    # checked. `arbitration_nodes` yields only nodes that already have `outcome`,
+    # so DELETING `none_applies.outcome` removed that leaf from the checks
+    # entirely and left a refusal branch with no declared result. A validator
+    # keyed on the presence of what it validates cannot see an absence.
+    def arbitration_leaves(node, trail):
+        if isinstance(node, dict):
+            if "reason" in node or "implements" in node:
+                yield ".".join(trail), node
+            for k, v in node.items():
+                yield from arbitration_leaves(v, trail + [k])
+    for path_a, node in arbitration_leaves(policy["arbitration"], ["arbitration"]):
+        check("outcome" in node,
+              f"{path_a} names a reason and implements a `reason_mapping` entry, so it "
+              "is a decision, but declares no `outcome`. A mapper reading it learns "
+              "what to call the refusal and not that it IS one.")
+
     for path_a, node in arbitration_nodes(policy["arbitration"], ["arbitration"]):
         if node is agree:
             continue
@@ -879,11 +896,41 @@ def main() -> int:
     check(isinstance(kind_records, dict) and bool(kind_records),
           "`evidence_kind_records.map` must carry the kind -> record mappings; an "
           "empty or missing map silently unbinds every rule naming a senior kind")
+    # TOTAL OVER WHAT RULES REQUIRE DIRECTLY. Validating each entry proves only
+    # that the entries present are well-formed; the map could be replaced with a
+    # valid mapping nobody consumes - `same_pattern_id`, reached only through a
+    # partner profile - and `path_rename` then resolved to nothing while every
+    # per-entry check passed. Domain equality is the fail-closed form.
+    NO_RECORD = "no_structural_record"
+    direct = {k for r in rules.values() for k in (r.get("requires_all") or [])}
+    want_domain = {k for k in direct if k in senior_kinds}
+    check(set(kind_records) == want_domain,
+          "`evidence_kind_records.map` must name exactly the senior evidence kinds "
+          f"some rule requires DIRECTLY. Missing {sorted(want_domain - set(kind_records))}, "
+          f"unexpected {sorted(set(kind_records) - want_domain)}. A missing kind "
+          "resolves to no record and skips its binding; an extra one is a mapping "
+          "nothing consumes, which is how this map was first made to unbind a rule.")
     for kind, sig_name in sorted(kind_records.items()):
         check(isinstance(sig_name, str),
               f"`evidence_kind_records.map[{kind!r}]` is {sig_name!r}. A non-string "
               "target resolves to no record and skips the binding, which is the "
               "fail-open this map exists to close.")
+        # The escape hatch cannot be aimed at a kind a record DOES witness.
+        # `path_rename: no_structural_record` unbound the rename rule and stayed
+        # green: an explicit "nothing observes this" is only honest for kinds
+        # `finding-lineage/v1` classifies as pair properties.
+        observed_as = (senior.get("evidence_kind_observation") or {}).get(kind)
+        check(observed_as in ("pair_property", "revision_record"),
+              f"`finding-lineage/v1` does not classify {kind!r} as observed from a "
+              "pair or from a record, so nothing here can say whether a record is "
+              "owed for it")
+        check((sig_name == NO_RECORD) == (observed_as == "pair_property"),
+              f"`evidence_kind_records.map[{kind!r}]` is {sig_name!r} while the senior "
+              f"contract observes that kind as a {observed_as!r}. A "
+              f"{'pair property takes ' + NO_RECORD if observed_as == 'pair_property' else 'revision record takes a signal name'}"
+              ", and the other way round either invents a record or unbinds a real one.")
+        if sig_name == NO_RECORD:
+            continue
         check(kind in senior_kinds,
               f"`evidence_kind_records` maps {kind!r}, which `finding-lineage/v1` does "
               "not carry as an evidence kind. The map exists to say where a SENIOR "
@@ -892,8 +939,8 @@ def main() -> int:
               f"`evidence_kind_records` maps {kind!r}, which is already a structural "
               "signal. It would then resolve two ways, and the two could disagree.")
         check(sig_name in policy["structural_signals"],
-              f"`evidence_kind_records` maps {kind!r} to {sig_name!r}, which the "
-              "structural catalog does not carry. Resolution would find no record and "
+              f"`evidence_kind_records` maps {kind!r} to {sig_name!r}, which is neither "
+              f"a structural signal nor {NO_RECORD!r}. Resolution would find no record and "
               "silently skip the binding, which is exactly what the map was added to "
               "prevent.")
 
@@ -982,10 +1029,30 @@ def main() -> int:
         check(bool(case.get("expect")), f"{name}: nothing is preregistered")
 
         rev_a, rev_b = case.get("revision_a", {}), case.get("revision_b", {})
+        # BEFORE THE SETS. `{o["occurrence_id"] for o in ...}` silently collapses
+        # a repeated id, and so does `by_id`; the raw LIST length then still
+        # satisfied a 1:N minimum, so `to: ["occ-b1", "occ-b1"]` froze a branch
+        # with one distinct successor. An occurrence id is an identity, and two
+        # records sharing one is malformed input rather than a duplicate.
+        for side, rev in (("A", rev_a), ("B", rev_b)):
+            raw_ids = [o.get("occurrence_id") for o in rev.get("occurrences", [])]
+            dupes = sorted({i for i in raw_ids if raw_ids.count(i) > 1})
+            check(not dupes,
+                  f"{name}: revision {side} declares {dupes!r} more than once. An "
+                  "occurrence id is an identity; the sets below would silently keep "
+                  "one and drop the other.")
         occ_a = {o["occurrence_id"] for o in rev_a.get("occurrences", [])}
         occ_b = {o["occurrence_id"] for o in rev_b.get("occurrences", [])}
         by_id = {o["occurrence_id"]: o for o in
                  rev_a.get("occurrences", []) + rev_b.get("occurrences", [])}
+        # COUNTED, not collected. `update` proves an occurrence is claimed at
+        # least once and forgets which expectation claimed it, so a second,
+        # separately well-formed expectation over the same occurrences was
+        # accepted - preregistering `branched` and `continued` for one predecessor
+        # at once. The matrix is a set of decisions about a corpus; two decisions
+        # about one occurrence is a contradiction frozen into a fixture.
+        claim_a: dict = {}
+        claim_b: dict = {}
         claimed_a, claimed_b = set(), set()
 
         for i, exp in enumerate(case.get("expect", [])):
@@ -994,6 +1061,16 @@ def main() -> int:
             check(outcome in senior_outcomes,
                   f"{where}: outcome {outcome!r} is not in the frozen vocabulary")
             frm, to = as_list(exp.get("frm")), as_list(exp.get("to"))
+            for oid in frm:
+                claim_a.setdefault(oid, []).append(where)
+            for oid in to:
+                claim_b.setdefault(oid, []).append(where)
+            check(len(set(frm)) == len(frm),
+                  f"{where}: `frm` repeats {sorted({o for o in frm if frm.count(o) > 1})!r}; "
+                  "a repeated id is one occurrence written twice, not two partners")
+            check(len(set(to)) == len(to),
+                  f"{where}: `to` repeats {sorted({o for o in to if to.count(o) > 1})!r}; "
+                  "a repeated id is one occurrence written twice, not two partners")
             claimed_a.update(frm)
             claimed_b.update(to)
             for o in frm:
@@ -1553,6 +1630,13 @@ def main() -> int:
             check(met, f"{name}: preregistered to exhibit {duty!r}, and no expectation "
                        f"does. {obligation_meanings.get(duty, '')}")
 
+        for side, claims in (("A", claim_a), ("B", claim_b)):
+            for oid, wheres in sorted(claims.items()):
+                check(len(wheres) == 1,
+                      f"{name}: revision {side} occurrence {oid!r} is claimed by "
+                      f"{len(wheres)} expectations ({', '.join(wheres)}). One "
+                      "occurrence gets one decision; two is a contradiction "
+                      "preregistered as though it were a matrix.")
         check(claimed_a == occ_a,
               f"{name}: revision A occurrences unaccounted for: {sorted(occ_a - claimed_a)}")
         check(claimed_b == occ_b,
