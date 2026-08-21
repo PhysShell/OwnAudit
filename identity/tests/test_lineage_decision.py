@@ -297,6 +297,37 @@ def signal_bindings(spec: dict) -> list:
     return out
 
 
+def entry_shape_failures(where: str, cat_spec: dict, entries) -> list:
+    """The catalog's `entry_shape` says whether a field is a scalar or a list.
+
+    Nothing enforced it. `record_names` accepts a scalar by equality and a list by
+    membership - which is right, because a fold's `from` IS a list and a copy's is
+    not - and that tolerance quietly became the only reading: turning
+    `copies[].from` from a path into `["path"]` left the suite green while
+    `entry_shape` declared a scalar. A mapper parsing the contract literally and
+    a mapper parsing it leniently would then disagree about the same frozen
+    corpus, which is what `entry_shape` exists to prevent."""
+    out = []
+    shape = cat_spec.get("entry_shape")
+    if not isinstance(shape, dict) or not isinstance(entries, list):
+        return out
+    for index, entry in enumerate(entries):
+        if not isinstance(entry, dict):
+            out.append(f"{where}[{index}] is {entry!r}, not an object")
+            continue
+        for key, declared in shape.items():
+            if key not in entry:
+                continue
+            wants_list = isinstance(declared, str) and declared.startswith("list of")
+            if wants_list != isinstance(entry[key], list):
+                out.append(
+                    f"{where}[{index}].{key} is {entry[key]!r}, and `entry_shape` "
+                    f"declares it {declared!r}. A scalar written as a one-element list "
+                    "reads the same to a lenient parser and differently to a literal "
+                    "one, so the corpus would sanction a record the contract does not.")
+    return out
+
+
 def record_names(entry: dict, key: str, wanted) -> bool:
     """One record entry naming one occurrence, on one key. A fold's `from` is a
     LIST of symbols and a copy's is a single path; `entry_shape` says which, so
@@ -368,7 +399,22 @@ def malformed_list_failures(where: str, exp: dict, unavailable_field: str) -> li
                        "consumer treats these as ids or kind names, and several put "
                        "them in a set or a dict key - so the suite would die here "
                        "rather than tell you which field is malformed.")
+    # THE CONTAINERS, BEFORE THEIR CONTENTS. This entered the dict branch and
+    # otherwise said nothing, so a `decision_detail` that was a string sailed
+    # past and died later on `.get`; and `ambiguous_candidates` was iterated with
+    # `.items()` before anything checked it was a mapping, so a list died HERE -
+    # inside the guard written to stop the suite dying. A guard that assumes the
+    # shape it was added to doubt is not a guard.
+    if detail is not None and not isinstance(detail, dict):
+        return [f"{where}: `decision_detail` is {detail!r}, not an object. Everything "
+                "that reads it expects a mapping, so nothing below can report what is "
+                "wrong with this fixture."]
     if isinstance(detail, dict):
+        cand_ = detail.get("ambiguous_candidates")
+        if cand_ is not None and not isinstance(cand_, dict):
+            return [f"{where}: `decision_detail.ambiguous_candidates` is {cand_!r}, not "
+                    "an object. It maps a rule id to the candidates it could not choose "
+                    "between; a bare list names candidates for no rule."]
         for field in ("conflicting_rules", "rules_without_a_unique_candidate",
                       "rules_excluded_by_cardinality"):
             value = detail.get(field)
@@ -1399,6 +1445,14 @@ def main() -> int:
         check(bool(case.get("expect")), f"{name}: nothing is preregistered")
 
         rev_a, rev_b = case.get("revision_a", {}), case.get("revision_b", {})
+        # The catalog declares each record's shape; the fixtures have to hold it.
+        for _sig, _spec in sorted(catalog.items()):
+            _field = str(_spec.get("observable_from", "")).split("[].")[0]
+            if not _field.startswith("revision_b."):
+                continue
+            for msg in entry_shape_failures(f"{name}: {_field}", _spec,
+                                            rev_b.get(_field.partition(".")[2])):
+                check(False, msg)
         # BEFORE THE SETS. `{o["occurrence_id"] for o in ...}` silently collapses
         # a repeated id, and so does `by_id`; the raw LIST length then still
         # satisfied a 1:N minimum, so `to: ["occ-b1", "occ-b1"]` froze a branch
@@ -1436,14 +1490,24 @@ def main() -> int:
         claim_b: dict = {}
         claimed_a, claimed_b = set(), set()
 
+        # FAIL AND SKIP THE WHOLE FIXTURE, never crash. This guard used to sit
+        # inside the expectation loop and `continue` past one expectation, which
+        # protected that loop and nothing else - the OBLIGATIONS pass further down
+        # is a separate walk over the same expectations, and it died on a
+        # `decision_detail` that was a string. Guarding one consumer of malformed
+        # input is the same mistake as fixing one site of a claim: the input is
+        # malformed for every reader, so it is refused once, here, before any
+        # reader sees it.
+        malformed = [m for i, exp in enumerate(case.get("expect", []))
+                     for m in malformed_list_failures(f"{name}[{i}]", exp,
+                                                      UNAVAILABLE_FIELD)]
+        for msg in malformed:
+            check(False, msg)
+        if malformed:
+            continue
+
         for i, exp in enumerate(case.get("expect", [])):
             where = f"{name}[{i}]"
-            # FAIL AND SKIP, never crash. Everything below assumes strings.
-            malformed = malformed_list_failures(where, exp, UNAVAILABLE_FIELD)
-            for msg in malformed:
-                check(False, msg)
-            if malformed:
-                continue
             outcome = exp.get("outcome")
             check(outcome in senior_outcomes,
                   f"{where}: outcome {outcome!r} is not in the frozen vocabulary")
