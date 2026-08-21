@@ -688,13 +688,39 @@ def main() -> int:
                 check(card.get("min_predecessors", 0) >= 2,
                       f"{rid} licenses merged without requiring two predecessors")
 
+            # IF AND ONLY IF, for the minima too. Each was required where the
+            # shape needs it and forbidden nowhere, so a 1:1 rule could carry
+            # `min_successors` and a 1:N rule `min_predecessors`. Not inert: the
+            # `cardinality_excluded_a_rule` obligation reads exactly these fields
+            # to decide whether a rule is GENUINELY unable to fit a shape, so a
+            # spurious minimum makes that obligation satisfiable for a rule
+            # nothing excluded.
+            for field, needed_by in (("min_successors", "1:N"),
+                                     ("min_predecessors", "N:1")):
+                check((field in card) == (shape == needed_by),
+                      f"{rid} is {shape!r} and {'declares' if field in card else 'omits'} "
+                      f"`{field}`, which belongs to {needed_by!r} and only there. A "
+                      "minimum on the side a shape has exactly one of describes nothing, "
+                      "and the cardinality-exclusion obligation still reads it.")
+
         # A rule whose cardinality is not 1:1 says something about a GROUP, so it
         # must also say what each partner shows on its own. `a rule of outcome
         # continued` used to stand here and was unsatisfiable on the very frozen
         # cases these rules exist for - see `rules_note`.
         prof = rules[rid].get("partner_profile")
-        if isinstance(card, dict) and card.get("shape") != "1:1":
-            check(isinstance(prof, dict), f"{rid} is a group rule with no `partner_profile`")
+        if isinstance(card, dict):
+            # IF AND ONLY IF. This required a profile of group rules and forbade
+            # one nowhere, so a 1:1 rule could declare `partner_profile` - which
+            # names the REPEATED side, of which it has none - and `rule_needs`
+            # would silently fold those kinds into its requirements. The sibling
+            # `record_binding` check was written biconditional; this one was not,
+            # and the two sat four lines apart.
+            check(isinstance(prof, dict) == (card.get("shape") != "1:1"),
+                  f"{rid} is {card.get('shape')!r} and "
+                  f"{'declares' if prof is not None else 'omits'} a `partner_profile`. "
+                  "A profile says what each partner in a GROUP shows on its own; a 1:1 "
+                  "rule has no group, and a group rule that omits one licenses partners "
+                  "nothing was asked of.")
         if prof is not None:
             check(isinstance(prof, dict) and prof.get("per") in ("successor", "predecessor"),
                   f"{rid}: partner_profile must say which side it is `per`")
