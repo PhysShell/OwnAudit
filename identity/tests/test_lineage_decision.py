@@ -117,34 +117,57 @@ def load(path: str) -> dict:
         return json.load(fh)
 
 
+class _Marked(dict):
+    """A parsed JSON object that remembers the keys declared twice inside it.
+
+    `json.load` keeps the last of a duplicated key and drops the other without a
+    word, so the duplication has to be caught during the raw parse. A plain dict
+    cannot carry that fact to a later walk; this can."""
+    __slots__ = ("duplicate_keys",)
+
+
 def duplicate_json_keys(path: str) -> list:
-    """Keys declared twice in ONE object, found during the RAW parse.
+    """Dotted paths to keys declared twice in ONE object, from the RAW parse.
 
-    Has to be its own read: `json.load` resolves duplicates by keeping the last,
-    so nothing downstream can tell a duplicated key from a single one.
+    Two earlier versions of this function got its own description wrong, in
+    opposite directions. The first promised dotted paths and returned bare names.
+    The second returned the key plus its siblings and asserted that a path was not
+    obtainable, because `object_pairs_hook` is called innermost-first and never
+    learns where it is. That second claim was false: the hook does not know, but a
+    walk from the root afterwards does, once each object carries what it saw. So
+    the paths are real - `arbitration.conflict.reason`, not `reason` - and the
+    docstring finally matches the code.
 
-    Each entry names the key AND the other keys of the object holding it, because
-    the bare name is not enough to find it - `reason` appears in a dozen places in
-    the policy. An earlier docstring promised "dotted paths" while the code
-    returned bare names, which is the same defect these rounds keep finding one
-    layer up: a description claiming more than the code does. `object_pairs_hook`
-    is called innermost-first and never learns where it is, so the siblings are
-    what can honestly be offered, and the docstring says that instead."""
-    dups: list = []
-
+    Stating something impossible when it is merely inconvenient is the same defect
+    this suite keeps finding elsewhere: a description that claims more, or less,
+    than the code does."""
     def hook(pairs):
-        seen = set()
+        obj = _Marked(pairs)
+        seen, dups = set(), []
         for key, _ in pairs:
             if key in seen:
-                siblings = sorted({k for k, _ in pairs} - {key})
-                dups.append(f"{key!r} (in an object also declaring "
-                            f"{', '.join(siblings) or 'nothing else'})")
+                dups.append(key)
             seen.add(key)
-        return dict(pairs)
+        obj.duplicate_keys = dups
+        return obj
 
     with open(path, encoding="utf-8") as fh:
-        json.load(fh, object_pairs_hook=hook)
-    return sorted(set(dups))
+        root = json.load(fh, object_pairs_hook=hook)
+
+    found: list = []
+
+    def walk(node, trail):
+        if isinstance(node, _Marked):
+            for key in node.duplicate_keys:
+                found.append(".".join(trail + [key]) or key)
+            for key, value in node.items():
+                walk(value, trail + [key])
+        elif isinstance(node, list):
+            for i, value in enumerate(node):
+                walk(value, trail + [f"[{i}]"])
+
+    walk(root, [])
+    return sorted(set(found))
 
 
 def rule_needs(rule) -> set:
@@ -607,7 +630,7 @@ def main() -> int:
     for label, cpath in scanned:
         for dup in duplicate_json_keys(cpath):
             check(False,
-                  f"the {label} declares {dup} twice. `json.load` keeps the last one "
+                  f"the {label} declares {dup!r} twice. `json.load` keeps the last one "
                   "and drops the other without a word, so a rule, a limitation, an "
                   "evidence kind or half a preregistered expectation would vanish "
                   "between the file and every check below.")
