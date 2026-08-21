@@ -138,17 +138,49 @@ def duplicate_json_keys(path: str) -> list:
     return sorted(set(dups))
 
 
-def mandated_reason(exp, lim, floor):
+def rule_needs(rule) -> set:
+    """Every signal a rule needs to apply - group requirements AND the per-partner
+    profile.
+
+    Reading `requires_all` alone missed the profile entirely, so declaring
+    `same_pattern_id` unavailable left `R-BRANCH-COPY` applicable although every
+    successor profile requires it: evidence that could not be evaluated was
+    licensing a resolved mapping. The defeat path had the same omission; it was
+    not independently demonstrable on the current fixtures, because in every case
+    where a defeatable signal reaches a group rule's profile it also sits in some
+    applicable 1:1 rule's `requires_all` and is caught there first. Same code
+    path, same fix, and only one half has a witness."""
+    needs = set(rule.get("requires_all") or [])
+    profile = rule.get("partner_profile") or {}
+    return needs | set(profile.get("requires_all") or [])
+
+
+def mandated_reason(exp, mapping, floor):
     """The reason the policy REQUIRES for this refusal, or None if the contract
     has not settled the shape.
 
+    READ FROM `reason_mapping`, not from the senior vocabulary directly. An
+    earlier version picked limitation values by name and then told the reader
+    `reason_mapping mandates X` - a message claiming an authority the code never
+    consulted. Swapping the values the policy assigns to `no_rule_applied` and
+    `several_candidates` left the suite green, because the vocabulary sweep only
+    compares the resulting SET while fixtures were judged against the hard-coded
+    associations here.
+
     Derived from what the fixture DECLARES about its own stages - not from any
-    evidence reasoning. Checking only that a reason is in the senior vocabulary
-    accepted any of the six: `missing-occurrence-id` passed on a case whose
-    occurrences both carry ids, because nothing tied the value to the branch.
-    None means deliberately unmandated, and the caller says so rather than
-    guessing - a shape nobody has settled must not be settled by whichever
-    condition was typed first."""
+    evidence reasoning. None means deliberately unmandated, and the caller fails
+    on it rather than guessing: a shape nobody has ranked must not be settled by
+    whichever condition was typed first."""
+    def of(key, surviving_kinds=None):
+        spec = mapping.get(key) or {}
+        if "reason" in spec:
+            return spec["reason"]
+        by = spec.get("reason_by_surviving_kinds") or {}
+        if surviving_kinds is None:
+            return None
+        return by.get("below_the_floor" if surviving_kinds < floor
+                      else "at_or_above_the_floor")
+
     app = exp.get("applicable_rules") or []
     defeated = exp.get("signals_defeated") or {}
     unavailable = as_list(exp.get("inputs_unavailable"))
@@ -158,7 +190,7 @@ def mandated_reason(exp, lim, floor):
 
     if app:
         # Rules applied and the answer is still a refusal: they disagreed.
-        return lim.get("conflicting-evidence"), "rules applied and disagreed"
+        return of("conflicting_rules"), "rules applied and disagreed"
     # More than one rejecting stage fired at once. Each has its own reason and
     # the contract does not rank them; picking one here would be this file
     # deciding a contract question in a checker.
@@ -166,17 +198,16 @@ def mandated_reason(exp, lim, floor):
     if sum(stages) > 1:
         return None, "several rejecting stages fired; the contract has not ranked them"
     if defeated:
-        surviving = {k for k in (exp.get("evidence_surviving") or [])}
-        if len(surviving) < floor:
-            return lim.get("insufficient-evidence-kind"), "a defeat left fewer kinds than the floor"
-        return lim.get("insufficient-evidence-combination"), "a defeat left the floor cleared"
+        n = len({k for k in (exp.get("evidence_surviving") or [])})
+        return (of("no_rule_applied_after_a_defeat", n),
+                f"a defeat left {n} kind(s) against a floor of {floor}")
     if blunted:
-        return lim.get("ambiguous-candidates"), "rules matched and singled nobody out"
+        return of("several_candidates"), "rules matched and singled nobody out"
     if unavailable:
-        return lim.get("no-mapping-evidence"), "a signal could not be evaluated"
+        return of("no_rule_applied"), "a signal could not be evaluated"
     if miscard:
-        return lim.get("no-mapping-evidence"), "the only matches were the wrong shape"
-    return lim.get("no-mapping-evidence"), "nothing matched at all"
+        return of("no_rule_applied"), "the only matches were the wrong shape"
+    return of("no_rule_applied"), "nothing matched at all"
 
 
 def as_list(v) -> list:
@@ -713,7 +744,7 @@ def main() -> int:
                 # AND it must be the reason the POLICY BRANCH mandates. Vocabulary
                 # membership alone accepted any of the six - `missing-occurrence-id`
                 # passed on a case whose occurrences both carry ids.
-                want, why_branch = mandated_reason(exp, senior["limitations"], floor)
+                want, why_branch = mandated_reason(exp, policy["reason_mapping"], floor)
                 if want is None:
                     # FAIL-CLOSED on an unranked shape. Abstaining was the right call
                     # for a CHECKER - the contract has not ranked these stages, so
@@ -768,7 +799,7 @@ def main() -> int:
                               f"= {role}.{attr}, which for {oid} is {wanted!r}; the record "
                               f"holds {sorted(observed)!r} and so defeats nothing here")
                 for rid in app:
-                    check(signal not in rules[rid].get("requires_all", []),
+                    check(signal not in rule_needs(rules[rid]),
                           f"{where}: {rid} is applicable but requires the defeated "
                           f"signal {signal!r}")
 
@@ -827,7 +858,7 @@ def main() -> int:
                       f"holds {declared!r}. Unavailability is a RECORD, which is the "
                       "entire point of the case.")
                 for rid in app:
-                    check(sig not in rules[rid].get("requires_all", []),
+                    check(sig not in rule_needs(rules[rid]),
                           f"{where}: {rid} is applicable but requires the unevaluable "
                           f"signal {sig!r}")
 
@@ -848,6 +879,20 @@ def main() -> int:
                     check(rid not in app,
                           f"{where}: {rid} {why_it_lost} and must not be in "
                           "applicable_rules")
+                    # A CLAIMED CARDINALITY EXCLUSION MUST BE TRUE. Absence from
+                    # `applicable_rules` was the only requirement, so a rule whose
+                    # guard the shape satisfies could be recorded as excluded by it
+                    # - a 1:1 rule listed against a 1:1 shape passed. The arithmetic
+                    # lived only in `case_obligations`, which reaches one fixture.
+                    if field == "rules_excluded_by_cardinality" and rid in rules:
+                        card = rules[rid].get("cardinality") or {}
+                        nf, nt = len(frm), len(to)
+                        blocked = (card.get("min_successors", 0) > nt
+                                   or card.get("min_predecessors", 0) > nf)
+                        check(blocked,
+                              f"{where}: {rid} is recorded as excluded by cardinality, "
+                              f"but {card} does not rule out a {nf}:{nt} shape. The "
+                              "guard has to do the excluding, not the record of it.")
             overlap = (set(detail.get("rules_without_a_unique_candidate") or [])
                        & set(detail.get("rules_excluded_by_cardinality") or []))
             check(not overlap,
