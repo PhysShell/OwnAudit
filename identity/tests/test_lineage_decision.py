@@ -335,6 +335,39 @@ def catalog_read(cat_spec: dict, rev_b: dict) -> tuple:
     return field, entries, pairs
 
 
+def group_only_field_failures(rid: str, rule: dict, field: str) -> list:
+    """One predicate for every field a rule may declare only when it has a GROUP.
+
+    `partner_profile` and `record_binding` are the same claim about two fields,
+    and they were written twice. The first time they diverged one was
+    biconditional and the other was not; the second time both were biconditional
+    and they still disagreed, because one tested `isinstance(v, dict)` and the
+    other `bool(v)` - so `{}` was rejected by one and accepted by the other, and
+    `null` by neither. Reading alike was not enough. They are one function now.
+
+    PRESENCE, not truthiness and not type. Whether a field is DECLARED is a
+    question about the key; `{}` and `null` are declarations whose value happens
+    to be empty, and a mapper reading the contract sees a second way of spelling
+    "no binding"."""
+    out = []
+    shape = (rule.get("cardinality") or {}).get("shape")
+    is_group = shape != "1:1"
+    declared = field in rule
+    if declared != is_group:
+        out.append(
+            f"{rid} is {shape!r} and {'declares' if declared else 'omits'} `{field}`, "
+            f"which belongs to group rules and only to them. A 1:1 rule has no group "
+            f"to describe, and a group rule without one leaves its partners unasked. "
+            f"The KEY is the declaration - `{{}}` and `null` are declarations too.")
+    elif declared and is_group:
+        value = rule.get(field)
+        if not isinstance(value, dict) or not value:
+            out.append(f"{rid} declares `{field}` as {value!r}. A group rule needs a "
+                       "populated object there; an empty one is a second way of "
+                       "spelling nothing.")
+    return out
+
+
 def raw_dominance_edges(policy: dict) -> list:
     """Occurrences, NOT a set. `classified exactly once` is a claim about the
     declarations, and a set answers a weaker question - it would let
@@ -708,6 +741,8 @@ def main() -> int:
         # continued` used to stand here and was unsatisfiable on the very frozen
         # cases these rules exist for - see `rules_note`.
         prof = rules[rid].get("partner_profile")
+        for msg in group_only_field_failures(rid, rules[rid], "partner_profile"):
+            check(False, msg)
         if isinstance(card, dict):
             # IF AND ONLY IF. This required a profile of group rules and forbade
             # one nowhere, so a 1:1 rule could declare `partner_profile` - which
@@ -715,12 +750,7 @@ def main() -> int:
             # would silently fold those kinds into its requirements. The sibling
             # `record_binding` check was written biconditional; this one was not,
             # and the two sat four lines apart.
-            check(isinstance(prof, dict) == (card.get("shape") != "1:1"),
-                  f"{rid} is {card.get('shape')!r} and "
-                  f"{'declares' if prof is not None else 'omits'} a `partner_profile`. "
-                  "A profile says what each partner in a GROUP shows on its own; a 1:1 "
-                  "rule has no group, and a group rule that omits one licenses partners "
-                  "nothing was asked of.")
+            pass
         if prof is not None:
             check(isinstance(prof, dict) and prof.get("per") in ("successor", "predecessor"),
                   f"{rid}: partner_profile must say which side it is `per`")
@@ -1073,13 +1103,9 @@ def main() -> int:
               "and `record_binding` replaced it; keeping both is two authorities for "
               "one fact, which is how this contract has gone wrong before.")
         binding = rule_.get("record_binding")
-        is_group = (rule_.get("cardinality") or {}).get("shape") != "1:1"
-        check(bool(binding) == is_group,
-              f"{rid}: `record_binding` is declared for group rules and only for them; "
-              f"shape is {(rule_.get('cardinality') or {}).get('shape')!r} and the "
-              f"binding is {'present' if binding else 'absent'}. A 1:1 rule with one "
-              "points a mapper at a partner set that does not exist.")
-        if not binding:
+        for msg in group_only_field_failures(rid, rule_, "record_binding"):
+            check(False, msg)
+        if not isinstance(binding, dict) or not binding:
             continue
         structural = [k for k in rule_.get("requires_all") or []
                       if k in policy["structural_signals"]]
