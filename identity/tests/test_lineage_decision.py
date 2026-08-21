@@ -813,16 +813,28 @@ def main() -> int:
                 # `as_list` normalised the difference away, so a preregistered case
                 # was teaching a shape the senior contract does not sanction to any
                 # mapper or schema consumer reading it.
+                # BOTH HALVES: the empty counterpart AND the anchor. Checking only
+                # the counterpart accepted a refusal about NO occurrence at all -
+                # `{side: b, frm: null, to: []}` passed, and aggregate accounting
+                # did not notice because another expectation already claimed the B
+                # occurrence. A refusal that names nobody says nothing; step 0
+                # requires exactly one on the primary side and so does this.
                 if exp.get("side") == "b":
                     check(exp.get("frm", "missing") is None,
                           f"{where}: an unresolved(b) leaves `frm` NULL per "
                           f"finding-lineage/v1, got {exp.get('frm', 'missing')!r}. An "
                           "empty list is a different claim, and normalising it here "
                           "would hide the divergence rather than allow it.")
+                    check(len(to) == 1,
+                          f"{where}: an unresolved(b) must name exactly one occurrence "
+                          f"in revision B, got {to!r}")
                 else:
                     check(exp.get("to") == [],
                           f"{where}: an unresolved(a) leaves `to` EMPTY per "
                           f"finding-lineage/v1, got {exp.get('to')!r}")
+                    check(len(frm) == 1,
+                          f"{where}: an unresolved(a) must name exactly one predecessor, "
+                          f"got {frm!r}")
                 check(exp.get("reason") in senior_limitations_set,
                       f"{where}: reason {exp.get('reason')!r} is not a senior limitation")
                 check(not lic, f"{where}: a refusal licenses nothing")
