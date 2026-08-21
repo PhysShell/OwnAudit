@@ -635,21 +635,17 @@ def main() -> int:
                     check(outcome == "unresolved",
                           f"{where}: no rule applied, so the outcome is unresolved")
                     check(not lic, f"{where}: nothing applied, so nothing licensed")
-                    # AN EMPTY SET IS NOT ONE SITUATION. Nothing matched, and
+                    # AN EMPTY SET IS NOT ONE SITUATION - nothing matched, and
                     # everything matched but singled nobody out, are different
-                    # refusals with different reasons - and the recorded rejected
-                    # stage is what tells them apart. Treating every empty
-                    # `applicable_rules` alike let a fixture claim all rules failed
-                    # uniqueness and still report `no-mapping-evidence`.
-                    blunted = ((exp.get("decision_detail") or {})
-                               .get("rules_without_a_unique_candidate") or [])
-                    if blunted:
-                        check(exp.get("reason") == senior["limitations"]
-                              .get("ambiguous-candidates"),
-                              f"{where}: {sorted(blunted)} matched and failed uniqueness, "
-                              "so several candidates were available with nothing to "
-                              "prefer between them. `arbitration.multiplicity` calls that "
-                              f"ambiguous-candidates, not {exp.get('reason')!r}.")
+                    # refusals. WHICH reason each requires is decided in exactly one
+                    # place, `mandated_reason`, and used at the unresolved branch
+                    # below. A per-branch mandate used to sit here too, and the two
+                    # then contradicted each other: uniqueness plus a defeat made
+                    # the suite UNSATISFIABLE - this check demanded
+                    # `ambiguous-candidates` while the defeat check demanded an
+                    # insufficiency reason, so no value could pass - and uniqueness
+                    # plus cardinality quietly re-imposed the very ranking
+                    # `mandated_reason` exists to refuse.
                 else:
                     got = arbitrate(app, outcomes, edges, refusals)
                     check(got is not None, f"{where}: arbitration has no result for {sorted(app)}")
@@ -718,7 +714,18 @@ def main() -> int:
                 # membership alone accepted any of the six - `missing-occurrence-id`
                 # passed on a case whose occurrences both carry ids.
                 want, why_branch = mandated_reason(exp, senior["limitations"], floor)
-                if want is not None:
+                if want is None:
+                    # FAIL-CLOSED on an unranked shape. Abstaining was the right call
+                    # for a CHECKER - the contract has not ranked these stages, so
+                    # picking one here would settle a contract question in a test.
+                    # But letting the case through unchecked is the other half of the
+                    # same mistake: it preregisters an answer nothing licenses.
+                    check(False,
+                          f"{where}: {why_branch}. No reason can be mandated, so this "
+                          "shape must not be preregistered yet. Rank the stages in "
+                          "`reason_mapping` first, then write the case - a fixture is "
+                          "how a decision gets frozen, not how one gets skipped.")
+                else:
                     check(exp.get("reason") == want,
                           f"{where}: {why_branch}, so `reason_mapping` mandates {want!r}, "
                           f"not {exp.get('reason')!r}")
@@ -789,24 +796,12 @@ def main() -> int:
                 # would replace that diagnosis with a traceback. A suite that dies on
                 # the evidence it came to read has happened in this repo before.
                 lim = senior["limitations"]
-                # MANDATE THE REASON FIRST, then check its arithmetic. These used to
-                # be two independent `if`s keyed on the reason, so a fixture that
-                # named a THIRD reason entered neither branch and passed - and
-                # `no-mapping-evidence` after a defeat is exactly the claim the
-                # senior contract was amended to stop: evidence was observed, then
-                # explained away, so saying none was seen is false.
-                insufficiency = {lim.get("insufficient-evidence-kind"),
-                                 lim.get("insufficient-evidence-combination")}
-                if not as_list(exp.get("inputs_unavailable")):
-                    check(reason in insufficiency,
-                          f"{where}: a defeat removed {sorted(exp['signals_defeated'])} "
-                          f"and the reason is {reason!r}. Evidence was observed and then "
-                          "explained away, so the reason is an insufficiency one: "
-                          "-kind below the floor, -combination at or above it.")
-                # A defeat AND an unevaluable input together is a shape the contract
-                # has not settled and no case has yet. It is left unmandated ON
-                # PURPOSE rather than decided here by whichever branch was typed
-                # first; settle it in the contract when a case needs it.
+                # WHICH reason a defeat requires is `mandated_reason`'s decision,
+                # made once and applied at the unresolved branch. What is left here
+                # is ARITHMETIC: whatever reason the fixture declares must be
+                # consistent with the count it declares. That holds no matter which
+                # stages fired, so it is safe next to a single authority - a second
+                # mandate was not.
                 if reason == lim.get("insufficient-evidence-kind"):
                     check(len(set(surviving)) < floor,
                           f"{where}: claims insufficient KINDS, but {len(set(surviving))} "
