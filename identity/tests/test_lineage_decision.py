@@ -335,6 +335,48 @@ def catalog_read(cat_spec: dict, rev_b: dict) -> tuple:
     return field, entries, pairs
 
 
+def evidence_list_failures(where: str, kinds, senior: dict, catalog: dict,
+                          floor: int, allow_records: bool, need_floor: bool) -> list:
+    """One validation for every list of evidence a rule rests on.
+
+    `requires_all` and `partner_profile.requires_all` are the same kind of claim
+    and were checked twice, by hand, at different strengths - the profile
+    rejected an unknown kind and a `sufficient_alone` one, the rule's own list
+    rejected neither. A comment above the rule's list even recorded noticing one
+    half of that gap ("`partner_profile` already got this right") and fixed only
+    the half it named.
+
+    The `sufficient_alone` exclusion is applied to BOTH here, which extends it
+    from profiles to rule requirements. That is deliberate and fail-closed: it can
+    reject a contract, never license a mapping. The argument is the one already
+    written for profiles - this file exists to say which COMBINATIONS license
+    what, and a kind the senior contract calls sufficient on its own needs no
+    combination. No frozen kind is currently `sufficient_alone`, so nothing in the
+    corpus turns on it today."""
+    out = []
+    if not isinstance(kinds, list) or not kinds:
+        out.append(f"{where} must NAME the kinds it rests on, got {kinds!r}")
+        return out
+    for kind in kinds:
+        known = kind in senior["evidence_kinds"] or (allow_records and kind in catalog)
+        if not known:
+            out.append(f"{where} names {kind!r}, which is neither a frozen evidence "
+                       "kind nor a structural signal")
+        if senior["evidence_kinds"].get(kind, {}).get("sufficient_alone"):
+            out.append(f"{where} rests on {kind!r}, which `finding-lineage/v1` calls "
+                       "sufficient alone. A combination built around a kind that needs "
+                       "no combination is not a combination.")
+    if len(set(kinds)) != len(kinds):
+        rep = sorted({k for k in kinds if kinds.count(k) > 1})
+        out.append(f"{where} repeats {rep!r}. The floor counts KINDS, so a repeat is "
+                   "either a typo or an attempt to reach the floor twice over the same "
+                   "evidence.")
+    if need_floor and len(set(kinds)) < floor:
+        out.append(f"{where} names {len(set(kinds))} distinct kind(s); the frozen floor "
+                   f"is {floor}")
+    return out
+
+
 def group_only_field_failures(rid: str, rule: dict, field: str) -> list:
     """One predicate for every field a rule may declare only when it has a GROUP.
 
@@ -690,14 +732,10 @@ def main() -> int:
         # in the same file whose whole argument is that the floor is a floor.
         # `partner_profile` already got this right; `requires_all` did not.
         req_all = rules[rid].get("requires_all", [])
-        check(len(set(req_all)) == len(req_all),
-              f"{rid}: requires_all repeats a kind. The floor counts kinds, so a "
-              "repeat is either a typo or an attempt to reach the floor twice over "
-              "the same evidence.")
-        if outcomes[rid] == "continued":
-            check(len(set(req_all)) >= floor,
-                  f"{rid} licenses continued on {len(set(req_all))} distinct "
-                  f"kind(s); the frozen floor is {floor}")
+        for msg in evidence_list_failures(
+                f"{rid}: requires_all", req_all, senior, policy["structural_signals"],
+                floor, allow_records=True, need_floor=outcomes[rid] == "continued"):
+            check(False, msg)
 
         # Cardinality is a PRECONDITION of the rule, so it is checked as one. The
         # alternative - letting `arbitration.multiplicity` overturn a structural
@@ -775,21 +813,13 @@ def main() -> int:
                       "checked against the singleton says nothing about the partners the "
                       "outcome rests on.")
             req = prof.get("requires_all") if isinstance(prof, dict) else None
-            check(isinstance(req, list) and req,
-                  f"{rid}: partner_profile must NAME the kinds; the contract refuses to "
-                  "derive them, because a derived profile is the floor's cardinal number "
-                  "with extra steps")
-            if isinstance(req, list):
-                for kind in req:
-                    check(kind in senior["evidence_kinds"],
-                          f"{rid}: partner_profile names {kind!r}, not a frozen evidence kind")
-                    check(not senior["evidence_kinds"].get(kind, {}).get("sufficient_alone"),
-                          f"{rid}: partner_profile rests on {kind!r}, which is sufficient "
-                          "alone; a profile of one strong signal is not a profile")
-                check(len(set(req)) == len(req), f"{rid}: partner_profile repeats a kind")
-                check(len(set(req)) >= floor,
-                      f"{rid}: partner_profile names {len(set(req))} kind(s); the frozen "
-                      f"floor is {floor}. The floor is checked, never used to generate.")
+            # A profile names SENIOR kinds only: a structural record is what the
+            # group rule itself rests on, not what each partner shows alone.
+            for msg in evidence_list_failures(
+                    f"{rid}: partner_profile", req, senior,
+                    policy["structural_signals"], floor,
+                    allow_records=False, need_floor=True):
+                check(False, msg)
         # NO RULE MAY REQUIRE AN IMPOSSIBLE COMBINATION. The senior contract
         # freezes which kinds cannot co-occur; a rule demanding both is dead and
         # takes its outcome down quietly with it. This is one of the two things
