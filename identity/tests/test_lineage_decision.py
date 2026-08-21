@@ -1862,6 +1862,11 @@ def main() -> int:
         check(duties is not None,
               f"{name}: no entry in `case_obligations`; nothing says what this case "
               "must exhibit beyond being green")
+        # The last declared list `repeats_failure` did not reach. A duty written
+        # twice is checked twice and means once; the verdict is unaffected, which
+        # is exactly why it sat here after the sweep that added the predicate.
+        bad = repeats_failure(f"{name}: case_obligations", duties)
+        check(not bad, bad or "")
         for duty in duties or []:
             check(duty in obligation_meanings, f"{name}: unknown obligation {duty!r}")
             met = False
