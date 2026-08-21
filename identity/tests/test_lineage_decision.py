@@ -1904,6 +1904,20 @@ def main() -> int:
                 check(isinstance(ids_, list) and len(set(ids_)) >= 2,
                       f"{where}: {rid} is recorded as unable to choose between "
                       f"{ids_!r}; fewer than two candidates is not an ambiguity")
+                # ONE REVISION PER LIST. `in occ_a or in occ_b` accepted a list
+                # mixing both, which is not an ambiguity at all: candidates are
+                # the alternatives a rule could not choose BETWEEN, and two
+                # occurrences from different runs are endpoints of a mapping
+                # rather than rivals for one end of it. A consumer reading such a
+                # record cannot tell whether the rule failed to pick predecessors
+                # or successors - the provenance says less than it appears to.
+                sides = {("A" if oid in occ_a else "B") for oid in ids_ or []
+                         if oid in occ_a or oid in occ_b}
+                check(len(sides) <= 1,
+                      f"{where}: ambiguous_candidates[{rid!r}] = {ids_!r} draws from "
+                      "BOTH revisions. A rule that could not choose was choosing among "
+                      "candidates on one side; a list spanning both records no "
+                      "answerable question.")
                 for oid in ids_ or []:
                     check(oid in occ_a or oid in occ_b,
                           f"{where}: candidate {oid!r} is in neither revision")
