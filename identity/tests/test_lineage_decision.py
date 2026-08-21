@@ -344,6 +344,31 @@ def raw_dominance_edges(policy: dict) -> list:
             for loser in p["loses"]]
 
 
+def refusal_shape_failures(policy: dict) -> list:
+    """Complaints about the RAW `between` lists, before any frozenset sees them.
+
+    `frozenset(["R-A", "R-B", "R-A"])` is a valid two-rule pair, so a declaration
+    with three members passed every downstream check while a mapper reading the
+    contract directly saw something else. The same reason `raw_dominance_edges`
+    keeps occurrences rather than a set: the claim is about the DECLARATION."""
+    out = []
+    for entry in policy["deliberately_unresolved_conflicts"]:
+        raw = entry.get("between")
+        if not isinstance(raw, list):
+            out.append(f"a declared refusal has `between` = {raw!r}, not a list")
+            continue
+        if len(raw) != 2:
+            out.append(f"the declared refusal {raw!r} names {len(raw)} rules; a "
+                       "refusal is a PAIR, and the frozenset below would silently "
+                       "make one out of any repetition")
+        rep = sorted({r for r in raw if raw.count(r) > 1})
+        if rep:
+            out.append(f"the declared refusal {raw!r} repeats {rep!r}; a rule cannot "
+                       "conflict with itself, and the repetition disappears the "
+                       "moment this becomes a set")
+    return out
+
+
 def raw_refusal_pairs(policy: dict) -> list:
     return [frozenset(c["between"]) for c in policy["deliberately_unresolved_conflicts"]]
 
@@ -451,6 +476,8 @@ def main() -> int:
     ids = sorted(rules)
     outcomes = {r: rules[r]["outcome"] for r in ids}
     raw_edges = raw_dominance_edges(policy)
+    for msg in refusal_shape_failures(policy):
+        check(False, msg)
     raw_refusals = raw_refusal_pairs(policy)
     edges = set(raw_edges)
     refusals = {frozenset(r) for r in raw_refusals}
@@ -901,6 +928,22 @@ def main() -> int:
     # valid mapping nobody consumes - `same_pattern_id`, reached only through a
     # partner profile - and `path_rename` then resolved to nothing while every
     # per-entry check passed. Domain equality is the fail-closed form.
+    # TOTAL OVER THE SENIOR VOCABULARY, not over this map's domain. The loop
+    # below visits only kinds the map carries, and the map deliberately excludes
+    # partner-profile-only kinds - so removing `same_pattern_id` from the frozen
+    # observation left it unclassified with everything green. That is the same
+    # valid-but-not-total defect this map was just fixed for, one layer up, in the
+    # section added to fix it.
+    observation = {k: v for k, v in
+                   (senior.get("evidence_kind_observation") or {}).items()
+                   if isinstance(v, str)}
+    check(set(observation) == set(senior["evidence_kinds"]),
+          "`finding-lineage/v1.evidence_kind_observation` must classify EVERY evidence "
+          f"kind. Missing {sorted(set(senior['evidence_kinds']) - set(observation))}, "
+          f"unexpected {sorted(set(observation) - set(senior['evidence_kinds']))}. A "
+          "kind left unclassified is one a partner profile would have to guess about, "
+          "which is the fact this section exists to settle.")
+
     NO_RECORD = "no_structural_record"
     direct = {k for r in rules.values() for k in (r.get("requires_all") or [])}
     want_domain = {k for k in direct if k in senior_kinds}
@@ -1043,6 +1086,17 @@ def main() -> int:
                   "one and drop the other.")
         occ_a = {o["occurrence_id"] for o in rev_a.get("occurrences", [])}
         occ_b = {o["occurrence_id"] for o in rev_b.get("occurrences", [])}
+        # ACROSS the revisions too. Per-revision duplicate checks see nothing
+        # wrong when A and B each declare `occ-a1` once, and the combined `by_id`
+        # then lets the B record overwrite the A record - preregistering a
+        # self-edge, and making the structural binding read a successor's
+        # attributes while believing they are a predecessor's. An occurrence id
+        # cannot span runs at all; `finding-lineage/v1` says so.
+        shared = sorted(occ_a & occ_b)
+        check(not shared,
+              f"{name}: {shared!r} appears in BOTH revisions. An occurrence id names "
+              "one occurrence in one run, so a shared id is two different occurrences "
+              "under one name - and `by_id` keeps only the second.")
         by_id = {o["occurrence_id"]: o for o in
                  rev_a.get("occurrences", []) + rev_b.get("occurrences", [])}
         # COUNTED, not collected. `update` proves an occurrence is claimed at
@@ -1510,6 +1564,27 @@ def main() -> int:
             # blunted rule and can still demand `no-mapping-evidence`. The field
             # is the candidate binding FOR the uniqueness rejection; with no
             # rejection there is nothing for it to bind.
+            # RAW LISTS FIRST. Every consumer below turns these into sets, so a
+            # repeated id vanished and two different serialised records - one
+            # naming a rule once, one twice - both passed. A record is what a
+            # mapper writes down; the checker must not be more forgiving about
+            # its shape than the thing reading it.
+            for field in ("conflicting_rules", "rules_without_a_unique_candidate",
+                          "rules_excluded_by_cardinality"):
+                raw_f = detail.get(field)
+                if isinstance(raw_f, list):
+                    rep = sorted({i for i in raw_f if raw_f.count(i) > 1})
+                    check(not rep,
+                          f"{where}: decision_detail.{field} repeats {rep!r}. The set "
+                          "comparisons below cannot see it, and a consumer that counts "
+                          "the array disagrees with this suite.")
+            for _rid, _ids in (detail.get("ambiguous_candidates") or {}).items():
+                if isinstance(_ids, list):
+                    rep = sorted({i for i in _ids if _ids.count(i) > 1})
+                    check(not rep,
+                          f"{where}: ambiguous_candidates[{_rid!r}] repeats {rep!r}; one "
+                          "candidate written twice is not two candidates")
+
             cand = detail.get("ambiguous_candidates")
             blunted_ids = detail.get("rules_without_a_unique_candidate") or []
             if blunted_ids or cand:
