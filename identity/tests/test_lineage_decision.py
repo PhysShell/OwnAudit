@@ -386,6 +386,233 @@ def catalog_read(cat_spec: dict, rev_b: dict) -> tuple:
     return field, entries, pairs
 
 
+KIND_TESTS = {
+    "string": lambda v: isinstance(v, str),
+    "list": lambda v: isinstance(v, list),
+    "object": lambda v: isinstance(v, dict),
+    # `bool` is an `int` in Python and nowhere else. A fixture writing `true`
+    # where a line number belongs is malformed input, not the number one.
+    "integer": lambda v: isinstance(v, int) and not isinstance(v, bool),
+    "integer-or-null": lambda v: v is None or KIND_TESTS["integer"](v),
+    "string-or-list-or-null": lambda v: v is None or isinstance(v, (str, list)),
+}
+
+
+def declared_kind_failure(where: str, value, kind: str, why: str = "") -> str:
+    """"Is this value the KIND its declaration says?" - asked once.
+
+    It was asked in a dozen hand-written places and never asked at all in most
+    of them, and the two spellings that existed disagreed: one branch tested
+    `isinstance(value, list)` and reported, another tested it and merely
+    returned. Callers pass their own `why`, because the reason a wrong container
+    is dangerous differs by field and the argument is worth keeping; the QUESTION
+    does not differ and is no longer written twice."""
+    if KIND_TESTS[kind](value):
+        return ""
+    return f"{where} is {value!r}, not {kind}." + (f" {why}" if why else "")
+
+
+def record_sources(*contracts) -> set:
+    """Every `revision_b.<field>` either contract declares a signal observable
+    from.
+
+    Hand-listing the record sources would have made a third place that must be
+    updated when a signal is added - and of the two that already exist, one was
+    missing `rename_record` for a whole round. The contracts say where a signal
+    is read FROM; this reads that declaration rather than restating it."""
+    found = set()
+
+    def walk(node):
+        if isinstance(node, dict):
+            for key, value in node.items():
+                if key == "observable_from" and isinstance(value, str):
+                    head, _, rest = value.split("[].")[0].partition(".")
+                    if head == "revision_b" and rest:
+                        found.add(rest)
+                walk(value)
+        elif isinstance(node, list):
+            for item in node:
+                walk(item)
+
+    for contract in contracts:
+        walk(contract)
+    return found
+
+
+# The whole vocabulary of a decision fixture, and the KIND each field holds.
+# An undeclared key is a failure: a field added to a fixture and not to these
+# tables would reopen exactly the hole they close, and reopen it in silence.
+FIXTURE_KINDS = {
+    "case": "string", "title": "string", "contract": "string",
+    "status": "string", "why": "string",
+    "revision_a": "object", "revision_b": "object",
+    "expect": "list", "forbid": "list",
+}
+REVISION_KINDS = {"revision": "string", "occurrences": "list"}
+OCCURRENCE_KINDS = {
+    "occurrence_id": "string", "path": "string", "enclosing_symbol": "string",
+    "anchored_content": "string", "pattern_id": "string",
+    "start_line": "integer", "start_column": "integer-or-null",
+}
+# EVERY attribute the policy reads off an occurrence, because a MISSING one is
+# read as a value. `by_id` indexes `occurrence_id` directly and an occurrence
+# without it killed the run; the other five are read with `.get`, which is worse
+# - an absent `path` makes `same_path` compare None against a string and come out
+# false, so the fixture would witness "the paths differ" by not saying what they
+# are. That is absence of a record read as a semantic outcome, which is the one
+# thing this whole contract exists to forbid. `start_column` is the exception on
+# purpose: nothing reads it.
+OCCURRENCE_REQUIRED = frozenset(OCCURRENCE_KINDS) - {"start_column"}
+EXPECTATION_KINDS = {
+    "outcome": "string", "side": "string", "reason": "string", "note": "string",
+    # A predecessor is one occurrence or, for a fold, several. `to` is a list at
+    # every outcome, including the empty one.
+    "frm": "string-or-list-or-null", "to": "list",
+    "applicable_rules": "list", "licensed_by": "list", "evidence_surviving": "list",
+    UNAVAILABLE_FIELD: "list",
+    "not_applicable": "object", "signals_defeated": "object",
+    "boundary_defeated": "object", "decision_detail": "object",
+}
+DETAIL_KINDS = {
+    "conflicting_rules": "list", "rules_without_a_unique_candidate": "list",
+    "rules_excluded_by_cardinality": "list", "ambiguous_candidates": "object",
+}
+# signal or rule id -> a sentence. The KEYS are checked against their
+# vocabularies elsewhere; this table is only about the VALUES.
+NAMED_REASON_FIELDS = ("not_applicable", "signals_defeated", "boundary_defeated")
+
+
+def kind_table_failures(where: str, obj, kinds: dict, required=frozenset()) -> list:
+    """One object against one table: declared keys only, each of its kind, and
+    the ones a reader indexes rather than `.get`s actually there."""
+    bad = declared_kind_failure(
+        where, obj, "object",
+        "Nothing below can report what is wrong with a fixture whose sections "
+        "are not sections.")
+    if bad:
+        return [bad]
+    out = []
+    for key in sorted(obj):
+        if key not in kinds:
+            out.append(f"{where}.{key} is not a field this fixture schema declares. "
+                       "Either the field is a typo the suite would read as absent, or "
+                       "the schema has drifted behind the fixtures - and an undeclared "
+                       "field is an unchecked one.")
+            continue
+        msg = declared_kind_failure(f"{where}.{key}", obj[key], kinds[key])
+        if msg:
+            out.append(msg)
+    for key in sorted(required - set(obj)):
+        out.append(f"{where} omits {key!r}. Every reader below either indexes it "
+                   "directly or reads it with `.get` and compares the result - so "
+                   "leaving it out does not raise a question, it answers one.")
+    return out
+
+
+def fixture_shape_failures(name: str, case, senior: dict, policy: dict) -> list:
+    """Every container in a decision fixture is the KIND its schema declares -
+    asked once, before any reader sees the fixture.
+
+    Two reviewers each reported one instance of this in the same round: a
+    structural record source written as an object rather than a list, and an
+    `ambiguous_candidates` value written as a bare integer. Both were real, and
+    fixing the two named sites would have been the mistake this branch has now
+    made seven times. A census replaced every field of every fixture, one at a
+    time, with a scalar, an empty object and an empty list: of 2637 mutations,
+    633 crashed the suite and 625 left it green. A crash reports NOTHING - not
+    this violation and not the twenty others that run would have found - so the
+    two reported sites were two of 1258.
+
+    With this gate the same census crashes 0 and leaves 38 green, and those 38
+    are four known classes, not a residue: `start_column`, which is declared
+    `integer-or-null` and legitimately accepts an integer; the ELEMENTS of
+    `removed_symbols`, a senior-contract source no decision-layer signal reads;
+    and an `evidence_surviving` or `inputs_unavailable` emptied on ONE
+    expectation while a sibling expectation still carries it, which asks whether
+    an obligation binds the case or each expectation - a question about
+    `case_obligations`, not about shape.
+
+    KIND, in BOTH directions. A list written as a scalar and a scalar written as
+    a list are one defect, and checking the direction a reviewer happened to send
+    is how the last several rounds each left half a fix behind.
+
+    KIND ONLY. Whether a field must be PRESENT, and whether its contents are well
+    formed, are different questions, asked by `entry_shape_failures`,
+    `malformed_list_failures` and the passes in `main`. This one answers what a
+    field IS, so that those may assume it."""
+    kinds = dict(FIXTURE_KINDS)
+    revision_kinds = dict(REVISION_KINDS,
+                          **{src: "list" for src in record_sources(senior, policy)})
+    out = kind_table_failures(name, case, kinds)
+    if out:
+        return out
+    for side in ("revision_a", "revision_b"):
+        if side not in case:
+            continue
+        # THE TABLE, THEN WHAT IT LICENSES. `... or []` walked whatever
+        # `occurrences` happened to be, so a scalar `occurrences` - the very
+        # thing the table above reports - was iterated one line after being
+        # reported, and the TypeError killed the run before the report reached
+        # anyone. That is the seventh time on this branch that a guard has died
+        # on the input it exists to describe. Nothing here reads a section the
+        # table has not first agreed is that kind of section.
+        rev_bad = kind_table_failures(f"{name}.{side}", case[side], revision_kinds)
+        out += rev_bad
+        if rev_bad:
+            continue
+        for index, occ in enumerate(case[side].get("occurrences") or []):
+            out += kind_table_failures(f"{name}.{side}.occurrences[{index}]",
+                                       occ, OCCURRENCE_KINDS, OCCURRENCE_REQUIRED)
+    for index, forbidden in enumerate(case.get("forbid") or []):
+        msg = declared_kind_failure(f"{name}.forbid[{index}]", forbidden, "string",
+                                    "`forbid` states in words what the case must NOT "
+                                    "conclude; a container states nothing.")
+        if msg:
+            out.append(msg)
+    for index, exp in enumerate(case.get("expect") or []):
+        where = f"{name}[{index}]"
+        entry = kind_table_failures(where, exp, EXPECTATION_KINDS)
+        out += entry
+        if entry:
+            continue
+        for field in NAMED_REASON_FIELDS + ("decision_detail",):
+            # DECLARED, AND NOT EMPTY - the question `populated_object_failure`
+            # was written for, asked here rather than answered a second way.
+            # Three of these four happened to be caught by a later pass that
+            # wanted their contents; `boundary_defeated: {}` was caught by
+            # nothing, and a case declaring that a boundary was defeated and
+            # naming no boundary says less than a case that stays silent.
+            if field in exp:
+                bad = populated_object_failure(f"{where}.{field}", exp[field])
+                if bad:
+                    out.append(bad)
+        for field in NAMED_REASON_FIELDS:
+            for key in sorted(exp.get(field) or {}):
+                msg = declared_kind_failure(
+                    f"{where}.{field}[{key!r}]", exp[field][key], "string",
+                    "The value is the sentence saying why, and it is the only "
+                    "place that reason is written down.")
+                if msg:
+                    out.append(msg)
+        detail = exp.get("decision_detail")
+        if detail is None:
+            continue
+        detail_bad = kind_table_failures(f"{where}.decision_detail", detail, DETAIL_KINDS)
+        out += detail_bad
+        if detail_bad:
+            continue
+        for rid in sorted(detail.get("ambiguous_candidates") or {}):
+            msg = declared_kind_failure(
+                f"{where}.ambiguous_candidates[{rid!r}]",
+                detail["ambiguous_candidates"][rid], "list",
+                "It holds the candidates a rule could not choose BETWEEN, so "
+                "fewer than two of anything is not an ambiguity - and a scalar "
+                "here is iterated further down and kills the run.")
+            if msg:
+                out.append(msg)
+    return out
+
+
 def malformed_list_failures(where: str, exp: dict, unavailable_field: str) -> list:
     """Every declared list on an expectation holds STRINGS - checked before
     anything reads them.
@@ -1522,6 +1749,18 @@ def main() -> int:
     for name in sorted(set(on_disk) & set(preregistered)):
         with open(os.path.join(FIXDIR, f"{name}.json"), encoding="utf-8") as fh:
             case = json.load(fh)
+        # BEFORE EVERY READER, and the FIRST of them. The malformed-input guard
+        # below this loop already learned that refusing per-reader protects one
+        # reader; it was hoisted to cover the expectations, and the passes ABOVE
+        # where it landed - the identity checks, the entry-shape walk, the
+        # occurrence census, `by_id` - still read a revision no one had looked
+        # at. A fixture whose `occurrences` is a scalar killed the entire run at
+        # `by_id`, and a killed run reports nothing at all.
+        shape = fixture_shape_failures(name, case, senior, policy)
+        for msg in shape:
+            check(False, msg)
+        if shape:
+            continue
         check(case.get("case") == name, f"{name}: case field is {case.get('case')!r}")
         check(case.get("contract") == "finding-lineage-decision/v1",
               f"{name}: wrong contract {case.get('contract')!r}")
