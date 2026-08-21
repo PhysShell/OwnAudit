@@ -421,6 +421,15 @@ def repeats_failure(where: str, seq) -> str:
     return ""
 
 
+# The senior field the floor comes from, named ONCE. `floor_spec_failures` binds
+# the contract's declaration to this same constant, so the check cannot pass
+# because it happens to agree with a different reading of the same key.
+FLOOR_FIELD = "minimum_evidence_kinds_for_continued"
+# The only counting semantics `clears_floor` implements. A contract declaring
+# another one would be describing a policy this suite does not check.
+FLOOR_COUNTED_OVER = "distinct_kinds"
+
+
 def floor_spec_failures(policy: dict, senior: dict) -> list:
     """The contract's own statement of the floor, bound to the senior rule.
 
@@ -436,9 +445,22 @@ def floor_spec_failures(policy: dict, senior: dict) -> list:
         return [f"`reason_mapping.no_rule_applied_after_a_defeat` states its floor as "
                 f"{spec!r}. A prose restatement cannot be checked against the senior "
                 "rule, and this one had already drifted from it."]
-    if spec.get("senior_field") not in senior:
-        out.append(f"the floor names senior field {spec.get('senior_field')!r}, which "
-                   "`finding-lineage/v1` does not carry")
+    # EXACTLY the field, not merely a field that exists. `in senior` accepted
+    # `limitations` and `outcomes` - real senior keys, unrelated to the floor -
+    # so the contract could claim its refusal threshold derives from the
+    # limitation vocabulary and nothing objected. Membership standing in for the
+    # correct member, in the check written to stop the contract and the checker
+    # disagreeing about this very number.
+    if spec.get("senior_field") != FLOOR_FIELD:
+        out.append(f"the floor names senior field {spec.get('senior_field')!r}; the "
+                   f"suite reads the floor from {FLOOR_FIELD!r} and the contract has to "
+                   "name the same one, or the two describe different thresholds while "
+                   "agreeing that a threshold exists")
+    if spec.get("counted_over") != FLOOR_COUNTED_OVER:
+        out.append(f"the floor is counted over {spec.get('counted_over')!r}; "
+                   f"`clears_floor` counts {FLOOR_COUNTED_OVER!r} and implements no "
+                   "other semantics, so any other value describes a policy nothing "
+                   "here checks")
     if spec.get("sufficient_alone_clears") is not True:
         out.append("the floor declares `sufficient_alone_clears` "
                    f"{spec.get('sufficient_alone_clears')!r}. `evidence_rule` in the "
@@ -890,7 +912,7 @@ def main() -> int:
               "authority, or a mapper reads whichever it happened to open.")
 
     senior_outcomes = set(senior["outcomes"])
-    floor = senior["minimum_evidence_kinds_for_continued"]
+    floor = senior[FLOOR_FIELD]
     for rid in ids:
         check(outcomes[rid] in senior_outcomes,
               f"{rid} names outcome {outcomes[rid]!r}, which is not one of the six")

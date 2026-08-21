@@ -517,7 +517,7 @@
         "at_or_above_the_floor": "lineage-id-unavailable:insufficient-evidence-combination",
         "floor": {
           "senior_field": "minimum_evidence_kinds_for_continued",
-          "counted_over": "DISTINCT surviving kinds",
+          "counted_over": "distinct_kinds",
           "sufficient_alone_clears": true,
           "why": [
             "MACHINE-READABLE, and read by the suite rather than restated in it.",
@@ -533,7 +533,13 @@
             "The exception was taught to four checker call sites and to none of the places",
             "the CONTRACT states it - which is the same claim at a fifth site, found by a",
             "reviewer after a census that enumerated predicates in the checker and never",
-            "looked here."
+            "looked here.",
+            "",
+            "`counted_over` is a TOKEN, not a sentence. It read `DISTINCT surviving kinds`,",
+            "and the check that was supposed to bind this section accepted `all signals` in",
+            "its place - and accepted `senior_field: limitations`, a real senior key with",
+            "nothing to do with the floor. Membership standing in for the correct member,",
+            "inside the check written to stop this section drifting from the senior rule."
           ]
         }
       },
