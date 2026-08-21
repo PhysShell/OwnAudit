@@ -44,12 +44,18 @@
         "occ-a1"
       ],
       "to": [],
-      "reason": "lineage-id-unavailable:insufficient-evidence-kind",
+      "reason": "lineage-id-unavailable:insufficient-evidence-combination",
       "applicable_rules": [],
       "licensed_by": [],
       "signals_defeated": {
         "structural_context": "renamed_symbol_record"
       },
+      "evidence_surviving": [
+        "same_path",
+        "same_pattern_id",
+        "anchored_content",
+        "line_drift"
+      ],
       "not_applicable": {
         "R-CONT-SAME-SITE": "structural_context was defeated",
         "R-CONT-DRIFT": "structural_context was defeated; line_drift alone carries nothing",
@@ -67,12 +73,18 @@
       "to": [
         "occ-b1"
       ],
-      "reason": "lineage-id-unavailable:insufficient-evidence-kind",
+      "reason": "lineage-id-unavailable:insufficient-evidence-combination",
       "applicable_rules": [],
       "licensed_by": [],
       "signals_defeated": {
         "structural_context": "renamed_symbol_record"
       },
+      "evidence_surviving": [
+        "same_path",
+        "same_pattern_id",
+        "anchored_content",
+        "line_drift"
+      ],
       "note": "occ-b1 is not `new` either: nothing records its site as added, and a birth is earned rather than left over."
     }
   ],

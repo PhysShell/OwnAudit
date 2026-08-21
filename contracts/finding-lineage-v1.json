@@ -31,6 +31,17 @@
     "inventing a value in a vocabulary it declares itself subordinate to. That the",
     "junior contract had a written rule saying exactly this, and that the rule fired",
     "on the very next review, is the reason it is written down at all.",
+    "",
+    "Amended a third time by slice 2 STEP 1, which added",
+    "'insufficient-evidence-combination'. The step 1 fixture",
+    "`defeated-signal-drops-below-the-floor` leaves three evidence kinds standing",
+    "after a defeater removes a fourth - above this contract's floor of two - and",
+    "still licenses nothing, because no declared combination survives. The junior",
+    "contract first reported that as 'insufficient-evidence-kind', which was false",
+    "in the plain meaning of the words: the kinds were ample.",
+    "Corrected here rather than below, for the second review running. The junior",
+    "rule against widening from below has now fired twice, which is a better",
+    "argument for writing rules down than any amount of agreeing that one should.",
     "Still frozen-unimplemented: no mapper exists, so nothing is built on the old",
     "shape and nothing has to be migrated."
   ],
@@ -137,7 +148,8 @@
     "conflicting-evidence": "lineage-id-unavailable:conflicting-evidence",
     "missing-occurrence-id": "lineage-id-unavailable:missing-occurrence-id",
     "no-predecessor-revision": "lineage-id-unavailable:no-predecessor-revision",
-    "insufficient-evidence-kind": "lineage-id-unavailable:insufficient-evidence-kind"
+    "insufficient-evidence-kind": "lineage-id-unavailable:insufficient-evidence-kind",
+    "insufficient-evidence-combination": "lineage-id-unavailable:insufficient-evidence-combination"
   },
   "limitations_rule": [
     "These say why a lineage_id is UNAVAILABLE. They belong to 'unresolved' and to",
@@ -150,7 +162,18 @@
     "possible partners, nothing prefers one - the shape of two-candidates-unresolved.",
     "Conflicting evidence: ONE observed structure that supports incompatible",
     "conclusions about the same relation. The first is a choice with no grounds; the",
-    "second is grounds that argue with each other."
+    "second is grounds that argue with each other.",
+    "'insufficient-evidence-kind' and 'insufficient-evidence-combination' are the",
+    "second pair of neighbours, and the distinction is the whole reason",
+    "`minimum_evidence_kinds_for_continued` is called a floor.",
+    "Insufficient KIND: fewer kinds than the floor, or one kind carrying a mapping",
+    "no single kind may carry. The count is the problem.",
+    "Insufficient COMBINATION: the floor is met, sometimes comfortably, and no",
+    "combination a decision policy declares sufficient survives. Three kinds may be",
+    "present and the answer still unresolved, because two is the minimum a mapping",
+    "must clear and never the algorithm that decides which mappings are licensed.",
+    "Reporting the second as the first would say the evidence was too thin when it",
+    "was ample and simply did not add up to a rule anyone declared."
   ],
   "boundary_evidence_kinds": {
     "containing-file-deleted": {

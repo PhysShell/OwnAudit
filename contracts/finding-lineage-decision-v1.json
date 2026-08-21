@@ -17,7 +17,7 @@
     "question 'would this mapping still be made under the new rule' stops having",
     "an answer - which is the promise mapping_provenance exists to keep.",
     "So a mapping cites RULES BY ID, and the two id lists answer two questions.",
-    "`applicable_rules` is the RECALL SET for re-judgement. Retiring or changing a",
+    "`applicable_rules` is the largest PART of the recall set for re-judgement, and `recall_set` names the rest. Retiring or changing a",
     "rule means finding every mapping it touched - including the ones where it",
     "LOST, because those are exactly the mappings that change if the winner is",
     "later retired or if arbitration moves. A recall set built from `licensed_by`",
@@ -36,10 +36,19 @@
     "   be evaluated is not absent - see `unavailable_inputs`.",
     "2. DEFEAT: remove every signal an explaining record accounts for. A defeated",
     "   signal is REMOVED, never weighed.",
-    "3. APPLY every rule to the surviving set. All of them, not the first match.",
-    "   The result is `applicable_rules`.",
-    "4. ARBITRATE by `arbitration`. The result is the outcome and `licensed_by`.",
-    "5. RECORD both lists, the evidence, `decision_detail`, and the provenance."
+    "3. MATCH every rule against the surviving set. A rule may match ONE candidate",
+    "   binding or SEVERAL - matching is about the predicate, not about how many",
+    "   partners answer it.",
+    "4. FILTER by uniqueness and cardinality. A 1:1 rule with anything other than",
+    "   exactly one candidate does not survive; a group rule below its declared",
+    "   minimum does not survive. Rules that matched and died here are recorded in",
+    "   `decision_detail.rules_without_a_unique_candidate`.",
+    "5. APPLY: the survivors of step 4 are `applicable_rules`. All of them, not the",
+    "   first match.",
+    "6. ARBITRATE by `arbitration`, over `applicable_rules` only. The result is the",
+    "   outcome and `licensed_by`.",
+    "7. RECORD every stage's output, the evidence, `decision_detail`, and the",
+    "   provenance."
   ],
   "order_independence": [
     "Step 3 evaluates a SET, not a sequence, and step 4 resolves by a declared",
@@ -322,7 +331,7 @@
     ]
   },
   "record_additions": {
-    "applicable_rules": "the DISTINCT ids of rules having at least one surviving application. A set of ids, not a count of applications: one rule may fire on several candidate edges, and this field does not carry that multiplicity. The bindings live in `evidence` and `decision_detail`.",
+    "applicable_rules": "the DISTINCT ids of rules with a SURVIVING application - matched, then past uniqueness and cardinality, per `decision_procedure` step 5. A set of ids, not a count of applications. Rules that matched and failed uniqueness are NOT here; they are in `decision_detail.rules_without_a_unique_candidate`, and both are needed for re-judgement - see `recall_set`.",
     "licensed_by": "the SURVIVING rules the outcome rests on - the applicable rules that no other applicable rule dominates, per `arbitration.licensed_by_rule`. Non-empty for continued, branched and merged; EMPTY on a refused conflict.",
     "decision_detail": "decision-layer precision that the senior contract's `reason` vocabulary does not carry: conflicting_rules, inputs_unavailable, defeated_signals, and rules_without_a_unique_candidate - the rules that fired on several candidates and so licensed no 1:1 mapping. That last one is not cosmetic: without it a blunt rule losing to a discriminating one leaves no trace, and `applicable_rules` would either have to omit it (losing the recall set) or include it (claiming it supported the answer). It did neither; it failed to single anyone out.",
     "signals_defeated": "signal name -> the record that defeated it. Present whenever step 2 removed anything.",
@@ -402,27 +411,29 @@
     }
   ],
   "applicable_rules_vs_licensed_by": [
-    "Two lists, because they answer two different questions, and an earlier draft",
-    "of this file conflated them into a claim that was simply false.",
-    "`applicable_rules` - every rule that fired on the surviving evidence set,",
-    "  including the ones that lost arbitration. This is the audit trail: retiring",
-    "  a rule later means finding every mapping it touched, and the losers are",
-    "  exactly the mappings that would change if the winner were retired.",
-    "`licensed_by` - the SURVIVING rules, and only those: the applicable rules that",
-    "  no other applicable rule dominates. Several may survive together, and all of",
-    "  them are named; see `arbitration.licensed_by_rule`.",
-    "The draft put both into `licensed_by`, so a branched mapping asserted that",
-    "R-CONT-SAME-SITE licensed `branched`. It did not: it proposed `continued` and",
-    "lost. A record that says otherwise is wrong in the same way a fabricated",
-    "successor is wrong - it attributes a conclusion to something that never",
-    "reached it.",
+    "Three sets, because there are three questions, and earlier drafts of this file",
+    "collapsed them twice - once into a single field, once into two.",
+    "`matched` - the rules whose predicate held on the surviving evidence. Not",
+    "  stored as such; it is the input to the uniqueness filter.",
+    "`applicable_rules` - the rules with a SURVIVING application, after uniqueness",
+    "  and cardinality. This is what arbitration sees, and it includes the rules",
+    "  that lost arbitration: they are exactly the mappings that would change if the",
+    "  winner were retired.",
+    "`licensed_by` - the SURVIVING rules of arbitration, and only those: the",
+    "  applicable rules that no other applicable rule dominates. Several may survive",
+    "  together, and all of them are named; see `arbitration.licensed_by_rule`.",
+    "A draft put losers and winners both into `licensed_by`, so a branched mapping",
+    "asserted that R-CONT-SAME-SITE licensed `branched`. It did not: it proposed",
+    "`continued` and lost. A record that says otherwise is wrong in the same way a",
+    "fabricated successor is wrong - it attributes a conclusion to something that",
+    "never reached it.",
     "On a refused conflict `licensed_by` is EMPTY, and the disagreeing rules appear",
     "in `applicable_rules` and in `decision_detail.conflicting_rules`. Nothing",
     "licensed the refusal; the refusal is what happens when nothing can.",
-    "One more thing this field is NOT: a trace. A rule that fires on two candidate",
-    "edges appears once. Promising multiplicity in a set of ids would be a claim the",
-    "shape cannot keep, and the place for per-candidate bindings is the evidence and",
-    "the decision detail, where they can be recorded without being counted twice."
+    "One more thing `licensed_by` is NOT: a trace. A rule that survived on one",
+    "candidate edge appears once. The place for per-candidate bindings is the",
+    "evidence and the decision detail.",
+    "And `applicable_rules` is NOT the recall set on its own - see `recall_set`."
   ],
   "reason_mapping": {
     "no_rule_applied": {
@@ -430,20 +441,22 @@
       "detail": "inputs_unavailable, when the reason nothing applied is that a signal could not be evaluated"
     },
     "no_rule_applied_after_a_defeat": {
-      "reason": "lineage-id-unavailable:insufficient-evidence-kind",
+      "reason": "lineage-id-unavailable:insufficient-evidence-combination",
       "detail": "defeated_signals: signal -> the record that removed it",
       "why": [
         "Distinguished from `no-mapping-evidence` because the two are not the same",
-        "situation and a consumer reads this field. When a defeater fires, evidence",
-        "WAS observed - it was removed because a record explained it away - and",
-        "saying `no mapping evidence` would be false in the plain meaning of the",
-        "words.",
-        "`insufficient-evidence-kind` is already in the senior vocabulary and was",
-        "unused. This is the case it was for: the KINDS that survive do not reach",
-        "what any rule requires. Note that they may still clear the senior floor -",
-        "in `defeated-signal-drops-below-the-floor` three kinds survive against a",
-        "floor of two - which is the sharpest demonstration available that the",
-        "floor is not the algorithm."
+        "situation and a consumer reads this field. When a defeater fires, evidence WAS",
+        "observed - it was removed because a record explained it away - and saying `no",
+        "mapping evidence` would be false in the plain meaning of the words.",
+        "And distinguished from `insufficient-evidence-kind`, which this file reported",
+        "for one review before the senior contract was corrected. In",
+        "`defeated-signal-drops-below-the-floor` THREE kinds survive against a floor of",
+        "two: the kinds are ample, and it is the COMBINATION that no declared rule",
+        "accepts. Naming that a shortage of kinds would have said the evidence was thin",
+        "when it was plentiful and simply did not add up to a rule anyone declared.",
+        "`insufficient-evidence-kind` keeps its own job: the senior floor genuinely not",
+        "cleared. This one is the case where the floor is cleared and the floor was",
+        "never the algorithm."
       ]
     },
     "conflicting_rules": {
@@ -708,5 +721,41 @@
       "of the meanings above. A case added without an obligation is a case nobody",
       "has said what to expect of, which is how a matrix drifts into decoration."
     ]
-  }
+  },
+  "stages_rule": [
+    "MATCHED, SURVIVING and LICENSED are three different sets, and an earlier draft",
+    "of this file used one word for the first two. It defined `applicable_rules` as",
+    "the rules with at least one surviving application while also saying a rule",
+    "firing on several candidate edges appears there once - which reads as the",
+    "PRE-uniqueness set. Then `blunt-rule-loses-to-uniqueness` and its checker",
+    "required the opposite: a rule matching two candidates must be ABSENT from",
+    "`applicable_rules` and recorded as unable to choose.",
+    "Both cannot be true. The staged reading above is the one kept, because the",
+    "alternative puts a rule into arbitration that licensed no mapping - and",
+    "arbitration would then have it disagree with rules that did.",
+    "So: matching is about the predicate. Surviving is about uniqueness and",
+    "cardinality. `applicable_rules` is the set AFTER step 4, and it is what",
+    "arbitration sees."
+  ],
+  "recall_set": [
+    "WHICH MAPPINGS MUST BE REVISITED IF A RULE CHANGES.",
+    "",
+    "  recall = applicable_rules",
+    "         + decision_detail.rules_without_a_unique_candidate",
+    "         + any further explicitly recorded rejected stage",
+    "",
+    "`applicable_rules` alone stopped being the recall set the moment uniqueness",
+    "became a filter in front of it. A rule that matched two candidates and was",
+    "dropped there is exactly a mapping that would CHANGE if that rule were made",
+    "more discriminating - and it does not appear in `applicable_rules` at all. A",
+    "recall set built from that field alone would miss it, and miss it silently,",
+    "which is the failure mode this project keeps finding in its own drafts.",
+    "This is why the rejected stage is RECORDED rather than merely computed and",
+    "discarded. A stage whose output is thrown away cannot be recalled from, and",
+    "`rules_without_a_unique_candidate` exists to be part of this union rather than",
+    "as a courtesy to the reader.",
+    "Any future stage that rejects a rule joins this union in the same breath as it",
+    "is added. A stage without a recorded output is a stage that silently narrows",
+    "re-judgement."
+  ]
 }

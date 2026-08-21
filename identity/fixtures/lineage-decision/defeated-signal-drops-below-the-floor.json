@@ -1,7 +1,7 @@
 {
   "case": "defeated-signal-drops-below-the-floor",
   "title": "A reformatting pass removes the only signal the rule had left",
-  "why": "ADVERSARIAL about the FLOOR, not about the signals. Everything matches: same file, same symbol, same line, same text. But the file went through a formatter, so content equality is a property of the formatter rather than of the occurrence, and the defeater removes it before any rule is applied. What survives - same_path, same_pattern_id, structural_context - is THREE kinds against a senior floor of two, and still no rule is satisfied, because no rule asks for that combination. That is the clearest statement available of why the floor is a floor and not the algorithm. The reason is `insufficient-evidence-kind`, not `no-mapping-evidence`: evidence was observed and then explained away, and saying none was seen would be false.",
+  "why": "ADVERSARIAL about the FLOOR, not about the signals. Everything matches: same file, same symbol, same line, same text. But the file went through a formatter, so content equality is a property of the formatter rather than of the occurrence, and the defeater removes it before any rule is applied. What survives - same_path, same_pattern_id, structural_context - is THREE kinds against a senior floor of two, and still no rule is satisfied, because no rule asks for that combination. That is the clearest statement available of why the floor is a floor and not the algorithm. The reason is `insufficient-evidence-combination`: evidence was observed and then explained away, so `no-mapping-evidence` would be false, and three surviving kinds against a floor of two make `insufficient-evidence-kind` false too. What is insufficient is the combination, which is the distinction the senior contract was amended to carry.",
   "revision_a": {
     "revision": "r1",
     "occurrences": [
@@ -41,12 +41,17 @@
         "occ-a1"
       ],
       "to": [],
-      "reason": "lineage-id-unavailable:insufficient-evidence-kind",
+      "reason": "lineage-id-unavailable:insufficient-evidence-combination",
       "applicable_rules": [],
       "licensed_by": [],
       "signals_defeated": {
         "anchored_content": "reformatted_paths"
       },
+      "evidence_surviving": [
+        "same_path",
+        "same_pattern_id",
+        "structural_context"
+      ],
       "not_applicable": {
         "R-CONT-SAME-SITE": "anchored_content was defeated, and the rule requires it",
         "R-CONT-DRIFT": "line_drift did not fire - the occurrence is at the same line",
@@ -64,12 +69,17 @@
       "to": [
         "occ-b1"
       ],
-      "reason": "lineage-id-unavailable:insufficient-evidence-kind",
+      "reason": "lineage-id-unavailable:insufficient-evidence-combination",
       "applicable_rules": [],
       "licensed_by": [],
       "signals_defeated": {
         "anchored_content": "reformatted_paths"
       },
+      "evidence_surviving": [
+        "same_path",
+        "same_pattern_id",
+        "structural_context"
+      ],
       "note": "the mirror side. Nothing about revision B says this occurrence is new, and no rule links it back."
     }
   ],
@@ -77,7 +87,8 @@
     "continued on same_path plus structural_context - three surviving kinds clear the senior floor and satisfy no rule",
     "anchored_content counted at a reduced weight - the contract has no weights",
     "ended for occ-a1 or new for occ-b1 - neither carries boundary evidence",
-    "no-mapping-evidence as the reason - evidence was observed and then defeated"
+    "no-mapping-evidence as the reason - evidence was observed and then defeated",
+    "insufficient-evidence-kind as the reason - three kinds survive against a floor of two, so the kinds are ample and it is the combination that no rule accepts"
   ],
   "contract": "finding-lineage-decision/v1",
   "status": "preregistered-unimplemented"

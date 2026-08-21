@@ -127,19 +127,25 @@ def collect(rev: dict, dotted: str) -> list:
     return out
 
 
-def read_signal(rev: dict, spec: dict) -> list:
-    """Read the values a structural signal matches on, following the catalog's own
-    `entry_shape`. `observable_from` names the FIELD; whether the entries are bare
-    strings or objects is `entry_shape`'s to say, and guessing instead is how a
-    checker silently reads an empty list and reports a record as present."""
+def signal_bindings(spec: dict) -> list:
+    """(read path, subject role, subject attribute) for each key the catalog's
+    `matches` names.
+
+    `matches` is the NORMATIVE half and `entry_shape` only says how the entries
+    are shaped. An earlier version read every key of `entry_shape`, which is a
+    strictly wider and wrong semantics: `renamed_symbol_record` matches on `from`
+    alone, so pooling `from` and `to` let a record reading
+    `Other.Symbol -> DocView.Wire` defeat a predecessor in DocView.Wire - the
+    rename record says something arrived at that name, which is the opposite of
+    the evidence the defeat needs."""
     field = str(spec.get("observable_from", ""))
     shape = spec.get("entry_shape")
-    if isinstance(shape, dict):
-        out = []
-        for key in shape:
-            out.extend(collect(rev, f"{field}[].{key}"))
-        return out
-    return collect(rev, field)
+    out = []
+    for key, subject in (spec.get("matches") or {}).items():
+        role, _, attr = str(subject).partition(".")
+        read = f"{field}[].{key}" if isinstance(shape, dict) else field
+        out.append((read, role, attr))
+    return out
 
 
 def raw_dominance_edges(policy: dict) -> list:
@@ -436,6 +442,10 @@ def main() -> int:
           "first two is what falsified the rule set, so partial credit is not on offer.")
 
     senior_limitations_set = set(senior["limitations"].values())
+    unavailable_from = str(policy["unavailable_inputs"].get("observable_from", ""))
+    check(unavailable_from.startswith("revision_b."),
+          "`unavailable_inputs.observable_from` must name a revision B field, got "
+          f"{unavailable_from!r}")
     obligations = policy["case_obligations"]["obligations"]
     obligation_meanings = policy["case_obligations"]["meanings"]
     check(sorted(obligations) == sorted(preregistered),
@@ -576,38 +586,79 @@ def main() -> int:
                       f"{where}: {signal!r} is defeated by {spec['defeated_by_signal']!r}, "
                       f"not by {source!r}")
                 cat = catalog.get(spec["defeated_by_signal"], {})
-                observed = read_signal(rev_b, cat)
-                check(bool(observed),
-                      f"{where}: claims {signal!r} was defeated, but "
-                      f"{cat.get('observable_from')} carries nothing to match on. A defeat "
-                      "asserted in a note is a note.")
-                # And it must name THIS occurrence. A record about some other symbol
-                # in the same file defeats nothing here, which is exactly the trap
+                bindings = signal_bindings(cat)
+                check(bool(bindings),
+                      f"{where}: {spec['defeated_by_signal']!r} declares no `matches`, so "
+                      "there is nothing to check the record against")
+                # The record must name THIS occurrence, on the key the catalog says
+                # it matches on. A record about another symbol in the same file
+                # defeats nothing - which is the trap
                 # `renamed-symbol-defeats-structural-context` is built out of.
-                for side, ids_ in (("a", frm), ("b", to)):
-                    for oid in ids_:
-                        subj = by_id.get(oid, {})
-                        wanted = {subj.get(attr) for attr in
-                                  ("path", "enclosing_symbol") if attr in subj}
-                        if observed and side == "a":
-                            check(bool(wanted & set(observed)),
-                                  f"{where}: {spec['defeated_by_signal']!r} holds "
-                                  f"{sorted(observed)!r}, which names neither the path nor "
-                                  f"the enclosing symbol of {oid}; it defeats nothing here")
+                for read, role, attr in bindings:
+                    observed = collect(rev_b, read)
+                    check(bool(observed),
+                          f"{where}: claims {signal!r} was defeated, but {read} carries "
+                          "nothing to match on. A defeat asserted in a note is a note.")
+                    subject_ids = frm if role == "predecessor" else to
+                    for oid in subject_ids:
+                        wanted = by_id.get(oid, {}).get(attr)
+                        check(wanted in observed,
+                              f"{where}: {spec['defeated_by_signal']!r} matches on {read} "
+                              f"= {role}.{attr}, which for {oid} is {wanted!r}; the record "
+                              f"holds {sorted(observed)!r} and so defeats nothing here")
                 for rid in app:
                     check(signal not in rules[rid].get("requires_all", []),
                           f"{where}: {rid} is applicable but requires the defeated "
                           f"signal {signal!r}")
 
+            # THE TWO NEIGHBOURS, kept apart mechanically. `insufficient-evidence-
+            # kind` means the senior floor was not cleared; `-combination` means it
+            # was and no declared combination survives. Without this the fixture
+            # could name either and the suite would shrug, because both are valid
+            # senior limitations - and the whole point of
+            # `defeated-signal-drops-below-the-floor` is which one is true.
+            surviving = exp.get("evidence_surviving")
+            if exp.get("signals_defeated"):
+                check(isinstance(surviving, list),
+                      f"{where}: a defeat must declare `evidence_surviving` - what is "
+                      "left standing is what decides which limitation is honest")
+            if isinstance(surviving, list):
+                for kind in surviving:
+                    check(kind in senior["evidence_kinds"],
+                          f"{where}: evidence_surviving names {kind!r}, not a frozen kind")
+                for kind in (exp.get("signals_defeated") or {}):
+                    check(kind not in surviving,
+                          f"{where}: {kind!r} is both defeated and surviving")
+                reason = exp.get("reason")
+                # `.get`, not `[...]`: a missing senior key is a real situation - the
+                # vocabulary check above is what diagnoses it - and crashing here
+                # would replace that diagnosis with a traceback. A suite that dies on
+                # the evidence it came to read has happened in this repo before.
+                lim = senior["limitations"]
+                if reason == lim.get("insufficient-evidence-kind"):
+                    check(len(set(surviving)) < floor,
+                          f"{where}: claims insufficient KINDS, but {len(set(surviving))} "
+                          f"survive against a floor of {floor}. The kinds are ample; it is "
+                          "the combination that no rule accepts.")
+                if reason == lim.get("insufficient-evidence-combination"):
+                    check(len(set(surviving)) >= floor,
+                          f"{where}: claims insufficient COMBINATION, but only "
+                          f"{len(set(surviving))} kind(s) survive against a floor of "
+                          f"{floor}. Below the floor the shortage really is of kinds.")
+
             for sig in as_list(exp.get("inputs_unavailable")):
                 check(sig in senior["evidence_kinds"] or sig in catalog,
                       f"{where}: unavailable input {sig!r} is neither a frozen evidence "
                       "kind nor a catalogued structural signal")
-                declared = rev_b.get("unavailable_signals", [])
+                # Read from the field the CONTRACT declares, not a name hardcoded
+                # here. A hardcoded reader leaves `observable_from` decorative:
+                # changing it would break nothing, which is the same defect as a
+                # boundary that lives only in prose.
+                declared = collect(rev_b, unavailable_from)
                 check(sig in declared,
-                      f"{where}: claims {sig!r} was unavailable, but revision B's "
-                      f"`unavailable_signals` holds {declared!r}. Unavailability is a "
-                      "RECORD, which is the entire point of the case.")
+                      f"{where}: claims {sig!r} was unavailable, but {unavailable_from} "
+                      f"holds {declared!r}. Unavailability is a RECORD, which is the "
+                      "entire point of the case.")
                 for rid in app:
                     check(sig not in rules[rid].get("requires_all", []),
                           f"{where}: {rid} is applicable but requires the unevaluable "
