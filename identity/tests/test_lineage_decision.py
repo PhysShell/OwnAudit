@@ -296,6 +296,45 @@ def signal_bindings(spec: dict) -> list:
     return out
 
 
+def record_names(entry: dict, key: str, wanted) -> bool:
+    """One record entry naming one occurrence, on one key. A fold's `from` is a
+    LIST of symbols and a copy's is a single path; `entry_shape` says which, so
+    membership and equality are the same question asked of two shapes."""
+    if not isinstance(entry, dict) or key not in entry:
+        return False
+    val = entry[key]
+    return wanted in val if isinstance(val, list) else wanted == val
+
+
+def related_by(entry: dict, pairs: list, preds, succs, by_id: dict) -> set:
+    """The (predecessor, successor) pairs ONE record entry relates.
+
+    Conjunctive across the keys the catalog matches on: a record relates a pair
+    or it relates nothing. Collecting the keys separately and intersecting later
+    accepts `Doc.cs -> Unrelated.cs` beside `Other.cs -> DocCopy.cs` as though
+    one record connected the two."""
+    out = set()
+    for p in preds:
+        for t in succs:
+            subject = {"predecessor": p, "successor": t}
+            if all(record_names(entry, key, by_id.get(subject[role], {}).get(at))
+                   for key, role, at in pairs):
+                out.add((p, t))
+    return out
+
+
+def catalog_read(cat_spec: dict, rev_b: dict) -> tuple:
+    """(field path, entries, match keys) for one structural signal."""
+    field = str(cat_spec.get("observable_from", "")).split("[].")[0]
+    entries = (rev_b.get(field.partition(".")[2]) or []
+               if field.startswith("revision_b.") else [])
+    # `signal_bindings` yields the full dotted READ PATH, not the bare entry key
+    # - `revision_b.copies[].from`, not `from`.
+    pairs = [(read.split("[].")[-1], role, at)
+             for read, role, at in signal_bindings(cat_spec)]
+    return field, entries, pairs
+
+
 def raw_dominance_edges(policy: dict) -> list:
     """Occurrences, NOT a set. `classified exactly once` is a claim about the
     declarations, and a set answers a weaker question - it would let
@@ -825,6 +864,27 @@ def main() -> int:
                   f"{where_s}.matches names {sorted(set(matches or {}) - set(shape))}, "
                   "which `entry_shape` does not declare")
 
+    # THE KIND -> RECORD MAP MUST NAME A REAL RECORD. Resolution ends in
+    # `catalog.get(sig)`, and a miss there reads as "this requirement has no
+    # structural record", which is the correct answer for `same_path` and the
+    # wrong one for a mapping that points at nothing. Repointing `path_rename` at
+    # `missing_rename_record` left R-CONT-RENAME licensed and its record
+    # unchecked - fail-open, in the resolution step added to close a fail-open.
+    senior_kinds = set(senior["evidence_kinds"])
+    for kind, sig_name in sorted(kind_records.items()):
+        check(kind in senior_kinds,
+              f"`evidence_kind_records` maps {kind!r}, which `finding-lineage/v1` does "
+              "not carry as an evidence kind. The map exists to say where a SENIOR "
+              "kind is observed; a key that is not one binds nothing.")
+        check(kind not in policy["structural_signals"],
+              f"`evidence_kind_records` maps {kind!r}, which is already a structural "
+              "signal. It would then resolve two ways, and the two could disagree.")
+        check(sig_name in policy["structural_signals"],
+              f"`evidence_kind_records` maps {kind!r} to {sig_name!r}, which the "
+              "structural catalog does not carry. Resolution would find no record and "
+              "silently skip the binding, which is exactly what the map was added to "
+              "prevent.")
+
     # ...and the group quantifier, which used to live in `requires_all_scope` as
     # prose. A 1:1 rule could claim GROUP scope and a group rule could drop the
     # declaration entirely, both silently.
@@ -1098,29 +1158,18 @@ def main() -> int:
             # from the checker: copy explains ONE successor and fold names EVERY
             # predecessor, and a checker picking either on its own would be
             # holding an opinion about the policy.
-            # LICENSED, not merely applicable. An applicable-but-dominated rule
-            # never named this mapping's group, and on a refused conflict the
-            # sides are the unresolved record's own - side a names `frm` with `to`
-            # empty - so there is no group to bind against at all.
-            #
-            # PER ENTRY, CONJUNCTIVELY. The first version of this collected each
-            # matched field independently across every record, which threw away
-            # the relation between them: two copies reading
-            # `Doc.cs -> Unrelated.cs` and `Other.cs -> DocCopy.cs` put the
-            # predecessor somewhere in the pooled `from` and the successor
-            # somewhere in the pooled `to`, and passed, though no single record
-            # connects the two. A record relates a PAIR or it relates nothing.
+            # LICENSED rules are bound against THIS mapping's group. The
+            # quantifiers live inside one entry: a fold split into
+            # `WireA -> WireA` and `WireB -> WireA` describes two separate folds,
+            # and two records do not add up to one transformation.
             for rid in lic:
                 rule_r = rules[rid]
                 binding = rule_r.get("record_binding")
-                shape_r = (rule_r.get("cardinality") or {}).get("shape")
-                if binding is None and shape_r == "1:1":
+                if binding is None and (rule_r.get("cardinality") or {}).get("shape") == "1:1":
                     # At 1:1 there is exactly one occurrence in each role, so
                     # `every` and `at_least_one` are the SAME condition and the
                     # checker chooses no policy by applying it - see
-                    # `record_binding_vocabulary.at_one_to_one`. Skipping instead
-                    # left R-CONT-COPY's record unbound: repointing the copy at an
-                    # unrelated path still licensed `continued`.
+                    # `record_binding_vocabulary.at_one_to_one`.
                     binding = {"predecessor": {"quantifier": "every"},
                                "successor": {"quantifier": "every"}}
                 if not binding:
@@ -1130,21 +1179,13 @@ def main() -> int:
                     cat_s = catalog.get(sig)
                     if not cat_s:
                         continue
-                    read_field = str(cat_s.get("observable_from", "")).split("[].")[0]
-                    entries = (rev_b.get(read_field.partition(".")[2]) or []
-                               if read_field.startswith("revision_b.") else [])
+                    read_field, entries, pairs = catalog_read(cat_s, rev_b)
                     check(bool(entries),
                           f"{where}: {rid} rests on {sig!r}, but {read_field} carries "
                           "nothing. A record cited by a licensing rule and absent from "
                           "revision B is a record asserted in a note.")
-                    # `signal_bindings` yields the full dotted READ PATH, not the
-                    # bare entry key - `revision_b.copies[].from`, not `from`.
-                    pairs = [(read.split("[].")[-1], role, at)
-                             for read, role, at in signal_bindings(cat_s)]
-
-                    # Eligible partners per role, after the declared exclusion.
                     pools = {}
-                    for _r, role in (("", "predecessor"), ("", "successor")):
+                    for role in ("predecessor", "successor"):
                         spec_r = binding.get(role) or {}
                         pool = list(frm if role == "predecessor" else to)
                         if spec_r.get("excluding") == "partners_where_same_path_holds":
@@ -1158,56 +1199,68 @@ def main() -> int:
                                   "would then explain nothing this mapping needs.")
                         pools[role] = pool
 
-                    def names(entry: dict, key: str, wanted) -> bool:
-                        """One record entry naming one occurrence, on one key.
-                        A fold's `from` is a LIST of symbols and a copy's is a
-                        single path; `entry_shape` says which, so membership and
-                        equality are the same question asked of two shapes."""
-                        if not isinstance(entry, dict) or key not in entry:
-                            return False
-                        val = entry[key]
-                        return wanted in val if isinstance(val, list) else wanted == val
-
-                    # ONE RECORD MUST CARRY THE WHOLE GROUP. The previous
-                    # version accumulated pairs over every entry and then applied
-                    # the quantifiers to the union, which pools sources one level
-                    # up from the pooling it had just fixed: a fold split into
-                    # `WireA -> WireA` and `WireB -> WireA` satisfied `every`
-                    # between them, though neither record names both predecessors
-                    # and the two describe separate folds. The rule's own `why`
-                    # says "THE RECORD's `from` list must carry every
-                    # predecessor" - singular - so the quantifier belongs inside
-                    # one entry.
-                    def satisfied_by(entry: dict) -> bool:
-                        related = {(p, t)
-                                   for p in pools["predecessor"]
-                                   for t in pools["successor"]
-                                   if all(names(entry, key,
-                                                by_id.get({"predecessor": p,
-                                                           "successor": t}[role],
-                                                          {}).get(at))
-                                          for key, role, at in pairs)}
+                    def carries(entry: dict) -> bool:
+                        rel = related_by(entry, pairs, pools["predecessor"],
+                                         pools["successor"], by_id)
                         for role in ("predecessor", "successor"):
                             quant = (binding.get(role) or {}).get("quantifier")
-                            idx = 0 if role == "predecessor" else 1
-                            reached = {pair[idx] for pair in related}
-                            if quant == "every":
-                                if any(o not in reached for o in pools[role]):
-                                    return False
-                            elif quant == "at_least_one":
-                                if not reached:
-                                    return False
+                            reached = {p[0 if role == "predecessor" else 1] for p in rel}
+                            if quant == "every" and any(o not in reached
+                                                        for o in pools[role]):
+                                return False
+                            if quant == "at_least_one" and not reached:
+                                return False
                         return True
 
-                    check(any(satisfied_by(e) for e in entries),
+                    def shown(ids_):
+                        return [by_id.get(o, {}).get("enclosing_symbol")
+                                or by_id.get(o, {}).get("path") for o in ids_]
+                    check(any(carries(e) for e in entries),
                           f"{where}: {rid} rests on {sig!r}, and no SINGLE entry of "
-                          f"{read_field} relates this mapping's occurrences as its "
-                          f"`record_binding` requires. Predecessors "
-                          f"{[by_id.get(o, {}).get('enclosing_symbol') or by_id.get(o, {}).get('path') for o in pools['predecessor']]!r}, "
-                          f"successors "
-                          f"{[by_id.get(o, {}).get('enclosing_symbol') or by_id.get(o, {}).get('path') for o in pools['successor']]!r}; "
-                          f"the records hold {entries!r}. Two records describing two "
-                          "transformations do not add up to one transformation.")
+                          f"{read_field} relates this mapping as its `record_binding` "
+                          f"requires. Predecessors {shown(pools['predecessor'])!r}, "
+                          f"successors {shown(pools['successor'])!r}; the records hold "
+                          f"{entries!r}. Two records describing two transformations do "
+                          "not add up to one transformation.")
+
+            # A REFUSED CONFLICT LICENSES NOTHING, and the loop above therefore
+            # skipped it entirely - so `copy-source-that-is-also-a-fold-refuses`
+            # kept its `conflicting-evidence` while its copy record pointed at
+            # `Other/Nope.cs`. Half the conflict the case preregisters was not
+            # carried by the fixture at all. Scoping to `lic` fixed a real error
+            # (the refusal's `frm`/`to` are the unresolved record's own sides, not
+            # a group) and quietly dropped this coverage with it.
+            #
+            # What is checkable here is weaker, and the limit is the point: the
+            # record must RELATE some pair of this fixture's occurrences, so it is
+            # about them rather than about unrelated files. It is NOT checked
+            # against the rule's quantifiers, because the group an unlicensed rule
+            # would have formed is applicability, and this suite does not compute
+            # it. Applying the fixture-wide occurrence set to `every` would reject
+            # this very case: the fold names neither `DocCopyView.Wire` nor the
+            # copy target, correctly, because they are the other half of the
+            # conflict.
+            for rid in sorted(set(app) - set(lic)):
+                for kind in (rules[rid].get("requires_all") or []):
+                    sig = kind if kind in catalog else kind_records.get(kind)
+                    cat_s = catalog.get(sig)
+                    if not cat_s:
+                        continue
+                    read_field, entries, pairs = catalog_read(cat_s, rev_b)
+                    check(bool(entries),
+                          f"{where}: {rid} is applicable on {sig!r}, but {read_field} "
+                          "carries nothing")
+                    touched = set()
+                    for entry in entries:
+                        touched |= related_by(entry, pairs, sorted(occ_a),
+                                              sorted(occ_b), by_id)
+                    check(bool(touched),
+                          f"{where}: {rid} is declared applicable on {sig!r}, and no "
+                          f"entry of {read_field} relates ANY occurrence of this case "
+                          f"to another. The records hold {entries!r}, which describe a "
+                          "transformation somewhere else. A rule that establishes half "
+                          "of a refused conflict has to be carried by the fixture like "
+                          "any other.")
 
             # A defeat must be CARRIED by revision B, exactly as a boundary is.
             for signal, source in (exp.get("signals_defeated") or {}).items():
