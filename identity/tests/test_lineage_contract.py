@@ -189,6 +189,52 @@ def main() -> int:
     for msg in amendment_ordinal_failures(contract.get("revision_note")):
         check(False, msg)
 
+    # THE EXCLUSION ITSELF, which nothing validated. `mutually_exclusive_evidence_kinds`
+    # is consumed by the decision suite as `set(entry["between"]) <= rule_needs`,
+    # and a set built from a misspelt name simply fails that subset test for every
+    # rule - so renaming a member to `not_a_kind` left BOTH suites green while the
+    # frozen exclusion silently stopped preventing the combination it was added to
+    # catch. A declaration that cannot be satisfied is indistinguishable, to its
+    # consumer, from one that is never violated.
+    #
+    # Validated here because this is where it is DECLARED. The junior suite
+    # restating a senior claim is the defect the previous commit was about.
+    exclusions = contract.get("mutually_exclusive_evidence_kinds")
+    check(isinstance(exclusions, list) and bool(exclusions),
+          f"`mutually_exclusive_evidence_kinds` is {exclusions!r}, not a non-empty list")
+    seen_pairs = []
+    for index, entry in enumerate(exclusions if isinstance(exclusions, list) else []):
+        where_x = f"mutually_exclusive_evidence_kinds[{index}]"
+        if not isinstance(entry, dict):
+            check(False, f"{where_x} is {entry!r}, not an object")
+            continue
+        between = entry.get("between")
+        if not isinstance(between, list):
+            check(False, f"{where_x}.between is {between!r}, not a list of two kinds")
+            continue
+        # `evidence_kinds` ALONE. The first draft of this line read
+        # `k not in outcomes and k not in evidence_kinds`, which accepts an
+        # OUTCOME name as a member of an evidence exclusion - a value admitted
+        # for being in a vocabulary rather than in the right one, which is the
+        # defect this whole check exists to catch, written into the check.
+        unknown = [k for k in between if k not in evidence_kinds]
+        check(not unknown,
+              f"{where_x}.between names {unknown!r}, which `evidence_kinds` does not "
+              "declare. The consumer tests `set(between) <= rule_requirements`, and a "
+              "name no rule can require makes that test vacuous - the exclusion stops "
+              "excluding and nothing says so.")
+        check(len(set(between)) == 2,
+              f"{where_x}.between is {between!r}; an exclusion holds between exactly "
+              "two DISTINCT kinds. One name repeated excludes a rule from requiring "
+              "one kind, which is not what this section means.")
+        check(bool(entry.get("why")),
+              f"{where_x} declares no `why`; a frozen exclusion with no argument is a "
+              "rule nobody can check against the vocabulary it constrains.")
+        seen_pairs.append(frozenset(between))
+    check(len(seen_pairs) == len(set(seen_pairs)),
+          "`mutually_exclusive_evidence_kinds` declares the same pair twice; two "
+          "entries for one fact is how this contract has drifted before.")
+
     # The load-bearing rule, asserted rather than only written down: absent
     # evidence yields 'unresolved'. If this ever reads 'new', every "introduced
     # this revision" metric silently starts measuring the mapper.
@@ -406,8 +452,11 @@ def main() -> int:
                     # accept a mapper that does the same.
                     check(bool(required),
                           f"{where}: continued must name the evidence that carries it")
-                    alone_ok = any(contract["evidence_kinds"].get(k, {}).get("sufficient_alone")
-                                   for k in required)
+                    alone_ok = any(
+                        (contract["evidence_kinds"].get(k)
+                         if isinstance(contract["evidence_kinds"].get(k), dict)
+                         else {}).get("sufficient_alone")
+                        for k in required)
                     check(alone_ok or len(required) >= floor,
                           f"{where}: continued names {len(required)} evidence kind(s) "
                           f"{required}, and none is sufficient alone; the frozen floor is "

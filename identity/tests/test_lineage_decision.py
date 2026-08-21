@@ -190,9 +190,9 @@ def rule_needs(rule) -> set:
     where a defeatable signal reaches a group rule's profile it also sits in some
     applicable 1:1 rule's `requires_all` and is caught there first. Same code
     path, same fix, and only one half has a witness."""
-    needs = set(rule.get("requires_all") or [])
-    profile = rule.get("partner_profile") or {}
-    return needs | set(profile.get("requires_all") or [])
+    needs = set(list_or_empty(rule.get("requires_all")))
+    profile = mapping_or_empty(rule.get("partner_profile"))
+    return needs | set(list_or_empty(profile.get("requires_all")))
 
 
 def mandated_reason(exp, mapping, floor, senior):
@@ -212,10 +212,10 @@ def mandated_reason(exp, mapping, floor, senior):
     on it rather than guessing: a shape nobody has ranked must not be settled by
     whichever condition was typed first."""
     def of(key, surviving_kinds=None):
-        spec = mapping.get(key) or {}
+        spec = mapping_or_empty(mapping.get(key))
         if "reason" in spec:
             return spec["reason"]
-        by = spec.get("reason_by_surviving_kinds") or {}
+        by = mapping_or_empty(spec.get("reason_by_surviving_kinds"))
         if surviving_kinds is None:
             return None
         return by.get("at_or_above_the_floor"
@@ -283,6 +283,27 @@ def collect(rev: dict, dotted: str) -> list:
 SUBJECT_ROLES = ("predecessor", "successor")
 
 
+def mapping_or_empty(value) -> dict:
+    """The value if it IS a mapping, an empty one otherwise - never a crash.
+
+    `(x or {})` was the spelling at seventeen reader sites. It handles `null` and
+    `{}` and dies on `"1:1"`, which is how a rule whose `cardinality` was edited
+    into a string killed the whole run: the integrity check that reports exactly
+    that fault had already recorded it, and the traceback threw the report away
+    along with every other violation the run had left to find.
+
+    The fixture reader is gated - a malformed fixture is refused before any
+    consumer sees it - and the CONTRACT reader is not, so ten of those sites were
+    reading an ungated file. This does not report anything; the checks that own
+    each field already do. What it guarantees is that they get to finish."""
+    return value if isinstance(value, dict) else {}
+
+
+def list_or_empty(value) -> list:
+    """The list half of the same question, asked the same way."""
+    return value if isinstance(value, list) else []
+
+
 def signal_bindings(spec: dict) -> list:
     """(read path, subject role, subject attribute) for each key the catalog's
     `matches` names, for the roles a mapping actually has.
@@ -305,7 +326,7 @@ def signal_bindings(spec: dict) -> list:
     field = str(spec.get("observable_from", ""))
     shape = spec.get("entry_shape")
     out = []
-    for key, subject in (spec.get("matches") or {}).items():
+    for key, subject in mapping_or_empty(spec.get("matches")).items():
         role, _, attr = str(subject).partition(".")
         if role not in SUBJECT_ROLES:
             continue
@@ -721,7 +742,7 @@ def malformed_list_failures(where: str, exp: dict, unavailable_field: str) -> li
                 if bad:
                     out.append(f"{where}: decision_detail.{field} holds non-string "
                                f"entries {bad!r}")
-        for rid_, ids_ in (detail.get("ambiguous_candidates") or {}).items():
+        for rid_, ids_ in mapping_or_empty(detail.get("ambiguous_candidates")).items():
             if isinstance(ids_, list):
                 bad = [v for v in ids_ if not isinstance(v, str)]
                 if bad:
@@ -837,9 +858,9 @@ def floor_spec_failures(policy: dict, senior: dict) -> list:
     fifth site of this one was a sentence in `reason_mapping`, still describing a
     bare count after four checker sites had been corrected."""
     out = []
-    spec = ((policy.get("reason_mapping") or {})
-            .get("no_rule_applied_after_a_defeat") or {}
-            ).get("reason_by_surviving_kinds", {}).get("floor")
+    spec = mapping_or_empty(mapping_or_empty(mapping_or_empty(
+        policy.get("reason_mapping")).get("no_rule_applied_after_a_defeat")
+    ).get("reason_by_surviving_kinds")).get("floor")
     if not isinstance(spec, dict):
         return [f"`reason_mapping.no_rule_applied_after_a_defeat` states its floor as "
                 f"{spec!r}. A prose restatement cannot be checked against the senior "
@@ -885,7 +906,8 @@ def clears_floor(kinds, senior: dict, floor: int) -> bool:
     and not asked at the next, in the commit that was itself correcting a
     contradiction with this same sentence."""
     kinds = set(kinds or ())
-    if any(senior["evidence_kinds"].get(k, {}).get("sufficient_alone") for k in kinds):
+    if any(mapping_or_empty(senior["evidence_kinds"].get(k)).get("sufficient_alone")
+           for k in kinds):
         return True
     return len(kinds) >= floor
 
@@ -931,7 +953,8 @@ def evidence_list_failures(where: str, kinds, senior: dict, catalog: dict,
             out.append(f"{where} names {kind!r}, which is neither a frozen evidence "
                        "kind nor a structural signal")
         if (forbid_sufficient_alone
-                and senior["evidence_kinds"].get(kind, {}).get("sufficient_alone")):
+                and mapping_or_empty(senior["evidence_kinds"].get(kind))
+                .get("sufficient_alone")):
             out.append(f"{where} rests on {kind!r}, which `finding-lineage/v1` calls "
                        "sufficient alone; a profile of one strong signal is not a "
                        "profile")
@@ -982,7 +1005,7 @@ def group_only_field_failures(rid: str, rule: dict, field: str) -> list:
     to be empty, and a mapper reading the contract sees a second way of spelling
     "no binding"."""
     out = []
-    shape = (rule.get("cardinality") or {}).get("shape")
+    shape = mapping_or_empty(rule.get("cardinality")).get("shape")
     is_group = shape != "1:1"
     declared = field in rule
     if declared != is_group:
@@ -1131,9 +1154,102 @@ def arbitrate(subset, outcomes, edges, refusals):
     return None
 
 
+# The contract sections this suite indexes into, and the kind each must be.
+# Derived from what is READ, not from a restatement of the contract: every entry
+# here is a section some check below walks or subscripts.
+POLICY_SECTIONS = {
+    "rules": "objects", "structural_signals": "objects", "reason_mapping": "objects",
+    "signal_defeaters": "objects", "arbitration": "object", "dominance": "object",
+    "record_additions": "object", "record_binding_vocabulary": "object",
+    "case_obligations": "object", "unavailable_inputs": "object",
+    "evidence_kind_records": "object",
+    "deliberately_unresolved_conflicts": "list", "preregistered_cases": "list",
+}
+# Fields INSIDE an entry that the suite reads attribute by attribute. One level
+# deeper than the sections, and the level review actually crashed the suite on:
+# `rules.R-CONT-SAME-SITE.cardinality` as the string "1:1" is a well-formed rule
+# in a well-formed section, and `card.get("shape")` still dies on it.
+ENTRY_MAPPING_FIELDS = {
+    "rules": ("cardinality", "record_binding", "partner_profile"),
+    "structural_signals": ("matches",),
+    "reason_mapping": ("reason_by_surviving_kinds",),
+    "signal_defeaters": (),
+}
+SENIOR_SECTIONS = {
+    "outcomes": "objects", "evidence_kinds": "objects",
+    "boundary_evidence_kinds": "objects", "limitations": "object",
+    "mutually_exclusive_evidence_kinds": "list",
+}
+
+
+def contract_shape_failures(policy: dict, senior: dict) -> list:
+    """Every contract section this suite reads is the KIND it is read as - asked
+    once, before any reader sees it.
+
+    The fixtures have had this gate since the container census; the contracts
+    never did, and it is the contracts that three consecutive rounds of review
+    kept crashing the suite on. Editing one rule's `cardinality` into the string
+    `"1:1"` killed the whole run at `card.get("shape")` - and the integrity check
+    that reports exactly that fault had already recorded it, so the traceback
+    threw away its own diagnosis along with every other violation the run had
+    left to find.
+
+    Three spellings of one guard had to be swept before this was written -
+    `(x or {})`, `.get(k, {})` and bare indexing - and each sweep left the next
+    spelling behind, which is the argument for a gate rather than a fourth sweep.
+    `objects` means a mapping whose VALUES are mappings: `rules` is walked as
+    `rules[rid]["outcome"]`, so a rule that is a string is the same defect one
+    level down.
+
+    KIND ONLY, and only for sections that are read. What each section must
+    CONTAIN is the business of the checks that own it; this exists so that they
+    run at all."""
+    out = []
+    for contract, sections, label in ((policy, POLICY_SECTIONS, "finding-lineage-decision/v1"),
+                                      (senior, SENIOR_SECTIONS, "finding-lineage/v1")):
+        for name, kind in sorted(sections.items()):
+            value = contract.get(name)
+            if kind == "list":
+                if not isinstance(value, list):
+                    out.append(f"{label}: `{name}` is {value!r}, not a list. Every "
+                               "reader below walks it.")
+                continue
+            if not isinstance(value, dict):
+                out.append(f"{label}: `{name}` is {value!r}, not an object. Every "
+                           "reader below subscripts it.")
+                continue
+            if kind != "objects":
+                continue
+            for key in sorted(value):
+                if not isinstance(value[key], dict):
+                    out.append(f"{label}: `{name}.{key}` is {value[key]!r}, not an "
+                               "object. It is read attribute by attribute, so a "
+                               "reader reaches it before any check can report it.")
+                    continue
+                for field in ENTRY_MAPPING_FIELDS.get(name, ()):
+                    if field in value[key] and not isinstance(value[key][field], dict):
+                        out.append(
+                            f"{label}: `{name}.{key}.{field}` is "
+                            f"{value[key][field]!r}, not an object. The check that "
+                            "reports this field records the fault and the run then "
+                            "dies reading it, which throws the report away.")
+    return out
+
+
 def main() -> int:
     senior = load(SENIOR)
     policy = load(POLICY)
+    # BEFORE EVERY READER, and nothing runs on a contract that failed it. `check`
+    # accumulates rather than stopping, so reporting a malformed section and
+    # carrying on is how the report gets discarded by the traceback it predicted.
+    shape = contract_shape_failures(policy, senior)
+    for msg in shape:
+        check(False, msg)
+    if shape:
+        print(f"identity/lineage-decision: FAIL - {len(fails)} check(s) failed")
+        for msg in fails:
+            print(f"FAIL: {msg}")
+        return 1
 
     rules = policy["rules"]
     ids = sorted(rules)
@@ -1215,7 +1331,7 @@ def main() -> int:
               "declared, not guessed - a checker that knows which branch means which "
               "entry has an opinion nobody can review.")
         if key in policy["reason_mapping"]:
-            want_b = (policy["reason_mapping"][key] or {}).get("reason")
+            want_b = mapping_or_empty(policy["reason_mapping"][key]).get("reason")
             check(node.get("reason") == want_b,
                   f"{'.'.join(where_b)} says {node.get('reason')!r} but implements "
                   f"{key!r}, which selects {want_b!r}. One value, stated three times, "
@@ -1300,7 +1416,7 @@ def main() -> int:
               "SURVIVING rules, which is what `licensed_by_rule` and `arbitrate` both "
               "implement.")
 
-    conflict_reason = (policy["reason_mapping"].get("conflicting_rules") or {}).get("reason")
+    conflict_reason = mapping_or_empty(policy["reason_mapping"].get("conflicting_rules")).get("reason")
     for entry in policy["deliberately_unresolved_conflicts"]:
         pair = sorted(entry.get("between") or [])
         check(entry.get("outcome") == "unresolved",
@@ -1419,10 +1535,10 @@ def main() -> int:
             # opinion about, unlike the quantifier, which is why this one is
             # derived where that one is declared.
             repeated = {"1:N": "successor", "N:1": "predecessor"}.get(
-                (rules[rid].get("cardinality") or {}).get("shape"))
+                mapping_or_empty(rules[rid].get("cardinality")).get("shape"))
             if repeated:
                 check(prof.get("per") == repeated,
-                      f"{rid} is {(rules[rid].get('cardinality') or {}).get('shape')!r}, so "
+                      f"{rid} is {mapping_or_empty(rules[rid].get('cardinality')).get('shape')!r}, so "
                       f"the group is its {repeated}s, but `partner_profile.per` is "
                       f"{prof.get('per')!r} - the side there is exactly one of. A profile "
                       "checked against the singleton says nothing about the partners the "
@@ -1443,7 +1559,7 @@ def main() -> int:
         # suite cannot do without becoming a second mapper - see the note on
         # `rule_coverage_rule`.
         needs = rule_needs(rules[rid])
-        for excl in senior.get("mutually_exclusive_evidence_kinds") or []:
+        for excl in list_or_empty(senior.get("mutually_exclusive_evidence_kinds")):
             pair = set(excl.get("between") or [])
             check(not pair <= needs,
                   f"{rid} requires {sorted(pair)} together, which "
@@ -1470,7 +1586,7 @@ def main() -> int:
     by_requirements: dict = {}
     for rid in ids:
         key = (outcomes[rid], frozenset(rule_needs(rules[rid])),
-               rules[rid].get("cardinality", {}).get("shape"))
+               mapping_or_empty(rules[rid].get("cardinality")).get("shape"))
         by_requirements.setdefault(key, []).append(rid)
     for key, group in sorted(by_requirements.items(), key=lambda kv: sorted(kv[1])):
         check(len(group) == 1,
@@ -1561,7 +1677,7 @@ def main() -> int:
     # leaving the rule licensed and its record unchecked. The mappings now live
     # under `map` and the prose does not, so there is nothing to classify and
     # every entry is validated.
-    kind_records = (policy.get("evidence_kind_records") or {}).get("map") or {}
+    kind_records = mapping_or_empty(policy.get("evidence_kind_records")).get("map") or {}
     for name, spec in catalog.items():
         for field in ("observable_from", "matches", "why"):
             check(field in spec, f"structural signal {name!r} must state {field!r}")
@@ -1621,7 +1737,7 @@ def main() -> int:
         check(isinstance(matches, dict) and matches,
               f"{where_s} declares no `matches`, so nothing says which occurrence "
               "the record is about and any record in revision B would do")
-        for key, subject in (matches or {}).items():
+        for key, subject in mapping_or_empty(matches).items():
             role, dot, attr = str(subject).partition(".")
             # Already asked here. What was missing is not the question but the
             # consequence: `check` accumulates, so the run continued into
@@ -1664,7 +1780,7 @@ def main() -> int:
     # section added to fix it.
     NO_RECORD = "no_structural_record"
     observation = {k: v for k, v in
-                   (senior.get("evidence_kind_observation") or {}).items()
+                   mapping_or_empty(senior.get("evidence_kind_observation")).items()
                    if isinstance(v, str)}
     check(set(observation) == set(senior["evidence_kinds"]),
           "`finding-lineage/v1.evidence_kind_observation` must classify EVERY evidence "
@@ -1790,7 +1906,7 @@ def main() -> int:
             check(False, msg)
         if not isinstance(binding, dict) or not binding:
             continue
-        structural = [k for k in rule_.get("requires_all") or []
+        structural = [k for k in list_or_empty(rule_.get("requires_all"))
                       if k in policy["structural_signals"]]
         check(len(structural) == 1,
               f"{rid} is a group rule requiring {structural!r} structural signals; "
@@ -2076,7 +2192,7 @@ def main() -> int:
                       "must be accounted for - applicable, not applicable with a reason, or "
                       "unable to choose.")
 
-            for rid, reason in (exp.get("not_applicable") or {}).items():
+            for rid, reason in mapping_or_empty(exp.get("not_applicable")).items():
                 check(rid in rules, f"{where}: not_applicable names unknown rule {rid!r}")
                 check(rid not in app,
                       f"{where}: {rid} is in applicable_rules AND not_applicable")
@@ -2158,7 +2274,7 @@ def main() -> int:
             for rid in lic:
                 rule_r = rules[rid]
                 binding = rule_r.get("record_binding")
-                if binding is None and (rule_r.get("cardinality") or {}).get("shape") == "1:1":
+                if binding is None and mapping_or_empty(rule_r.get("cardinality")).get("shape") == "1:1":
                     # At 1:1 there is exactly one occurrence in each role, so
                     # `every` and `at_least_one` are the SAME condition and the
                     # checker chooses no policy by applying it - see
@@ -2167,7 +2283,7 @@ def main() -> int:
                                "successor": {"quantifier": "every"}}
                 if not binding:
                     continue
-                for kind in (rule_r.get("requires_all") or []):
+                for kind in list_or_empty(rule_r.get("requires_all")):
                     sig = kind if kind in catalog else kind_records.get(kind)
                     cat_s = catalog.get(sig)
                     if not cat_s:
@@ -2179,7 +2295,7 @@ def main() -> int:
                           "revision B is a record asserted in a note.")
                     pools = {}
                     for role in SUBJECT_ROLES:
-                        spec_r = binding.get(role) or {}
+                        spec_r = mapping_or_empty(binding.get(role))
                         pool = list(frm if role == "predecessor" else to)
                         if spec_r.get("excluding") == "partners_where_same_path_holds":
                             others = to if role == "predecessor" else frm
@@ -2196,7 +2312,7 @@ def main() -> int:
                         rel = related_by(entry, pairs, pools["predecessor"],
                                          pools["successor"], by_id)
                         for role in SUBJECT_ROLES:
-                            quant = (binding.get(role) or {}).get("quantifier")
+                            quant = mapping_or_empty(binding.get(role)).get("quantifier")
                             reached = {p[0 if role == "predecessor" else 1] for p in rel}
                             if quant == "every" and any(o not in reached
                                                         for o in pools[role]):
@@ -2234,7 +2350,7 @@ def main() -> int:
             # copy target, correctly, because they are the other half of the
             # conflict.
             for rid in sorted(set(app) - set(lic)):
-                for kind in (rules[rid].get("requires_all") or []):
+                for kind in list_or_empty(rules[rid].get("requires_all")):
                     sig = kind if kind in catalog else kind_records.get(kind)
                     cat_s = catalog.get(sig)
                     if not cat_s:
@@ -2256,14 +2372,15 @@ def main() -> int:
                           "any other.")
 
             # A defeat must be CARRIED by revision B, exactly as a boundary is.
-            for signal, source in (exp.get("signals_defeated") or {}).items():
+            for signal, source in mapping_or_empty(exp.get("signals_defeated")).items():
                 spec = policy["signal_defeaters"].get(signal)
                 check(spec is not None,
                       f"{where}: {signal!r} is not a defeatable signal in the policy")
                 if spec is None:
                     continue
                 check(spec["defeated_by_signal"] == source or
-                      catalog.get(spec["defeated_by_signal"], {}).get("observable_from", "")
+                      mapping_or_empty(catalog.get(spec["defeated_by_signal"]))
+                      .get("observable_from", "")
                       .endswith("." + str(source)),
                       f"{where}: {signal!r} is defeated by {spec['defeated_by_signal']!r}, "
                       f"not by {source!r}")
@@ -2377,7 +2494,7 @@ def main() -> int:
                     # - a 1:1 rule listed against a 1:1 shape passed. The arithmetic
                     # lived only in `case_obligations`, which reaches one fixture.
                     if field == "rules_excluded_by_cardinality" and rid in rules:
-                        card = rules[rid].get("cardinality") or {}
+                        card = mapping_or_empty(rules[rid].get("cardinality"))
                         nf, nt = len(frm), len(to)
                         blocked = (card.get("min_successors", 0) > nt
                                    or card.get("min_predecessors", 0) > nf)
@@ -2426,7 +2543,7 @@ def main() -> int:
                 bad = repeats_failure(f"{where}: decision_detail.{field}",
                                       detail.get(field))
                 check(not bad, bad or "")
-            for _rid, _ids in (detail.get("ambiguous_candidates") or {}).items():
+            for _rid, _ids in mapping_or_empty(detail.get("ambiguous_candidates")).items():
                 bad = repeats_failure(f"{where}: ambiguous_candidates[{_rid!r}]", _ids)
                 check(not bad, bad or "")
 
@@ -2438,7 +2555,7 @@ def main() -> int:
                       "candidates for exactly the rules recorded in "
                       f"rules_without_a_unique_candidate {sorted(blunted_ids)}, got "
                       f"{sorted(cand or {})}")
-            for rid, ids_ in (cand or {}).items():
+            for rid, ids_ in mapping_or_empty(cand).items():
                 check(rid in rules, f"{where}: ambiguous_candidates names unknown rule {rid!r}")
                 check(isinstance(ids_, list) and len(set(ids_)) >= 2,
                       f"{where}: {rid} is recorded as unable to choose between "
@@ -2516,7 +2633,7 @@ def main() -> int:
                       f"so every decision about it records them; this one records "
                       f"{sorted(set(exp.get(UNAVAILABLE_FIELD) or []))}.")
 
-            for kind, defeater in (exp.get("boundary_defeated") or {}).items():
+            for kind, defeater in mapping_or_empty(exp.get("boundary_defeated")).items():
                 spec = next((s for s in senior["boundary_evidence_kinds"].values()
                              if s["value"] == kind), None)
                 check(spec is not None, f"{where}: unknown boundary kind {kind!r}")
@@ -2598,7 +2715,8 @@ def main() -> int:
                         check(rid not in app_s,
                               f"{name}: {rid} is excluded by cardinality and also "
                               "applicable")
-                        card = rules.get(rid, {}).get("cardinality", {})
+                        card = mapping_or_empty(mapping_or_empty(rules.get(rid))
+                                                .get("cardinality"))
                         nf, nt = len(as_list(exp.get("frm"))), len(as_list(exp.get("to")))
                         blocked = (card.get("min_successors", 0) > nt
                                    or card.get("min_predecessors", 0) > nf)
