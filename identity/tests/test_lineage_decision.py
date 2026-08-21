@@ -336,7 +336,8 @@ def catalog_read(cat_spec: dict, rev_b: dict) -> tuple:
 
 
 def evidence_list_failures(where: str, kinds, senior: dict, catalog: dict,
-                          floor: int, allow_records: bool, need_floor: bool) -> list:
+                          floor: int, allow_records: bool, need_floor: bool,
+                          forbid_sufficient_alone: bool) -> list:
     """One validation for every list of evidence a rule rests on.
 
     `requires_all` and `partner_profile.requires_all` are the same kind of claim
@@ -346,13 +347,25 @@ def evidence_list_failures(where: str, kinds, senior: dict, catalog: dict,
     half of that gap ("`partner_profile` already got this right") and fixed only
     the half it named.
 
-    The `sufficient_alone` exclusion is applied to BOTH here, which extends it
-    from profiles to rule requirements. That is deliberate and fail-closed: it can
-    reject a contract, never license a mapping. The argument is the one already
-    written for profiles - this file exists to say which COMBINATIONS license
-    what, and a kind the senior contract calls sufficient on its own needs no
-    combination. No frozen kind is currently `sufficient_alone`, so nothing in the
-    corpus turns on it today."""
+    The `sufficient_alone` exclusion is a PARAMETER, not a shared rule, and the
+    reason is worth keeping. Unifying these two lists, an earlier revision applied
+    the profile's exclusion to rule requirements as well - reasoning that it was
+    fail-closed and that the argument generalised. Both reviewers rejected it, and
+    both were right: `evidence_rule` in the senior contract says in terms that "if
+    a kind is ever promoted to `sufficient_alone: true`, that kind alone satisfies
+    the floor and the count stops applying to it". Forbidding such a kind from
+    `requires_all` made the decision policy unable to express an evolution the
+    senior contract explicitly provides for - a junior contract contradicting its
+    senior from below, which is the one thing this layering forbids.
+
+    The profile keeps the exclusion because it rests on a different claim, already
+    argued in `partner_profile_rule`: a profile describes what each repeated
+    partner shows ON ITS OWN, and one strong signal is not a profile. That does
+    not generalise to a rule-level combination, and "fail-closed" was not a reason
+    to assume it did.
+
+    Sharing structure is not sharing every rule. The point of one function is that
+    the common checks cannot drift apart, not that the differences vanish."""
     out = []
     if not isinstance(kinds, list) or not kinds:
         out.append(f"{where} must NAME the kinds it rests on, got {kinds!r}")
@@ -362,18 +375,25 @@ def evidence_list_failures(where: str, kinds, senior: dict, catalog: dict,
         if not known:
             out.append(f"{where} names {kind!r}, which is neither a frozen evidence "
                        "kind nor a structural signal")
-        if senior["evidence_kinds"].get(kind, {}).get("sufficient_alone"):
+        if (forbid_sufficient_alone
+                and senior["evidence_kinds"].get(kind, {}).get("sufficient_alone")):
             out.append(f"{where} rests on {kind!r}, which `finding-lineage/v1` calls "
-                       "sufficient alone. A combination built around a kind that needs "
-                       "no combination is not a combination.")
+                       "sufficient alone; a profile of one strong signal is not a "
+                       "profile")
     if len(set(kinds)) != len(kinds):
         rep = sorted({k for k in kinds if kinds.count(k) > 1})
         out.append(f"{where} repeats {rep!r}. The floor counts KINDS, so a repeat is "
                    "either a typo or an attempt to reach the floor twice over the same "
                    "evidence.")
-    if need_floor and len(set(kinds)) < floor:
+    # THE FLOOR STOPS APPLYING to a kind promoted to `sufficient_alone`, which is
+    # the senior contract's own sentence and not a reading of it. A count-only
+    # floor rejected a rule resting on one such kind, so the policy could not
+    # represent the evolution `evidence_rule` provides for.
+    carries_alone = any(senior["evidence_kinds"].get(k, {}).get("sufficient_alone")
+                        for k in kinds)
+    if need_floor and not carries_alone and len(set(kinds)) < floor:
         out.append(f"{where} names {len(set(kinds))} distinct kind(s); the frozen floor "
-                   f"is {floor}")
+                   f"is {floor}, and none of them is `sufficient_alone`")
     return out
 
 
@@ -749,7 +769,8 @@ def main() -> int:
         req_all = rules[rid].get("requires_all", [])
         for msg in evidence_list_failures(
                 f"{rid}: requires_all", req_all, senior, policy["structural_signals"],
-                floor, allow_records=True, need_floor=outcomes[rid] == "continued"):
+                floor, allow_records=True, need_floor=outcomes[rid] == "continued",
+                forbid_sufficient_alone=False):
             check(False, msg)
 
         # Cardinality is a PRECONDITION of the rule, so it is checked as one. The
@@ -833,7 +854,8 @@ def main() -> int:
             for msg in evidence_list_failures(
                     f"{rid}: partner_profile", req, senior,
                     policy["structural_signals"], floor,
-                    allow_records=False, need_floor=True):
+                    allow_records=False, need_floor=True,
+                    forbid_sufficient_alone=True):
                 check(False, msg)
         # NO RULE MAY REQUIRE AN IMPOSSIBLE COMBINATION. The senior contract
         # freezes which kinds cannot co-occur; a rule demanding both is dead and
