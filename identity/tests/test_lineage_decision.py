@@ -85,6 +85,14 @@ sys.path.insert(0, ROOT)
 
 SENIOR = os.path.join(ROOT, "contracts", "finding-lineage-v1.json")
 POLICY = os.path.join(ROOT, "contracts", "finding-lineage-decision-v1.json")
+
+# The record field for unevaluable signals, read from the contract that DECLARES
+# it rather than repeated here. `unavailable_inputs.recorded_as` used to be prose
+# and this name was a literal at three call sites, so the two could drift apart
+# with nothing to object - the contract could point a mapper at `signals_defeated`
+# and every check stayed green. Now there is one source and it is the contract's.
+UNAVAILABLE_FIELD = (json.load(open(POLICY, encoding="utf-8"))
+                     ["unavailable_inputs"]["recorded_as"])
 FIXDIR = os.path.join(ROOT, "identity", "fixtures", "lineage-decision")
 DOC = os.path.join(ROOT, "docs", "finding-lineage-decision.md")
 
@@ -215,7 +223,7 @@ def mandated_reason(exp, mapping, floor):
 
     app = exp.get("applicable_rules") or []
     defeated = exp.get("signals_defeated") or {}
-    unavailable = as_list(exp.get("inputs_unavailable"))
+    unavailable = as_list(exp.get(UNAVAILABLE_FIELD))
     detail = exp.get("decision_detail") or {}
     blunted = detail.get("rules_without_a_unique_candidate") or []
     miscard = detail.get("rules_excluded_by_cardinality") or []
@@ -480,6 +488,45 @@ def main() -> int:
                   f"{key!r}, which selects {want_b!r}. One value, stated three times, "
                   "and all three have to say it.")
 
+    # ...and the same branches' OUTCOME, which that rule left loose one field over.
+    # `all_agree` says "the shared outcome" because the value is COMPUTED from the
+    # survivors; replacing it with a literal `continued` turned the general law
+    # into a specific claim the algebra contradicts, and nothing objected. The
+    # refusing branches are the mirror: `arbitrate` hard-codes `unresolved` for
+    # every one of them, so a literal there must be that literal.
+    senior_outcomes = set(senior["outcomes"])
+    agree = policy["arbitration"]["all_agree"]
+
+    # EVERY node under `arbitration` that carries an outcome, not the three the
+    # reason loop happens to visit. Writing this as a list of branches is what
+    # left `all_agree` loose in the first place; a first attempt at this check
+    # then added an `outcome` to the multiplicity CONTAINER, which the branch list
+    # does not visit either - a declaration nobody reads, introduced while fixing
+    # declarations nobody reads. So it walks.
+    def arbitration_nodes(node, trail):
+        if isinstance(node, dict):
+            if "outcome" in node:
+                yield ".".join(trail), node
+            for k, v in node.items():
+                yield from arbitration_nodes(v, trail + [k])
+    for path_a, node in arbitration_nodes(policy["arbitration"], ["arbitration"]):
+        if node is agree:
+            continue
+        got = node.get("outcome")
+        check(got == "unresolved",
+              f"{path_a} declares outcome {got!r}. Every arbitration branch that is "
+              "not `all_agree` refuses, and `arbitrate` answers `unresolved` on all of "
+              "them, so any other value is a claim the algebra contradicts.")
+
+    check("implements" not in agree,
+          "`arbitration.all_agree` is not a refusal and must not implement a "
+          "`reason_mapping` entry; the record it produces carries no reason at all.")
+    check(agree.get("outcome") not in senior_outcomes,
+          f"`arbitration.all_agree.outcome` names the literal {agree.get('outcome')!r}. "
+          "It is computed from the surviving rules - naming one outcome freezes a law "
+          "about every agreeing set into a claim about one of them, and the survivor "
+          "algebra says otherwise.")
+
     conflict_reason = (policy["reason_mapping"].get("conflicting_rules") or {}).get("reason")
     for entry in policy["deliberately_unresolved_conflicts"]:
         pair = sorted(entry.get("between") or [])
@@ -715,11 +762,102 @@ def main() -> int:
           "renamed to make an implementation look better - and trying to write the "
           "first two is what falsified the rule set, so partial credit is not on offer.")
 
+    # THE CATALOG'S READ PATHS, FOR EVERY SIGNAL. These were checked only for the
+    # two signals that happen to be DEFEATERS, because the defeat loop was the
+    # only thing that ever called `signal_bindings`. `copy_record` and
+    # `merge_record` - the two carrying `branched` and `merged` - could name a
+    # revision field nothing has, or match on an occurrence attribute that does
+    # not exist, with the suite green. `observable_from` is the contract telling a
+    # mapper WHERE to read; pointed at nothing, every structural rule stops
+    # applying and the policy degrades to `unresolved` in silence.
+    #
+    # `finding-lineage/v1` binds its own `observable_from` this way already, so
+    # the junior catalog was simply the looser of the two.
+    occurrence_attrs = {"path", "enclosing_symbol", "pattern_id",
+                        "anchored_content", "start_line", "start_column",
+                        "occurrence_id"}
+    for signal, cat_spec in sorted(policy["structural_signals"].items()):
+        where_s = f"structural_signals.{signal}"
+        read_from = str(cat_spec.get("observable_from", ""))
+        check(read_from.startswith("revision_b."),
+              f"{where_s}.observable_from must name a revision B field, got "
+              f"{read_from!r}")
+        matches = cat_spec.get("matches")
+        check(isinstance(matches, dict) and matches,
+              f"{where_s} declares no `matches`, so nothing says which occurrence "
+              "the record is about and any record in revision B would do")
+        for key, subject in (matches or {}).items():
+            role, dot, attr = str(subject).partition(".")
+            check(role in ("predecessor", "successor"),
+                  f"{where_s}.matches[{key!r}] names role {role!r}; a record relates "
+                  "predecessors to successors and nothing else")
+            check(bool(dot) and attr in occurrence_attrs,
+                  f"{where_s}.matches[{key!r}] compares {subject!r}, and {attr!r} is "
+                  f"not an occurrence attribute. Known: {sorted(occurrence_attrs)}")
+        shape = cat_spec.get("entry_shape")
+        if isinstance(shape, dict):
+            check(set(matches or {}) <= set(shape),
+                  f"{where_s}.matches names {sorted(set(matches or {}) - set(shape))}, "
+                  "which `entry_shape` does not declare")
+
+    # ...and the group quantifier, which used to live in `requires_all_scope` as
+    # prose. A 1:1 rule could claim GROUP scope and a group rule could drop the
+    # declaration entirely, both silently.
+    vocab = policy["record_binding_vocabulary"]
+    for rid in sorted(rules):
+        rule_ = rules[rid]
+        check("requires_all_scope" not in rule_,
+              f"{rid} still carries `requires_all_scope`. It was prose nothing read, "
+              "and `record_binding` replaced it; keeping both is two authorities for "
+              "one fact, which is how this contract has gone wrong before.")
+        binding = rule_.get("record_binding")
+        is_group = (rule_.get("cardinality") or {}).get("shape") != "1:1"
+        check(bool(binding) == is_group,
+              f"{rid}: `record_binding` is declared for group rules and only for them; "
+              f"shape is {(rule_.get('cardinality') or {}).get('shape')!r} and the "
+              f"binding is {'present' if binding else 'absent'}. A 1:1 rule with one "
+              "points a mapper at a partner set that does not exist.")
+        if not binding:
+            continue
+        structural = [k for k in rule_.get("requires_all") or []
+                      if k in policy["structural_signals"]]
+        check(len(structural) == 1,
+              f"{rid} is a group rule requiring {structural!r} structural signals; "
+              "the binding is about exactly one record")
+        for sig in structural:
+            roles = {r for _, r, _ in signal_bindings(policy["structural_signals"][sig])}
+            declared = {k for k in binding if k in ("predecessor", "successor")}
+            check(declared == roles,
+                  f"{rid}.record_binding names roles {sorted(declared)} but {sig} "
+                  f"matches on {sorted(roles)}. The roles are the catalog's, not a "
+                  "second opinion about which side the group is on.")
+        for role in ("predecessor", "successor"):
+            spec_r = binding.get(role)
+            if not isinstance(spec_r, dict):
+                continue
+            check(spec_r.get("quantifier") in vocab["quantifier"],
+                  f"{rid}.record_binding.{role} uses quantifier "
+                  f"{spec_r.get('quantifier')!r}, which the vocabulary does not carry")
+            if "excluding" in spec_r:
+                check(spec_r["excluding"] in vocab["excluding"],
+                      f"{rid}.record_binding.{role} excludes {spec_r['excluding']!r}, "
+                      "which the vocabulary does not carry. Unknown tokens are "
+                      "rejected, not ignored.")
+
     senior_limitations_set = set(senior["limitations"].values())
     unavailable_from = str(policy["unavailable_inputs"].get("observable_from", ""))
     check(unavailable_from.startswith("revision_b."),
           "`unavailable_inputs.observable_from` must name a revision B field, got "
           f"{unavailable_from!r}")
+    check(UNAVAILABLE_FIELD in policy["record_additions"],
+          f"`unavailable_inputs.recorded_as` names {UNAVAILABLE_FIELD!r}, which is not a "
+          "field `record_additions` declares. The suite reads the record through this "
+          "name, so an undeclared one silently reads nothing.")
+    check(UNAVAILABLE_FIELD != "signals_defeated",
+          "`unavailable_inputs.recorded_as` points at the field for signals that were "
+          "evaluated and removed. `distinct_from` in this very section says why those "
+          "are not the same thing: one was never readable, the other was read and did "
+          "not hold.")
     obligations = policy["case_obligations"]["obligations"]
     obligation_meanings = policy["case_obligations"]["meanings"]
     check(sorted(obligations) == sorted(preregistered),
@@ -926,6 +1064,67 @@ def main() -> int:
                       f"{where}: {outcome} must not carry an identity limitation")
                 check(bool(lic), f"{where}: {outcome} must name what licensed it")
 
+            # A STRUCTURAL RECORD MUST BE CARRIED TOO, and must name these
+            # occurrences - the same duty the defeat loop below imposes, which
+            # until now applied to defeaters alone. A rule may be declared
+            # applicable while `revision_b.copies` names two unrelated files;
+            # nothing looked, so `branched` rested on a record about somebody
+            # else. The quantifier comes from the rule's `record_binding`, never
+            # from the checker: copy explains ONE successor and fold names EVERY
+            # predecessor, and a checker picking either on its own would be
+            # holding an opinion about the policy.
+            # LICENSED, not merely applicable. An applicable-but-dominated rule
+            # never named this mapping's group, and on a refused conflict the
+            # sides are the unresolved record's own - side a names `frm` with `to`
+            # empty - so there is no group to bind against at all. Checking `app`
+            # here failed all four expectations of
+            # `copy-source-that-is-also-a-fold-refuses`, which is the check being
+            # wrong rather than the fixture.
+            for rid in lic:
+                binding = rules[rid].get("record_binding")
+                if not binding:
+                    continue
+                for sig in (rules[rid].get("requires_all") or []):
+                    cat_s = catalog.get(sig)
+                    if not cat_s:
+                        continue
+                    for read, role, attr in signal_bindings(cat_s):
+                        observed = collect(rev_b, read)
+                        check(bool(observed),
+                              f"{where}: {rid} applies on {sig!r}, but {read} carries "
+                              "nothing. A record cited in `applicable_rules` and absent "
+                              "from revision B is a record asserted in a note.")
+                        subjects = frm if role == "predecessor" else to
+                        spec_r = binding.get(role) or {}
+                        quant = spec_r.get("quantifier")
+                        excl = spec_r.get("excluding")
+                        pool = list(subjects)
+                        if excl == "partners_where_same_path_holds":
+                            others = to if role == "predecessor" else frm
+                            paths = {by_id.get(o, {}).get("path") for o in others}
+                            pool = [o for o in pool
+                                    if by_id.get(o, {}).get("path") not in paths]
+                            check(bool(pool),
+                                  f"{where}: {rid} excludes partners at the "
+                                  f"predecessor's path and {role}s has none left. The "
+                                  "record would then explain nothing this mapping needs.")
+                        named = [o for o in pool
+                                 if by_id.get(o, {}).get(attr) in observed]
+                        if quant == "every":
+                            missing = [o for o in pool if o not in named]
+                            check(not missing,
+                                  f"{where}: {rid} binds EVERY {role} into {read}, but "
+                                  f"{missing!r} "
+                                  f"({[by_id.get(o, {}).get(attr) for o in missing]!r}) "
+                                  f"is absent; the record holds {sorted(observed)!r}")
+                        elif quant == "at_least_one":
+                            check(bool(named),
+                                  f"{where}: {rid} binds at least one {role} into "
+                                  f"{read}, and none of {pool!r} "
+                                  f"({[by_id.get(o, {}).get(attr) for o in pool]!r}) is "
+                                  f"there; the record holds {sorted(observed)!r} and so "
+                                  "explains a different transformation than this one")
+
             # A defeat must be CARRIED by revision B, exactly as a boundary is.
             for signal, source in (exp.get("signals_defeated") or {}).items():
                 spec = policy["signal_defeaters"].get(signal)
@@ -1005,7 +1204,7 @@ def main() -> int:
                           f"{len(set(surviving))} kind(s) survive against a floor of "
                           f"{floor}. Below the floor the shortage really is of kinds.")
 
-            for sig in as_list(exp.get("inputs_unavailable")):
+            for sig in as_list(exp.get(UNAVAILABLE_FIELD)):
                 check(sig in senior["evidence_kinds"] or sig in catalog,
                       f"{where}: unavailable input {sig!r} is neither a frozen evidence "
                       "kind nor a catalogued structural signal")
@@ -1162,7 +1361,7 @@ def main() -> int:
                 elif duty == "defeat_removed_a_signal":
                     met |= bool(exp.get("signals_defeated"))
                 elif duty == "input_was_unavailable":
-                    met |= bool(exp.get("inputs_unavailable"))
+                    met |= bool(exp.get(UNAVAILABLE_FIELD))
                 elif duty == "rule_licensed_alone":
                     # The rule is not merely present, it is the ONLY thing present.
                     # `licensed_by` alone would be satisfied by a rule riding along

@@ -135,7 +135,6 @@
       "requires_all": [
         "copy_record"
       ],
-      "requires_all_scope": "GROUP. The copy record relates the predecessor's path to the path of at least one successor that is NOT at the predecessor's path - that successor is the one the record explains.",
       "partner_profile": {
         "per": "successor",
         "requires_all": [
@@ -145,7 +144,19 @@
         "why": "what every successor must show ON ITS OWN, across a transformation that changed the path and may have changed the enclosing symbol too"
       },
       "means": "one predecessor, several successors, and a RECORD explaining why there are several",
-      "note": "the copy record is what separates a branch from an ambiguity. Without it, several equally-supported candidates are `unresolved` - see `arbitration.multiplicity`."
+      "note": "the copy record is what separates a branch from an ambiguity. Without it, several equally-supported candidates are `unresolved` - see `arbitration.multiplicity`.",
+      "record_binding": {
+        "predecessor": {
+          "quantifier": "every"
+        },
+        "successor": {
+          "quantifier": "at_least_one",
+          "excluding": "partners_where_same_path_holds"
+        },
+        "why": [
+          "The copy record relates the predecessor's path to the path of a successor that is NOT at the predecessor's path - that successor is the one the record explains. The other successor is where the occurrence already was, and it is licensed by a continued rule, not by this record. Demanding EVERY successor appear in `copies[].to` would therefore reject the very shape `copy-record-dominates-the-single-match` was built to preregister."
+        ]
+      }
     },
     "R-MERGE-FOLD": {
       "outcome": "merged",
@@ -156,7 +167,6 @@
       "requires_all": [
         "merge_record"
       ],
-      "requires_all_scope": "GROUP. The record's `from` list must carry every predecessor's enclosing symbol and its `to` must be the successor's.",
       "partner_profile": {
         "per": "predecessor",
         "requires_all": [
@@ -165,7 +175,18 @@
         ],
         "why": "the merge record relates the old structural sites to the new one; what each predecessor must show on its own is that it is the same defect, not that it is in a symbol the fold has just renamed out of existence"
       },
-      "means": "several predecessors, one successor, and a RECORD explaining the fold"
+      "means": "several predecessors, one successor, and a RECORD explaining the fold",
+      "record_binding": {
+        "predecessor": {
+          "quantifier": "every"
+        },
+        "successor": {
+          "quantifier": "every"
+        },
+        "why": [
+          "A fold names all of its sources: the record's `from` must carry every predecessor's enclosing symbol, and its `to` must be the successor's. A merge that named only some of the predecessors would be claiming a fold it cannot see, and the quantifier is what makes that different from the copy case rather than a matter of taste."
+        ]
+      }
     }
   },
   "rules_note": [
@@ -213,7 +234,7 @@
     "meaning": "a signal that could not be EVALUATED at all: no symbol index, no diff, no content for the revision",
     "distinct_from": "a signal that was evaluated and did not hold",
     "effect": "rules depending on it do not apply; they do not fail, and they certainly do not count against the mapping",
-    "recorded_as": "inputs_unavailable, listing the signal names",
+    "recorded_as": "inputs_unavailable",
     "why": [
       "This is the absence-of-record doctrine at a third layer. The runtime witness",
       "refuses to read an unread heap as a clean one; the occurrence contract",
@@ -224,7 +245,8 @@
       "comes out `unresolved`, naming the missing input, instead of `ended` plus",
       "`new`. Slower, and true."
     ],
-    "observable_from": "revision_b.unavailable_signals"
+    "observable_from": "revision_b.unavailable_signals",
+    "recorded_as_why": "the FIELD NAME, machine-readable, because the integrity suite reads the record through it. It said `inputs_unavailable, listing the signal names` and the suite knew the field independently, so the two could drift: repointing this at `signals_defeated` left every check green while the contract told a mapper to write unevaluable signals into the field reserved for evaluated-and-removed ones."
   },
   "arbitration": {
     "none_applies": {
@@ -288,7 +310,8 @@
         "Cardinality is a precondition now, so a lone successor never licenses",
         "`branched` in the first place; see `cardinality_rule` for why that is a",
         "different thing from arriving at the same answer two sections later."
-      ]
+      ],
+      "outcome": "unresolved"
     },
     "licensed_by_rule": [
       "ONE definition, and the branches above are readings of it: `licensed_by` is",
@@ -864,5 +887,36 @@
     "that motivated this section. They do not catch every possible one, and the",
     "residue is recorded as an open question rather than closed by a checker that",
     "would have to compute applicability to do it."
-  ]
+  ],
+  "record_binding_vocabulary": {
+    "why": [
+      "WHAT THE STRUCTURAL RECORD MUST NAME, MACHINE-READABLY.",
+      "",
+      "This replaces `requires_all_scope`, which said the same thing in prose that",
+      "nothing read. Two probes showed the cost: dropping it from a group rule",
+      "changed nothing, and adding `GROUP` scope to the 1:1 R-CONT-SAME-SITE - a rule",
+      "with no group at all - changed nothing either, leaving the contract pointing a",
+      "mapper at a partner set that does not exist.",
+      "",
+      "It is NOT a fourth place naming which side the group is on. The roles here are",
+      "the roles the signal's own `matches` names, and the suite rejects a binding",
+      "whose roles disagree with the catalog.",
+      "",
+      "The quantifiers differ between the two group rules and that difference is",
+      "load-bearing, not incidental - see each rule's `why`. Swapping them makes both",
+      "rules wrong in opposite directions, and the suite fails on both."
+    ],
+    "quantifier": {
+      "every": "the record must name EVERY occurrence in that role for this mapping",
+      "at_least_one": "the record must name at least one, because the remaining partners are explained by a different rule rather than by this record"
+    },
+    "excluding": {
+      "partners_where_same_path_holds": "partners at the predecessor's own path are not what the copy record explains; `same_path` holds of them, so a continued rule reaches them and this record does not have to"
+    },
+    "rule": [
+      "A quantifier or exclusion not listed here is REJECTED rather than ignored.",
+      "A binding vocabulary that silently accepts unknown tokens is a binding that stops",
+      "binding the moment someone invents a word."
+    ]
+  }
 }
