@@ -82,6 +82,7 @@ sys.path.insert(0, ROOT)
 SENIOR = os.path.join(ROOT, "contracts", "finding-lineage-v1.json")
 POLICY = os.path.join(ROOT, "contracts", "finding-lineage-decision-v1.json")
 FIXDIR = os.path.join(ROOT, "identity", "fixtures", "lineage-decision")
+DOC = os.path.join(ROOT, "docs", "finding-lineage-decision.md")
 
 # Reviewed cost ceiling for the theorem falsifier, in arbitrations. It bounds a
 # FIXED four-rule model - 3^5 * 15 = 3645 - and not this policy's own
@@ -759,6 +760,23 @@ def main() -> int:
         check(wanted in licensed_outcomes,
               f"no preregistered case reaches {wanted!r}; the policy can license it and "
               "nothing pins how")
+
+    # ---- 4c. THE DOC AND THE CONTRACT AGREE. --------------------------------
+    # Same gate step 0 uses. A document that stops naming a case, or keeps saying
+    # a mapper exists when one does not, is worse than no document: it is a
+    # confident description of something else.
+    with open(DOC, encoding="utf-8") as fh:
+        doc = fh.read()
+    check("finding-lineage-decision/v1" in doc, "the doc must name the contract it freezes")
+    check("implementation not started" in doc,
+          "the doc must keep saying no mapper exists, until one does")
+    for case_name in preregistered:
+        check(case_name in doc, f"the doc does not mention preregistered case {case_name!r}")
+    for rid in ids:
+        check(rid in doc, f"the doc does not mention rule {rid!r}")
+    for reason in sorted(emitted):
+        tail = reason.rsplit(":", 1)[-1]
+        check(tail in doc, f"the doc does not mention the reason {tail!r} the policy emits")
 
     # ---- 5. META: the proof checks are checked, in-process. ----------------
     # a05edeb was titled "move the arbitration proofs out of the terminal" and
