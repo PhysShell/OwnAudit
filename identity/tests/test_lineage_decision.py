@@ -195,7 +195,7 @@ def rule_needs(rule) -> set:
     return needs | set(profile.get("requires_all") or [])
 
 
-def mandated_reason(exp, mapping, floor):
+def mandated_reason(exp, mapping, floor, senior):
     """The reason the policy REQUIRES for this refusal, or None if the contract
     has not settled the shape.
 
@@ -218,8 +218,9 @@ def mandated_reason(exp, mapping, floor):
         by = spec.get("reason_by_surviving_kinds") or {}
         if surviving_kinds is None:
             return None
-        return by.get("below_the_floor" if surviving_kinds < floor
-                      else "at_or_above_the_floor")
+        return by.get("at_or_above_the_floor"
+                      if clears_floor(surviving_kinds, senior, floor)
+                      else "below_the_floor")
 
     app = exp.get("applicable_rules") or []
     defeated = exp.get("signals_defeated") or {}
@@ -238,9 +239,9 @@ def mandated_reason(exp, mapping, floor):
     if sum(stages) > 1:
         return None, "several rejecting stages fired; the contract has not ranked them"
     if defeated:
-        n = len({k for k in (exp.get("evidence_surviving") or [])})
-        return (of("no_rule_applied_after_a_defeat", n),
-                f"a defeat left {n} kind(s) against a floor of {floor}")
+        surv = {k for k in (exp.get("evidence_surviving") or [])}
+        return (of("no_rule_applied_after_a_defeat", surv),
+                f"a defeat left {len(surv)} kind(s) against a floor of {floor}")
     if blunted:
         return of("several_candidates"), "rules matched and singled nobody out"
     if unavailable:
@@ -335,6 +336,28 @@ def catalog_read(cat_spec: dict, rev_b: dict) -> tuple:
     return field, entries, pairs
 
 
+def clears_floor(kinds, senior: dict, floor: int) -> bool:
+    """Does this evidence clear `minimum_evidence_kinds_for_continued`?
+
+    Asked in four places - a rule's `requires_all`, a partner profile, the reason
+    a defeat mandates, and the arithmetic behind that reason - and until now
+    written four times. Three of them counted distinct kinds and stopped there,
+    which is right only while every kind is `sufficient_alone: false`.
+    `evidence_rule` in the senior contract says the rest: "if a kind is ever
+    promoted to `sufficient_alone: true`, that kind alone satisfies the floor and
+    the count stops applying to it."
+
+    The fix for that sentence landed at ONE of the four sites. A fixture whose
+    defeat left a single promoted kind was then classified below the floor by the
+    reason checks and above it by the rule checks, in one run. Fixed at one level
+    and not asked at the next, in the commit that was itself correcting a
+    contradiction with this same sentence."""
+    kinds = set(kinds or ())
+    if any(senior["evidence_kinds"].get(k, {}).get("sufficient_alone") for k in kinds):
+        return True
+    return len(kinds) >= floor
+
+
 def evidence_list_failures(where: str, kinds, senior: dict, catalog: dict,
                           floor: int, allow_records: bool, need_floor: bool,
                           forbid_sufficient_alone: bool) -> list:
@@ -389,9 +412,7 @@ def evidence_list_failures(where: str, kinds, senior: dict, catalog: dict,
     # the senior contract's own sentence and not a reading of it. A count-only
     # floor rejected a rule resting on one such kind, so the policy could not
     # represent the evolution `evidence_rule` provides for.
-    carries_alone = any(senior["evidence_kinds"].get(k, {}).get("sufficient_alone")
-                        for k in kinds)
-    if need_floor and not carries_alone and len(set(kinds)) < floor:
+    if need_floor and not clears_floor(kinds, senior, floor):
         out.append(f"{where} names {len(set(kinds))} distinct kind(s); the frozen floor "
                    f"is {floor}, and none of them is `sufficient_alone`")
     return out
@@ -1442,7 +1463,7 @@ def main() -> int:
                 # AND it must be the reason the POLICY BRANCH mandates. Vocabulary
                 # membership alone accepted any of the six - `missing-occurrence-id`
                 # passed on a case whose occurrences both carry ids.
-                want, why_branch = mandated_reason(exp, policy["reason_mapping"], floor)
+                want, why_branch = mandated_reason(exp, policy["reason_mapping"], floor, senior)
                 if want is None:
                     # FAIL-CLOSED on an unranked shape. Abstaining was the right call
                     # for a CHECKER - the contract has not ranked these stages, so
@@ -1644,16 +1665,18 @@ def main() -> int:
                 # consistent with the count it declares. That holds no matter which
                 # stages fired, so it is safe next to a single authority - a second
                 # mandate was not.
+                cleared = clears_floor(surviving, senior, floor)
                 if reason == lim.get("insufficient-evidence-kind"):
-                    check(len(set(surviving)) < floor,
-                          f"{where}: claims insufficient KINDS, but {len(set(surviving))} "
-                          f"survive against a floor of {floor}. The kinds are ample; it is "
-                          "the combination that no rule accepts.")
+                    check(not cleared,
+                          f"{where}: claims insufficient KINDS, but {sorted(set(surviving))} "
+                          f"clears the floor of {floor} - by count, or because one of them "
+                          "is `sufficient_alone`. The kinds are ample; it is the "
+                          "combination that no rule accepts.")
                 if reason == lim.get("insufficient-evidence-combination"):
-                    check(len(set(surviving)) >= floor,
-                          f"{where}: claims insufficient COMBINATION, but only "
-                          f"{len(set(surviving))} kind(s) survive against a floor of "
-                          f"{floor}. Below the floor the shortage really is of kinds.")
+                    check(cleared,
+                          f"{where}: claims insufficient COMBINATION, but "
+                          f"{sorted(set(surviving))} does not clear the floor of {floor}. "
+                          "Below the floor the shortage really is of kinds.")
 
             for sig in as_list(exp.get(UNAVAILABLE_FIELD)):
                 check(sig in senior["evidence_kinds"] or sig in catalog,
