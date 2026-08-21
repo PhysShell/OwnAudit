@@ -476,6 +476,61 @@ FLOOR_FIELD = "minimum_evidence_kinds_for_continued"
 FLOOR_COUNTED_OVER = "distinct_kinds"
 
 
+WORD_NUMBERS = {"one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6,
+                "seven": 7, "eight": 8, "nine": 9, "ten": 10, "eleven": 11,
+                "twelve": 12}
+
+
+def prose_number_failures(policy: dict, senior: dict) -> list:
+    """Prose that restates a number this contract also declares as data.
+
+    This branch has watched a restated count go stale three times: the case count
+    twice, and the floor sentence in `reason_mapping` once - the last of which was
+    load-bearing, since a mapper reading it classified evidence the suite
+    classified the other way. `preregistration_rule` already records the remedy
+    for its own count: "THE LIST ABOVE IS THE COUNT, and this paragraph does not
+    repeat it." Nothing applied that to the floor or the outcome count, which are
+    restated across both contracts.
+
+    WHAT THIS DOES NOT DO, since a gate claiming more than it checks is this
+    branch's most-found defect: it catches a restatement written in one of the
+    forms below and disagreeing with the data. Prose that restates the same number
+    some other way is not caught, and no check here can promise otherwise - the
+    honest fix for that is not to restate the number."""
+    out = []
+    floor = senior[FLOOR_FIELD]
+    outcomes_n = len(senior["outcomes"])
+    def numbers(text):
+        for raw in re.findall(r"floor of ([a-z]+|\d+)", text, re.I):
+            yield "floor", raw
+        for raw in re.findall(r"([a-z]+|\d+) outcomes", text, re.I):
+            yield "outcomes", raw
+    def walk(node, trail, source):
+        if isinstance(node, dict):
+            for k, v in node.items():
+                walk(v, trail + [k], source)
+        elif isinstance(node, list):
+            for i, v in enumerate(node):
+                walk(v, trail + [f"[{i}]"], source)
+        elif isinstance(node, str):
+            for kind, raw in numbers(node):
+                value = WORD_NUMBERS.get(raw.lower())
+                if value is None and raw.isdigit():
+                    value = int(raw)
+                if value is None:
+                    continue
+                want = floor if kind == "floor" else outcomes_n
+                if value != want:
+                    out.append(
+                        f"{source} :: {'.'.join(trail)} says {raw!r} where the "
+                        f"{kind} is {want}. A number restated in prose goes stale "
+                        "exactly as often as it is restated, and one such sentence "
+                        "here already contradicted the senior rule it described.")
+    walk(policy, [], "finding-lineage-decision/v1")
+    walk(senior, [], "finding-lineage/v1")
+    return out
+
+
 def floor_spec_failures(policy: dict, senior: dict) -> list:
     """The contract's own statement of the floor, bound to the senior rule.
 
@@ -786,6 +841,8 @@ def main() -> int:
     ids = sorted(rules)
     outcomes = {r: rules[r]["outcome"] for r in ids}
     raw_edges = raw_dominance_edges(policy)
+    for msg in prose_number_failures(policy, senior):
+        check(False, msg)
     for msg in floor_spec_failures(policy, senior):
         check(False, msg)
     for msg in refusal_shape_failures(policy):
