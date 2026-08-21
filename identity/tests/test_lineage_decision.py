@@ -377,6 +377,23 @@ def evidence_list_failures(where: str, kinds, senior: dict, catalog: dict,
     return out
 
 
+def populated_object_failure(where: str, value) -> str:
+    """"Declared, and not empty" - asked once, wherever it is asked.
+
+    The outer field check learned this the hard way: `{}` and `null` are
+    declarations whose value is empty, and every hand-written variant of the test
+    let a different one through. The nested ROLE values under `record_binding`
+    were then left to `if not isinstance(v, dict): continue`, so `null`, `[]` and
+    `0` skipped quantifier validation in silence - the same defect one level in,
+    in the same field, found by a reviewer the round after the outer half was
+    fixed. Both levels call this now."""
+    if not isinstance(value, dict) or not value:
+        return (f"{where} is {value!r}. It must be a populated object; `null`, `[]`, "
+                "`0` and `{}` are all ways of declaring nothing, and each has been "
+                "accepted by some hand-written version of this check.")
+    return ""
+
+
 def group_only_field_failures(rid: str, rule: dict, field: str) -> list:
     """One predicate for every field a rule may declare only when it has a GROUP.
 
@@ -402,11 +419,9 @@ def group_only_field_failures(rid: str, rule: dict, field: str) -> list:
             f"to describe, and a group rule without one leaves its partners unasked. "
             f"The KEY is the declaration - `{{}}` and `null` are declarations too.")
     elif declared and is_group:
-        value = rule.get(field)
-        if not isinstance(value, dict) or not value:
-            out.append(f"{rid} declares `{field}` as {value!r}. A group rule needs a "
-                       "populated object there; an empty one is a second way of "
-                       "spelling nothing.")
+        bad = populated_object_failure(f"{rid}.{field}", rule.get(field))
+        if bad:
+            out.append(bad)
     return out
 
 
@@ -1151,7 +1166,10 @@ def main() -> int:
                   "second opinion about which side the group is on.")
         for role in ("predecessor", "successor"):
             spec_r = binding.get(role)
-            if not isinstance(spec_r, dict):
+            if role in binding:
+                bad = populated_object_failure(f"{rid}.record_binding.{role}", spec_r)
+                check(not bad, bad or "")
+            if not isinstance(spec_r, dict) or not spec_r:
                 continue
             check(spec_r.get("quantifier") in vocab["quantifier"],
                   f"{rid}.record_binding.{role} uses quantifier "
