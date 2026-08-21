@@ -515,7 +515,27 @@
       "reason_by_surviving_kinds": {
         "below_the_floor": "lineage-id-unavailable:insufficient-evidence-kind",
         "at_or_above_the_floor": "lineage-id-unavailable:insufficient-evidence-combination",
-        "floor": "finding-lineage/v1 minimum_evidence_kinds_for_continued, counted over DISTINCT surviving kinds"
+        "floor": {
+          "senior_field": "minimum_evidence_kinds_for_continued",
+          "counted_over": "DISTINCT surviving kinds",
+          "sufficient_alone_clears": true,
+          "why": [
+            "MACHINE-READABLE, and read by the suite rather than restated in it.",
+            "",
+            "This was the sentence `minimum_evidence_kinds_for_continued, counted over",
+            "DISTINCT surviving kinds`, and the `why` below said a defeat leaving ZERO or",
+            "ONE kind is below the floor. Both stopped being true the moment the senior",
+            "contract's own exception was honoured: a surviving kind with",
+            "`sufficient_alone: true` clears the floor and the count does not apply to it.",
+            "A mapper reading this section would have classified such a defeat",
+            "`below_the_floor` while the integrity suite classified it `at_or_above`.",
+            "",
+            "The exception was taught to four checker call sites and to none of the places",
+            "the CONTRACT states it - which is the same claim at a fifth site, found by a",
+            "reviewer after a census that enumerated predicates in the checker and never",
+            "looked here."
+          ]
+        }
       },
       "detail": "`signals_defeated` (top level): signal name -> the record that removed it",
       "why": [
@@ -524,10 +544,12 @@
         "observed - it was removed because a record explained it away - and saying `no",
         "mapping evidence` would be false in the plain meaning of the words.",
         "CONDITIONAL, not a single value. An earlier revision mapped every defeat to",
-        "`insufficient-evidence-combination` unconditionally, which is right only while",
-        "enough kinds survive. A formatter or rename defeat that leaves ZERO or ONE kind",
-        "is below the senior floor, and there the shortage really is of kinds - which is",
-        "the distinction the senior contract was amended to carry, contradicted here by",
+        "A formatter or rename defeat that leaves too few kinds is below the senior",
+        "floor, and there the shortage really is of kinds - which is the distinction the",
+        "senior contract was amended to carry. `too few` is `floor` above, exception",
+        "included: a single surviving kind is below it unless that kind is",
+        "`sufficient_alone`, in which case the senior contract says the count stops",
+        "applying and the shortage is of combinations, not kinds.",
         "the very entry that asked for it.",
         "In `defeated-signal-drops-below-the-floor` three kinds survive against a floor",
         "of two: ample kinds, and no declared combination accepts them."

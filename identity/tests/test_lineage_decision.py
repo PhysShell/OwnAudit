@@ -336,6 +336,56 @@ def catalog_read(cat_spec: dict, rev_b: dict) -> tuple:
     return field, entries, pairs
 
 
+def malformed_list_failures(where: str, exp: dict, unavailable_field: str) -> list:
+    """Every declared list on an expectation holds STRINGS - checked before
+    anything reads them.
+
+    Review reported one crash site: a set built from raw list values. Fixing that
+    one left the suite still dying, because the assumption is everywhere - a
+    `{...}` element reached a set comprehension in `mandated_reason`, an integer
+    element reached `rules[rid]` as a key. Patching each site as it surfaced would
+    have been the mistake this branch keeps making; the assumption is stated once,
+    here, and the caller skips an expectation that fails it.
+
+    A suite that dies on the evidence it came to read reports NOTHING - not the
+    malformed field, and not the twenty other things that fixture might also get
+    wrong. That is strictly worse than a suite that says what is wrong and
+    continues, which is why this is a guard rather than a repair."""
+    out = []
+    fields = ["frm", "to", "applicable_rules", "licensed_by", "evidence_surviving",
+              unavailable_field]
+    detail = exp.get("decision_detail")
+    for field in fields:
+        value = exp.get(field)
+        if value is None or isinstance(value, str):
+            continue
+        if not isinstance(value, list):
+            out.append(f"{where}: `{field}` is {value!r}, not a list")
+            continue
+        bad = [v for v in value if not isinstance(v, str)]
+        if bad:
+            out.append(f"{where}: `{field}` holds non-string entries {bad!r}. Every "
+                       "consumer treats these as ids or kind names, and several put "
+                       "them in a set or a dict key - so the suite would die here "
+                       "rather than tell you which field is malformed.")
+    if isinstance(detail, dict):
+        for field in ("conflicting_rules", "rules_without_a_unique_candidate",
+                      "rules_excluded_by_cardinality"):
+            value = detail.get(field)
+            if isinstance(value, list):
+                bad = [v for v in value if not isinstance(v, str)]
+                if bad:
+                    out.append(f"{where}: decision_detail.{field} holds non-string "
+                               f"entries {bad!r}")
+        for rid_, ids_ in (detail.get("ambiguous_candidates") or {}).items():
+            if isinstance(ids_, list):
+                bad = [v for v in ids_ if not isinstance(v, str)]
+                if bad:
+                    out.append(f"{where}: ambiguous_candidates[{rid_!r}] holds "
+                               f"non-string entries {bad!r}")
+    return out
+
+
 def repeats_failure(where: str, seq) -> str:
     """"Does this declared list repeat an entry?" - asked once.
 
@@ -351,13 +401,50 @@ def repeats_failure(where: str, seq) -> str:
     different question, asked where that field is read."""
     if not isinstance(seq, list):
         return ""
-    rep = sorted({i for i in seq if seq.count(i) > 1})
+    # BY EQUALITY, never through a set or a sort. This helper runs BEFORE the
+    # field-specific validators that check element types, so a fixture holding
+    # `[{...}, {...}]` raised `unhashable type: dict` and `[1, 1, "R-X", "R-X"]`
+    # raised on comparing str with int - the suite dying on the evidence it came
+    # to read, which this file already records as a failure it has had before and
+    # which the last commit reintroduced by building a set from raw input.
+    rep = []
+    for i, item in enumerate(seq):
+        if any(item == other for other in seq[:i]):
+            continue
+        if sum(1 for other in seq if other == item) > 1 and item not in rep:
+            rep.append(item)
     if rep:
         return (f"{where} repeats {rep!r}. Every consumer normalises this through "
                 "`set()`, so the repeat changes no verdict and still leaves two raw "
                 "spellings of one record - and anything that counts the array "
                 "disagrees with this suite.")
     return ""
+
+
+def floor_spec_failures(policy: dict, senior: dict) -> list:
+    """The contract's own statement of the floor, bound to the senior rule.
+
+    `clears_floor` implements the exception; this checks the contract SAYS it.
+    Prose restating a rule goes stale exactly as often as it is restated - the
+    fifth site of this one was a sentence in `reason_mapping`, still describing a
+    bare count after four checker sites had been corrected."""
+    out = []
+    spec = ((policy.get("reason_mapping") or {})
+            .get("no_rule_applied_after_a_defeat") or {}
+            ).get("reason_by_surviving_kinds", {}).get("floor")
+    if not isinstance(spec, dict):
+        return [f"`reason_mapping.no_rule_applied_after_a_defeat` states its floor as "
+                f"{spec!r}. A prose restatement cannot be checked against the senior "
+                "rule, and this one had already drifted from it."]
+    if spec.get("senior_field") not in senior:
+        out.append(f"the floor names senior field {spec.get('senior_field')!r}, which "
+                   "`finding-lineage/v1` does not carry")
+    if spec.get("sufficient_alone_clears") is not True:
+        out.append("the floor declares `sufficient_alone_clears` "
+                   f"{spec.get('sufficient_alone_clears')!r}. `evidence_rule` in the "
+                   "senior contract says such a kind alone satisfies the floor and the "
+                   "count stops applying; a junior contract cannot say otherwise.")
+    return out
 
 
 def clears_floor(kinds, senior: dict, floor: int) -> bool:
@@ -631,6 +718,8 @@ def main() -> int:
     ids = sorted(rules)
     outcomes = {r: rules[r]["outcome"] for r in ids}
     raw_edges = raw_dominance_edges(policy)
+    for msg in floor_spec_failures(policy, senior):
+        check(False, msg)
     for msg in refusal_shape_failures(policy):
         check(False, msg)
     raw_refusals = raw_refusal_pairs(policy)
@@ -1327,6 +1416,12 @@ def main() -> int:
 
         for i, exp in enumerate(case.get("expect", [])):
             where = f"{name}[{i}]"
+            # FAIL AND SKIP, never crash. Everything below assumes strings.
+            malformed = malformed_list_failures(where, exp, UNAVAILABLE_FIELD)
+            for msg in malformed:
+                check(False, msg)
+            if malformed:
+                continue
             outcome = exp.get("outcome")
             check(outcome in senior_outcomes,
                   f"{where}: outcome {outcome!r} is not in the frozen vocabulary")
