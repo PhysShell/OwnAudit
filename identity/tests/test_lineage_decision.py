@@ -336,6 +336,30 @@ def catalog_read(cat_spec: dict, rev_b: dict) -> tuple:
     return field, entries, pairs
 
 
+def repeats_failure(where: str, seq) -> str:
+    """"Does this declared list repeat an entry?" - asked once.
+
+    It was asked in eleven hand-written places, in three spellings, and two
+    record fields a mapper writes were never asked at all: `evidence_surviving`
+    and the unavailable-inputs list. Both are consumed through `set()`, so a
+    repeat changed no verdict here while sanctioning two raw shapes for one
+    provenance record - the identical argument review made for the
+    `decision_detail` arrays, which was accepted and fixed in the three fields it
+    named. The class was not closed then; this closes it.
+
+    Returns "" when the value is not a list: whether a field must BE a list is a
+    different question, asked where that field is read."""
+    if not isinstance(seq, list):
+        return ""
+    rep = sorted({i for i in seq if seq.count(i) > 1})
+    if rep:
+        return (f"{where} repeats {rep!r}. Every consumer normalises this through "
+                "`set()`, so the repeat changes no verdict and still leaves two raw "
+                "spellings of one record - and anything that counts the array "
+                "disagrees with this suite.")
+    return ""
+
+
 def clears_floor(kinds, senior: dict, floor: int) -> bool:
     """Does this evidence clear `minimum_evidence_kinds_for_continued`?
 
@@ -1311,12 +1335,14 @@ def main() -> int:
                 claim_a.setdefault(oid, []).append(where)
             for oid in to:
                 claim_b.setdefault(oid, []).append(where)
-            check(len(set(frm)) == len(frm),
-                  f"{where}: `frm` repeats {sorted({o for o in frm if frm.count(o) > 1})!r}; "
-                  "a repeated id is one occurrence written twice, not two partners")
-            check(len(set(to)) == len(to),
-                  f"{where}: `to` repeats {sorted({o for o in to if to.count(o) > 1})!r}; "
-                  "a repeated id is one occurrence written twice, not two partners")
+            # EVERY declared list on this expectation, including the two that
+            # were never asked - `evidence_surviving` and the unavailable-inputs
+            # list are records a mapper writes, and both were consumed only
+            # through `set()`.
+            for _field in ("frm", "to", "applicable_rules", "licensed_by",
+                           "evidence_surviving", UNAVAILABLE_FIELD):
+                bad = repeats_failure(f"{where}: `{_field}`", exp.get(_field))
+                check(not bad, bad or "")
             claimed_a.update(frm)
             claimed_b.update(to)
             for o in frm:
@@ -1332,12 +1358,10 @@ def main() -> int:
                 continue
             for rid in app + lic:
                 check(rid in rules, f"{where}: names unknown rule {rid!r}")
-            check(len(set(app)) == len(app), f"{where}: applicable_rules repeats an id")
             # `licensed_by` is a SET of surviving rules in the contract, and every
             # validation here normalised it through `set(lic)` - so a repeat passed
             # and the corpus sanctioned two raw shapes for one provenance record.
             # The uniqueness was checked for one field and not its twin, again.
-            check(len(set(lic)) == len(lic), f"{where}: licensed_by repeats an id")
             check(set(lic) <= set(app),
                   f"{where}: licensed_by {sorted(set(lic) - set(app))} is not in "
                   "applicable_rules; a rule cannot license what it never applied to")
@@ -1765,19 +1789,12 @@ def main() -> int:
             # its shape than the thing reading it.
             for field in ("conflicting_rules", "rules_without_a_unique_candidate",
                           "rules_excluded_by_cardinality"):
-                raw_f = detail.get(field)
-                if isinstance(raw_f, list):
-                    rep = sorted({i for i in raw_f if raw_f.count(i) > 1})
-                    check(not rep,
-                          f"{where}: decision_detail.{field} repeats {rep!r}. The set "
-                          "comparisons below cannot see it, and a consumer that counts "
-                          "the array disagrees with this suite.")
+                bad = repeats_failure(f"{where}: decision_detail.{field}",
+                                      detail.get(field))
+                check(not bad, bad or "")
             for _rid, _ids in (detail.get("ambiguous_candidates") or {}).items():
-                if isinstance(_ids, list):
-                    rep = sorted({i for i in _ids if _ids.count(i) > 1})
-                    check(not rep,
-                          f"{where}: ambiguous_candidates[{_rid!r}] repeats {rep!r}; one "
-                          "candidate written twice is not two candidates")
+                bad = repeats_failure(f"{where}: ambiguous_candidates[{_rid!r}]", _ids)
+                check(not bad, bad or "")
 
             cand = detail.get("ambiguous_candidates")
             blunted_ids = detail.get("rules_without_a_unique_candidate") or []
