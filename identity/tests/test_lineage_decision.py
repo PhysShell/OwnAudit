@@ -316,9 +316,28 @@ def entry_shape_failures(where: str, cat_spec: dict, entries) -> list:
             out.append(f"{where}[{index}] is {entry!r}, not an object")
             continue
         for key, declared in shape.items():
+            # EVERY DECLARED KEY, and its TYPE. This skipped a missing key and
+            # compared only list-versus-scalar, so deleting `similarity` or
+            # writing it as `"100"` left a record violating the shape the catalog
+            # declares for it. `entry_shape` says what a record IS; checking one
+            # of its three claims is the shape this branch keeps repeating.
             if key not in entry:
+                out.append(f"{where}[{index}] omits {key!r}, which `entry_shape` "
+                           f"declares as {declared!r}. A mapper reading the catalog "
+                           "expects the field to be there.")
                 continue
             wants_list = isinstance(declared, str) and declared.startswith("list of")
+            if wants_list == isinstance(entry[key], list):
+                want_type = int if declared == "int" else str
+                members = entry[key] if wants_list else [entry[key]]
+                wrong = [m for m in members if not isinstance(m, want_type)
+                         or isinstance(m, bool)]
+                if wrong:
+                    out.append(
+                        f"{where}[{index}].{key} holds {wrong!r}, and `entry_shape` "
+                        f"declares {declared!r}. A record whose types differ from the "
+                        "catalog is one a mapper parses differently than the contract "
+                        "describes.")
             if wants_list != isinstance(entry[key], list):
                 out.append(
                     f"{where}[{index}].{key} is {entry[key]!r}, and `entry_shape` "
@@ -418,6 +437,16 @@ def malformed_list_failures(where: str, exp: dict, unavailable_field: str) -> li
         for field in ("conflicting_rules", "rules_without_a_unique_candidate",
                       "rules_excluded_by_cardinality"):
             value = detail.get(field)
+            # THE CONTAINER FIRST. This validated elements only when the value
+            # already WAS a list, so an object went unremarked - and `set(...)`
+            # over a dict iterates its keys, so a mapping whose keys happen to be
+            # the right rule ids satisfied every comparison downstream. The check
+            # covered the contents of its claim and not the claim.
+            if value is not None and not isinstance(value, list):
+                out.append(f"{where}: decision_detail.{field} is {value!r}, not a list "
+                           "of rule ids. An object here passes every set comparison "
+                           "below, because a set of a mapping is a set of its keys.")
+                continue
             if isinstance(value, list):
                 bad = [v for v in value if not isinstance(v, str)]
                 if bad:
