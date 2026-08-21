@@ -284,7 +284,7 @@ growing quietly until someone notices the bill.
 
 ## The preregistered matrix
 
-Eight cases in `identity/fixtures/lineage-decision/`, fixed before any mapper,
+Ten cases in `identity/fixtures/lineage-decision/`, fixed before any mapper,
 gated on **exact** equality with `preregistered_cases`. Each is a shape where two
 answers are available and the policy has to say which, or say neither.
 
@@ -298,6 +298,8 @@ answers are available and the policy has to say which, or say neither.
 | 6 | `unavailable-diff-is-not-a-deletion` | `unresolved` — **not** `ended` plus `new` |
 | 7 | `blunt-rule-loses-to-uniqueness` | `continued` — and the blunt rule recorded as unable to choose |
 | 8 | `copy-source-that-is-also-a-fold-refuses` | `unresolved` / `conflicting-evidence` — N:M, and none of the six outcomes is N:M |
+| 9 | `every-candidate-blunted-is-an-ambiguity` | `unresolved` / `ambiguous-candidates` — every rule matched both, and none preferred one |
+| 10 | `a-defeat-can-leave-too-few-kinds` | `unresolved` / `insufficient-evidence-kind` — one kind survives against a floor of two |
 
 Cases 1 and 2 carry an extra burden, because a fixture can be right for the
 wrong reason: move the losing rule out of `applicable_rules` and the answer is
@@ -305,6 +307,14 @@ still `branched`, with dominance doing no work whatever. The suite cannot notice
 on its own — that is applicability again — so `case_obligations` preregisters
 what each case must *mechanically* exhibit, and both cases fail if their loser is
 quietly reclassified.
+
+Cases 9 and 10 close a coverage gap an outcome-shaped gate could not see. The
+policy emits five refusal reasons; `unresolved` read as covered while two of
+them — `ambiguous-candidates`, which `arbitration.multiplicity` selects, and the
+below-floor half of the defeat mapping — were pinned by no case at all, so
+either branch could be repointed with the suite still green. The gate now
+requires every emitted reason to be exercised, because several reasons share one
+outcome and an outcome cannot stand in for them.
 
 Case 8 is the one the contract had already decided and nothing pinned. The N:M
 refusal was frozen in `deliberately_unresolved_conflicts` — found, as that section

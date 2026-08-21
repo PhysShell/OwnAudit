@@ -364,7 +364,7 @@
   "record_additions": {
     "applicable_rules": "the DISTINCT ids of rules with a SURVIVING application - matched, then past uniqueness and cardinality, per `decision_procedure` step 5. A set of ids, not a count of applications. Rules that matched and failed uniqueness are NOT here; they are in `decision_detail.rules_without_a_unique_candidate`, and both are needed for re-judgement - see `recall_set`.",
     "licensed_by": "the SURVIVING rules the outcome rests on - the applicable rules that no other applicable rule dominates, per `arbitration.licensed_by_rule`. Non-empty for continued, branched and merged; EMPTY on a refused conflict.",
-    "decision_detail": "decision-layer precision that the senior contract's `reason` vocabulary does not carry: `conflicting_rules`, `rules_without_a_unique_candidate` (matched, singled nobody out) and `rules_excluded_by_cardinality` (matched, wrong shape - no ambiguity involved). The last two are not cosmetic: without them a rule that lost before arbitration leaves no trace, and `applicable_rules` would either have to omit it (losing the recall set) or include it (claiming it supported the answer). It did neither. NOT `inputs_unavailable` and NOT `signals_defeated`: both are top level, and listing them here as well gave each two homes - the same ambiguity, twice, and the second survived one review after the first was fixed.",
+    "decision_detail": "decision-layer precision that the senior contract's `reason` vocabulary does not carry: `conflicting_rules`, `rules_without_a_unique_candidate` (matched, singled nobody out), `rules_excluded_by_cardinality` (matched, wrong shape - no ambiguity involved) and `ambiguous_candidates` (rule id -> the occurrence ids it could not choose between). The rejecting stages are not cosmetic: without them a rule that lost before arbitration leaves no trace, and `applicable_rules` would either have to omit it (losing the recall set) or include it (claiming it supported the answer). It did neither. `ambiguous_candidates` is not cosmetic either: `reason_mapping.several_candidates` promised `the candidate ids` as its detail while the record shape defined nowhere to put them, so a mapper could not implement the promise and a consumer could not see which partners caused the refusal. NOT `inputs_unavailable` and NOT `signals_defeated`: both are top level.",
     "signals_defeated": "signal name -> the record that defeated it. TOP LEVEL, and spelled this way everywhere: an earlier revision also called it `defeated_signals` inside `decision_detail`, so two conforming implementations could have produced different JSON while each followed part of this contract. Present whenever step 2 removed anything.",
     "inputs_unavailable": "signal names that could not be evaluated. TOP LEVEL, like `signals_defeated`, and declared in exactly one place. Present whenever any were."
   },
@@ -376,7 +376,9 @@
     "renamed-symbol-defeats-structural-context",
     "unavailable-diff-is-not-a-deletion",
     "blunt-rule-loses-to-uniqueness",
-    "copy-source-that-is-also-a-fold-refuses"
+    "copy-source-that-is-also-a-fold-refuses",
+    "every-candidate-blunted-is-an-ambiguity",
+    "a-defeat-can-leave-too-few-kinds"
   ],
   "preregistration_rule": [
     "Fixed before the mapper, same as slice 2 step 0. These are about the POLICY",
@@ -509,7 +511,7 @@
     },
     "several_candidates": {
       "reason": "lineage-id-unavailable:ambiguous-candidates",
-      "detail": "the candidate ids"
+      "detail": "`decision_detail.ambiguous_candidates`: rule id -> the occurrence ids that rule could not choose between, alongside the rule ids in `rules_without_a_unique_candidate`"
     }
   },
   "reason_mapping_rule": [
@@ -762,6 +764,12 @@
       ],
       "copy-source-that-is-also-a-fold-refuses": [
         "refusal_was_recorded"
+      ],
+      "every-candidate-blunted-is-an-ambiguity": [
+        "blunt_rule_recorded"
+      ],
+      "a-defeat-can-leave-too-few-kinds": [
+        "defeat_removed_a_signal"
       ]
     },
     "meanings": {

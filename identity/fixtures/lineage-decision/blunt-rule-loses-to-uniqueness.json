@@ -55,7 +55,13 @@
       "decision_detail": {
         "rules_without_a_unique_candidate": [
           "R-CONT-DRIFT"
-        ]
+        ],
+        "ambiguous_candidates": {
+          "R-CONT-DRIFT": [
+            "occ-b1",
+            "occ-b2"
+          ]
+        }
       },
       "not_applicable": {
         "R-CONT-DRIFT": "satisfied by occ-b1 AND occ-b2; a 1:1 outcome needs exactly one candidate, so it licenses nothing and is recorded in rules_without_a_unique_candidate",
@@ -85,7 +91,8 @@
     "R-CONT-DRIFT named in licensed_by",
     "R-CONT-DRIFT in applicable_rules - it had no surviving application",
     "R-CONT-DRIFT dropped without a trace - the tension must stay readable",
-    "occ-a1 mapped to occ-b2"
+    "occ-a1 mapped to occ-b2",
+    "R-CONT-DRIFT recorded as unable to choose without naming the candidates - the tension has to be readable, not merely flagged"
   ],
   "contract": "finding-lineage-decision/v1",
   "status": "preregistered-unimplemented"

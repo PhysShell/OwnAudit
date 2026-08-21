@@ -697,6 +697,7 @@ def main() -> int:
                   f"{cname}: obligation {duty!r} has no entry in `meanings`")
     licensed_outcomes: set[str] = set()
     exercised_refusals: set = set()
+    exercised_reasons: set = set()
     for name in sorted(set(on_disk) & set(preregistered)):
         with open(os.path.join(FIXDIR, f"{name}.json"), encoding="utf-8") as fh:
             case = json.load(fh)
@@ -746,6 +747,8 @@ def main() -> int:
                   f"{where}: licensed_by {sorted(set(lic) - set(app))} is not in "
                   "applicable_rules; a rule cannot license what it never applied to")
             licensed_outcomes.add(outcome)
+            if exp.get("reason"):
+                exercised_reasons.add(exp["reason"])
             for _pair in refusals:
                 if _pair <= set(app):
                     exercised_refusals.add(_pair)
@@ -1031,6 +1034,26 @@ def main() -> int:
                       f"{where}: decision_detail.conflicting_rules is set, but nothing "
                       "was refused for disagreeing here")
 
+            # The candidate binding the contract promises: rule id -> the ids it
+            # could not choose between. Checked where it appears, and required
+            # wherever a rule is recorded as unable to choose - otherwise the
+            # promise in `reason_mapping.several_candidates` stays unkeepable.
+            cand = detail.get("ambiguous_candidates")
+            blunted_ids = detail.get("rules_without_a_unique_candidate") or []
+            if blunted_ids:
+                check(isinstance(cand, dict) and set(cand) == set(blunted_ids),
+                      f"{where}: {sorted(blunted_ids)} could not choose, so "
+                      "decision_detail.ambiguous_candidates must name the candidates for "
+                      f"exactly those rules, got {sorted(cand or {})}")
+            for rid, ids_ in (cand or {}).items():
+                check(rid in rules, f"{where}: ambiguous_candidates names unknown rule {rid!r}")
+                check(isinstance(ids_, list) and len(set(ids_)) >= 2,
+                      f"{where}: {rid} is recorded as unable to choose between "
+                      f"{ids_!r}; fewer than two candidates is not an ambiguity")
+                for oid in ids_ or []:
+                    check(oid in occ_a or oid in occ_b,
+                          f"{where}: candidate {oid!r} is in neither revision")
+
             overlap = (set(detail.get("rules_without_a_unique_candidate") or [])
                        & set(detail.get("rules_excluded_by_cardinality") or []))
             check(not overlap,
@@ -1158,6 +1181,18 @@ def main() -> int:
               f"the declared refusal {sorted(pair)} is exercised by no preregistered "
               "case. A conflict the contract deliberately refuses is a decision, and a "
               "decision with no case is frozen in name only.")
+
+    # EVERY EMITTED REASON, not merely every outcome. The outcome gate read
+    # `unresolved` as covered while two of its five reasons - `ambiguous-candidates`
+    # and `insufficient-evidence-kind` - were pinned by no fixture at all. The
+    # first is what `arbitration.multiplicity` selects; the second is the
+    # below-floor half of the distinction the senior contract was amended to
+    # carry. Both branches could be repointed without turning this suite red.
+    for reason in sorted(emitted):
+        check(reason in exercised_reasons,
+              f"no preregistered case reaches {reason!r}. The policy can emit it, so "
+              "something has to pin which condition selects it - an outcome gate "
+              "cannot, because several reasons share one outcome.")
 
     for wanted in sorted({rules[r]["outcome"] for r in ids} | {"unresolved"}):
         check(wanted in licensed_outcomes,
