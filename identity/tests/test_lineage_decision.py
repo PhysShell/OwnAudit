@@ -54,7 +54,10 @@ WHAT IS SWEPT, AND WHAT IS NOT
 ------------------------------
 The real policy is verified directly and completely: properties 1 and 2 on its
 own declarations, plus the full 2^n - 1 subset sweep of its own rule ids. That
-cost is linear in the policy and it stays.
+sweep is EXPONENTIAL in the rule count - six rules sweep 63 subsets, twelve sweep
+4095 - and it carries a reviewed ceiling that fails CI rather than growing
+quietly. An earlier revision of this docstring called it linear while the code
+below said the opposite in the same file, which is worse than either claim alone.
 
 The THEOREM is not re-derived from this policy's classification space. It used
 to be - 3^k over the k conflicting pairs - and that was an exponential in k paid
@@ -132,6 +135,47 @@ def duplicate_json_keys(path: str) -> list:
     with open(path, encoding="utf-8") as fh:
         json.load(fh, object_pairs_hook=hook)
     return sorted(set(dups))
+
+
+def mandated_reason(exp, lim, floor):
+    """The reason the policy REQUIRES for this refusal, or None if the contract
+    has not settled the shape.
+
+    Derived from what the fixture DECLARES about its own stages - not from any
+    evidence reasoning. Checking only that a reason is in the senior vocabulary
+    accepted any of the six: `missing-occurrence-id` passed on a case whose
+    occurrences both carry ids, because nothing tied the value to the branch.
+    None means deliberately unmandated, and the caller says so rather than
+    guessing - a shape nobody has settled must not be settled by whichever
+    condition was typed first."""
+    app = exp.get("applicable_rules") or []
+    defeated = exp.get("signals_defeated") or {}
+    unavailable = as_list(exp.get("inputs_unavailable"))
+    detail = exp.get("decision_detail") or {}
+    blunted = detail.get("rules_without_a_unique_candidate") or []
+    miscard = detail.get("rules_excluded_by_cardinality") or []
+
+    if app:
+        # Rules applied and the answer is still a refusal: they disagreed.
+        return lim.get("conflicting-evidence"), "rules applied and disagreed"
+    # More than one rejecting stage fired at once. Each has its own reason and
+    # the contract does not rank them; picking one here would be this file
+    # deciding a contract question in a checker.
+    stages = [bool(defeated), bool(unavailable), bool(blunted)]
+    if sum(stages) > 1:
+        return None, "several rejecting stages fired; the contract has not ranked them"
+    if defeated:
+        surviving = {k for k in (exp.get("evidence_surviving") or [])}
+        if len(surviving) < floor:
+            return lim.get("insufficient-evidence-kind"), "a defeat left fewer kinds than the floor"
+        return lim.get("insufficient-evidence-combination"), "a defeat left the floor cleared"
+    if blunted:
+        return lim.get("ambiguous-candidates"), "rules matched and singled nobody out"
+    if unavailable:
+        return lim.get("no-mapping-evidence"), "a signal could not be evaluated"
+    if miscard:
+        return lim.get("no-mapping-evidence"), "the only matches were the wrong shape"
+    return lim.get("no-mapping-evidence"), "nothing matched at all"
 
 
 def as_list(v) -> list:
@@ -317,7 +361,22 @@ def main() -> int:
           "empty is a claim, and it has to be written down as one")
 
     senior_limitations = set(senior["limitations"].values())
-    emitted = {v["reason"] for v in policy["reason_mapping"].values()}
+    # A mapping entry declares EITHER one reason or a conditional set of them.
+    # `no_rule_applied_after_a_defeat` became conditional when a defeat leaving
+    # fewer kinds than the floor turned out to need the other limitation, so the
+    # sweep reads both shapes - and requires exactly one of them, because an entry
+    # carrying both would emit a value nothing selects.
+    emitted = set()
+    for key, spec in policy["reason_mapping"].items():
+        single, conditional = "reason" in spec, "reason_by_surviving_kinds" in spec
+        check(single != conditional,
+              f"reason_mapping[{key}] must declare exactly one of `reason` or "
+              "`reason_by_surviving_kinds`, not both and not neither")
+        if single:
+            emitted.add(spec["reason"])
+        if conditional:
+            emitted |= {v for k, v in spec["reason_by_surviving_kinds"].items()
+                        if str(v).startswith("lineage-id-unavailable:")}
     emitted.add(policy["arbitration"]["none_applies"]["reason"])
     emitted.add(policy["arbitration"]["conflict"]["reason"])
     emitted.add(policy["arbitration"]["multiplicity"]["several_candidates_without_one"]["reason"])
@@ -648,6 +707,14 @@ def main() -> int:
                 check(exp.get("reason") in senior_limitations_set,
                       f"{where}: reason {exp.get('reason')!r} is not a senior limitation")
                 check(not lic, f"{where}: a refusal licenses nothing")
+                # AND it must be the reason the POLICY BRANCH mandates. Vocabulary
+                # membership alone accepted any of the six - `missing-occurrence-id`
+                # passed on a case whose occurrences both carry ids.
+                want, why_branch = mandated_reason(exp, senior["limitations"], floor)
+                if want is not None:
+                    check(exp.get("reason") == want,
+                          f"{where}: {why_branch}, so `reason_mapping` mandates {want!r}, "
+                          f"not {exp.get('reason')!r}")
             else:
                 check("reason" not in exp,
                       f"{where}: {outcome} must not carry an identity limitation")
@@ -762,12 +829,29 @@ def main() -> int:
                           f"{where}: {rid} is applicable but requires the unevaluable "
                           f"signal {sig!r}")
 
-            for rid in ((exp.get("decision_detail") or {})
-                        .get("rules_without_a_unique_candidate") or []):
-                check(rid in rules, f"{where}: unknown rule {rid!r} in decision_detail")
-                check(rid not in app,
-                      f"{where}: {rid} had no unique candidate, so it had no surviving "
-                      "application and must not be in applicable_rules")
+            # Both rejecting stages are recorded, and neither may overlap the set
+            # of rules that survived. They are separate fields because they are
+            # separate facts: matched-but-chose-nobody is an ambiguity, matched-
+            # but-wrong-shape is not, and `recall_set` is the union of both with
+            # `applicable_rules`.
+            detail = exp.get("decision_detail") or {}
+            for field, why_it_lost in (
+                    ("rules_without_a_unique_candidate",
+                     "had no unique candidate, so it had no surviving application"),
+                    ("rules_excluded_by_cardinality",
+                     "was excluded by its own cardinality guard")):
+                for rid in (detail.get(field) or []):
+                    check(rid in rules,
+                          f"{where}: unknown rule {rid!r} in decision_detail.{field}")
+                    check(rid not in app,
+                          f"{where}: {rid} {why_it_lost} and must not be in "
+                          "applicable_rules")
+            overlap = (set(detail.get("rules_without_a_unique_candidate") or [])
+                       & set(detail.get("rules_excluded_by_cardinality") or []))
+            check(not overlap,
+                  f"{where}: {sorted(overlap)} recorded as BOTH unable to choose and "
+                  "excluded by cardinality. A rule lost at one stage, and the two "
+                  "answer different questions when the rule is later changed.")
 
             for kind, defeater in (exp.get("boundary_defeated") or {}).items():
                 spec = next((s for s in senior["boundary_evidence_kinds"].values()
@@ -827,7 +911,8 @@ def main() -> int:
                     met |= bool((exp.get("decision_detail") or {})
                                 .get("rules_without_a_unique_candidate"))
                 elif duty == "cardinality_excluded_a_rule":
-                    excluded = exp.get("excluded_by_cardinality") or []
+                    excluded = ((exp.get("decision_detail") or {})
+                                .get("rules_excluded_by_cardinality") or [])
                     for rid in excluded:
                         check(rid in rules, f"{name}: unknown rule {rid!r} in "
                                             "excluded_by_cardinality")

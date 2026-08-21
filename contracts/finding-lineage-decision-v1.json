@@ -43,10 +43,17 @@
     "3. MATCH every rule against the surviving set. A rule may match ONE candidate",
     "   binding or SEVERAL - matching is about the predicate, not about how many",
     "   partners answer it.",
-    "4. FILTER by uniqueness and cardinality. A 1:1 rule with anything other than",
-    "   exactly one candidate does not survive; a group rule below its declared",
-    "   minimum does not survive. Rules that matched and died here are recorded in",
-    "   `decision_detail.rules_without_a_unique_candidate`.",
+    "4. FILTER. Two different rejections happen here and they are RECORDED",
+    "   SEPARATELY, because they are not the same fact and a recall set built from",
+    "   one of them would miss the other:",
+    "   - a 1:1 rule with anything other than exactly one candidate matched but",
+    "     singled nobody out -> `decision_detail.rules_without_a_unique_candidate`",
+    "   - a group rule below its declared minimum matched a shape it does not",
+    "     govern; no ambiguity occurred at all ->",
+    "     `decision_detail.rules_excluded_by_cardinality`",
+    "   An earlier revision put both in the first field. A mapper following it had",
+    "   to either call a cardinality rejection an ambiguity or drop it from the",
+    "   record, and the second is worse.",
     "5. APPLY: the survivors of step 4 are `applicable_rules`. All of them, not the",
     "   first match.",
     "6. ARBITRATE by `arbitration`, over `applicable_rules` only. The result is the",
@@ -342,8 +349,8 @@
   "record_additions": {
     "applicable_rules": "the DISTINCT ids of rules with a SURVIVING application - matched, then past uniqueness and cardinality, per `decision_procedure` step 5. A set of ids, not a count of applications. Rules that matched and failed uniqueness are NOT here; they are in `decision_detail.rules_without_a_unique_candidate`, and both are needed for re-judgement - see `recall_set`.",
     "licensed_by": "the SURVIVING rules the outcome rests on - the applicable rules that no other applicable rule dominates, per `arbitration.licensed_by_rule`. Non-empty for continued, branched and merged; EMPTY on a refused conflict.",
-    "decision_detail": "decision-layer precision that the senior contract's `reason` vocabulary does not carry: conflicting_rules, inputs_unavailable, defeated_signals, and rules_without_a_unique_candidate - the rules that fired on several candidates and so licensed no 1:1 mapping. That last one is not cosmetic: without it a blunt rule losing to a discriminating one leaves no trace, and `applicable_rules` would either have to omit it (losing the recall set) or include it (claiming it supported the answer). It did neither; it failed to single anyone out.",
-    "signals_defeated": "signal name -> the record that defeated it. Present whenever step 2 removed anything.",
+    "decision_detail": "decision-layer precision that the senior contract's `reason` vocabulary does not carry: `conflicting_rules`, `inputs_unavailable`, `rules_without_a_unique_candidate` (matched, singled nobody out) and `rules_excluded_by_cardinality` (matched, wrong shape - no ambiguity involved). The last two are not cosmetic: without them a rule that lost before arbitration leaves no trace, and `applicable_rules` would either have to omit it (losing the recall set) or include it (claiming it supported the answer). It did neither.",
+    "signals_defeated": "signal name -> the record that defeated it. TOP LEVEL, and spelled this way everywhere: an earlier revision also called it `defeated_signals` inside `decision_detail`, so two conforming implementations could have produced different JSON while each followed part of this contract. Present whenever step 2 removed anything.",
     "inputs_unavailable": "signal names that could not be evaluated. Present whenever any were."
   },
   "preregistered_cases": [
@@ -450,22 +457,25 @@
       "detail": "inputs_unavailable, when the reason nothing applied is that a signal could not be evaluated"
     },
     "no_rule_applied_after_a_defeat": {
-      "reason": "lineage-id-unavailable:insufficient-evidence-combination",
-      "detail": "defeated_signals: signal -> the record that removed it",
+      "reason_by_surviving_kinds": {
+        "below_the_floor": "lineage-id-unavailable:insufficient-evidence-kind",
+        "at_or_above_the_floor": "lineage-id-unavailable:insufficient-evidence-combination",
+        "floor": "finding-lineage/v1 minimum_evidence_kinds_for_continued, counted over DISTINCT surviving kinds"
+      },
+      "detail": "`signals_defeated` (top level): signal name -> the record that removed it",
       "why": [
         "Distinguished from `no-mapping-evidence` because the two are not the same",
         "situation and a consumer reads this field. When a defeater fires, evidence WAS",
         "observed - it was removed because a record explained it away - and saying `no",
         "mapping evidence` would be false in the plain meaning of the words.",
-        "And distinguished from `insufficient-evidence-kind`, which this file reported",
-        "for one review before the senior contract was corrected. In",
-        "`defeated-signal-drops-below-the-floor` THREE kinds survive against a floor of",
-        "two: the kinds are ample, and it is the COMBINATION that no declared rule",
-        "accepts. Naming that a shortage of kinds would have said the evidence was thin",
-        "when it was plentiful and simply did not add up to a rule anyone declared.",
-        "`insufficient-evidence-kind` keeps its own job: the senior floor genuinely not",
-        "cleared. This one is the case where the floor is cleared and the floor was",
-        "never the algorithm."
+        "CONDITIONAL, not a single value. An earlier revision mapped every defeat to",
+        "`insufficient-evidence-combination` unconditionally, which is right only while",
+        "enough kinds survive. A formatter or rename defeat that leaves ZERO or ONE kind",
+        "is below the senior floor, and there the shortage really is of kinds - which is",
+        "the distinction the senior contract was amended to carry, contradicted here by",
+        "the very entry that asked for it.",
+        "In `defeated-signal-drops-below-the-floor` three kinds survive against a floor",
+        "of two: ample kinds, and no declared combination accepts them."
       ]
     },
     "conflicting_rules": {
@@ -759,20 +769,18 @@
     "",
     "  recall = applicable_rules",
     "         + decision_detail.rules_without_a_unique_candidate",
+    "         + decision_detail.rules_excluded_by_cardinality",
     "         + any further explicitly recorded rejected stage",
     "",
-    "`applicable_rules` alone stopped being the recall set the moment uniqueness",
-    "became a filter in front of it. A rule that matched two candidates and was",
-    "dropped there is exactly a mapping that would CHANGE if that rule were made",
-    "more discriminating - and it does not appear in `applicable_rules` at all. A",
-    "recall set built from that field alone would miss it, and miss it silently,",
-    "which is the failure mode this project keeps finding in its own drafts.",
-    "This is why the rejected stage is RECORDED rather than merely computed and",
-    "discarded. A stage whose output is thrown away cannot be recalled from, and",
-    "`rules_without_a_unique_candidate` exists to be part of this union rather than",
-    "as a courtesy to the reader.",
-    "Any future stage that rejects a rule joins this union in the same breath as it",
-    "is added. A stage without a recorded output is a stage that silently narrows",
-    "re-judgement."
+    "`applicable_rules` alone stopped being the recall set the moment filters",
+    "appeared in front of it. A rule dropped for matching two candidates is exactly",
+    "a mapping that would CHANGE if that rule were made more discriminating; a rule",
+    "dropped for being the wrong shape is exactly a mapping that would change if its",
+    "cardinality were relaxed. Neither appears in `applicable_rules` at all, and a",
+    "recall set built from that field alone would miss both, silently.",
+    "EVERY REJECTING STAGE JOINS THIS UNION IN THE SAME BREATH AS IT IS ADDED.",
+    "That is the rule, and it has already been broken once: cardinality became a",
+    "filter without a field of its own, so its rejections were either mislabelled as",
+    "ambiguities or lost. A stage whose output is discarded cannot be recalled from."
   ]
 }

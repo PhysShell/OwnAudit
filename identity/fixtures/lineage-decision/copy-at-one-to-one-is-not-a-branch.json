@@ -53,9 +53,11 @@
       "licensed_by": [
         "R-CONT-COPY"
       ],
-      "excluded_by_cardinality": [
-        "R-BRANCH-COPY"
-      ],
+      "decision_detail": {
+        "rules_excluded_by_cardinality": [
+          "R-BRANCH-COPY"
+        ]
+      },
       "boundary_defeated": {
         "boundary:containing-file-deleted": "revision_b.copies[].from"
       },
@@ -74,7 +76,8 @@
     "ended for occ-a1 on the strength of deleted_paths - the copy record defeats it",
     "unresolved - the frozen case forbids it by name",
     "new for occ-b1",
-    "R-BRANCH-COPY appearing in applicable_rules - it is guarded out, not out-argued"
+    "R-BRANCH-COPY appearing in applicable_rules - it is guarded out, not out-argued",
+    "R-BRANCH-COPY absent from decision_detail - a rule excluded by cardinality must stay in the recall set, or relaxing that guard later cannot find the mappings it would change"
   ],
   "contract": "finding-lineage-decision/v1",
   "status": "preregistered-unimplemented"
