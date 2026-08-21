@@ -91,6 +91,82 @@ def collect(revision: dict, spec: str) -> list:
     return out
 
 
+SIDE_COUNTS = {"0": (0, 0), "1": (1, 1), "N": (2, None)}
+
+
+def cardinality_shape_failures(where: str, outcome: str, shape, frm, to) -> list:
+    """The `<predecessors>:<successors>` shape an outcome declares, enforced FROM
+    that declaration.
+
+    Every one of the six shapes was enforced here as a literal - `continued is
+    1:1`, `branched is 1:N`, `merged is N:1`, and the ended/new pair as separate
+    length checks - spread over three blocks, and `outcomes.*.cardinality` was
+    read nowhere in this file. Editing the senior contract to say `continued` is
+    `1:N` left every one of them still enforcing `1:1` while citing the contract
+    they had stopped agreeing with.
+
+    The junior suite had exactly this defect and it was fixed one commit earlier;
+    the senior contract's own suite was the adjacent site nobody asked. That is
+    the shape this branch keeps repeating, and this time it was committed
+    alongside a message describing it.
+
+    `N` means at least two, which is what these checks already meant - "branched
+    with fewer than two successors is a continued". Reading it off the shape
+    binds the literal without changing what is enforced. An unparseable side is
+    reported rather than skipped: a shape nobody can read is not a shape that
+    constrains anything."""
+    out = []
+    sides = str(shape).split(":")
+    if len(sides) != 2 or any(s not in SIDE_COUNTS for s in sides):
+        return [f"{where}: outcome {outcome!r} declares cardinality {shape!r}, which "
+                f"is not `<predecessors>:<successors>` over {sorted(SIDE_COUNTS)}. "
+                "Nothing can be enforced from a shape that cannot be read."]
+    for token, label, got in zip(sides, ("predecessor", "successor"), (frm, to)):
+        low, high = SIDE_COUNTS[token]
+        if len(got) < low or (high is not None and len(got) > high):
+            want = f"at least {low}" if high is None else str(low)
+            out.append(f"{where}: {outcome} is {shape} in the senior contract, so it "
+                       f"names {want} {label}(s), got {len(got)}. A group of one is the "
+                       "1:1 outcome under another name, and a group of none is not an "
+                       "outcome at all.")
+    return out
+
+
+AMENDMENT_ORDINALS = {"again": 2, "second": 2, "third": 3, "fourth": 4, "fifth": 5,
+                      "sixth": 6, "seventh": 7, "eighth": 8}
+
+
+def amendment_ordinal_failures(note) -> list:
+    """The revision history counts itself, so the count is checked.
+
+    Two entries both said "third" - one lower-case, one shouting - and the entry
+    after them said "FOURTH", because each amendment was written by reading the
+    previous one rather than by counting. A revision history whose ordinals
+    disagree is the same defect as prose restating a declared number, one level
+    up: the number is a fact about the document, and nothing was checking it.
+
+    The pre-merge correction is revision one and is not an amendment, so the
+    n-th amendment is revision n + 1."""
+    out = []
+    seen = []
+    for line in note if isinstance(note, list) else []:
+        if not isinstance(line, str) or not line.startswith("Amended"):
+            continue
+        words = [w.strip(",.").lower() for w in line.split()[:4]]
+        found = [AMENDMENT_ORDINALS[w] for w in words if w in AMENDMENT_ORDINALS]
+        if not found:
+            out.append(f"revision_note: {line!r} amends the contract without saying "
+                       "which amendment it is")
+            continue
+        seen.append((line, found[0]))
+    for index, (line, ordinal) in enumerate(seen):
+        want = index + 2
+        if ordinal != want:
+            out.append(f"revision_note: amendment {index + 1} calls itself revision "
+                       f"{ordinal}, but it is revision {want} - {line!r}")
+    return out
+
+
 def main() -> int:
     with open(CONTRACT, encoding="utf-8") as fh:
         contract = json.load(fh)
@@ -110,6 +186,8 @@ def main() -> int:
     check(contract["status"] == "frozen-unimplemented",
           "the contract must declare itself unimplemented until a mapper exists")
     check(outcomes == set(OUTCOMES), f"the six outcomes changed: {sorted(outcomes)}")
+    for msg in amendment_ordinal_failures(contract.get("revision_note")):
+        check(False, msg)
 
     # The load-bearing rule, asserted rather than only written down: absent
     # evidence yields 'unresolved'. If this ever reads 'new', every "introduced
@@ -269,12 +347,12 @@ def main() -> int:
                       "absence of a match is unresolved, not a boundary")
                 kinds = exp.get("boundary_evidence") or []
                 check(bool(kinds), f"{where}: {outcome} must be earned by boundary evidence")
-                if outcome == "ended":
-                    check(len(frm) == 1, f"{where}: ended must name the predecessor it is about")
-                    check(not to, f"{where}: ended must not name a successor")
-                else:
-                    check(len(to) == 1, f"{where}: new must name the occurrence it is about")
-                    check(not frm, f"{where}: new must have no predecessor")
+                # `ended` is 1:0 and `new` is 0:1 in the senior contract, and
+                # both halves of each come off that declaration now.
+                for msg in cardinality_shape_failures(
+                        where, outcome,
+                        contract["outcomes"][outcome].get("cardinality"), frm, to):
+                    check(False, msg)
                 for kind in kinds:
                     spec = boundary_values.get(kind)
                     check(spec is not None,
@@ -335,8 +413,6 @@ def main() -> int:
                           f"{required}, and none is sufficient alone; the frozen floor is "
                           f"{floor}. Name the evidence that really fired, or promote a kind.")
                 if outcome == "continued":
-                    check(len(frm) == 1 and len(to) == 1,
-                          f"{where}: continued is 1:1, got {len(frm)}:{len(to)}")
                     # The inherit rule: a predecessor that already carries a
                     # lineage passes THAT id on. A re-mint would read as a new
                     # defect appearing where an old one was proven to persist.
@@ -344,14 +420,11 @@ def main() -> int:
                         check(exp.get("lineage_id") == established[frm[0]],
                               f"{where}: predecessor carries {established[frm[0]]!r}; "
                               f"the successor must inherit it, not {exp.get('lineage_id')!r}")
-                if outcome == "branched":
-                    check(len(frm) == 1, f"{where}: branched is 1:N, got {len(frm)} predecessors")
-                    check(len(to) >= 2,
-                          f"{where}: branched with fewer than two successors is a continued")
-                if outcome == "merged":
-                    check(len(frm) >= 2,
-                          f"{where}: merged with fewer than two predecessors is a continued")
-                    check(len(to) == 1, f"{where}: merged is N:1, got {len(to)} successors")
+                if outcome in ("continued", "branched", "merged"):
+                    for msg in cardinality_shape_failures(
+                            where, outcome,
+                            contract["outcomes"][outcome].get("cardinality"), frm, to):
+                        check(False, msg)
                 if outcome in ("branched", "merged"):
                     # A child with no recorded parent is a birth wearing another
                     # word, and a merge that records one parent has quietly
