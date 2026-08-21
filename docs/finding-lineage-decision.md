@@ -284,8 +284,12 @@ growing quietly until someone notices the bill.
 
 ## The preregistered matrix
 
-Ten cases in `identity/fixtures/lineage-decision/`, fixed before any mapper,
-gated on **exact** equality with `preregistered_cases`. Each is a shape where two
+The cases below live in `identity/fixtures/lineage-decision/`, fixed before any
+mapper, and are gated on **exact** equality with `preregistered_cases`. The table
+is the count; this sentence deliberately does not repeat it, because the number
+was written here as `Ten` and went stale the moment cases 11 and 12 landed — the
+third time on this branch that a count restated in prose has drifted from the
+list beside it. Each is a shape where two
 answers are available and the policy has to say which, or say neither.
 
 | # | case | expected |

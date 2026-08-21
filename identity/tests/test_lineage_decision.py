@@ -1168,34 +1168,46 @@ def main() -> int:
                         val = entry[key]
                         return wanted in val if isinstance(val, list) else wanted == val
 
-                    related = set()
-                    for entry in entries:
-                        for p in pools["predecessor"]:
-                            for t in pools["successor"]:
-                                subj = {"predecessor": p, "successor": t}
-                                if all(names(entry, key,
-                                             by_id.get(subj[role], {}).get(at))
-                                       for key, role, at in pairs):
-                                    related.add((p, t))
+                    # ONE RECORD MUST CARRY THE WHOLE GROUP. The previous
+                    # version accumulated pairs over every entry and then applied
+                    # the quantifiers to the union, which pools sources one level
+                    # up from the pooling it had just fixed: a fold split into
+                    # `WireA -> WireA` and `WireB -> WireA` satisfied `every`
+                    # between them, though neither record names both predecessors
+                    # and the two describe separate folds. The rule's own `why`
+                    # says "THE RECORD's `from` list must carry every
+                    # predecessor" - singular - so the quantifier belongs inside
+                    # one entry.
+                    def satisfied_by(entry: dict) -> bool:
+                        related = {(p, t)
+                                   for p in pools["predecessor"]
+                                   for t in pools["successor"]
+                                   if all(names(entry, key,
+                                                by_id.get({"predecessor": p,
+                                                           "successor": t}[role],
+                                                          {}).get(at))
+                                          for key, role, at in pairs)}
+                        for role in ("predecessor", "successor"):
+                            quant = (binding.get(role) or {}).get("quantifier")
+                            idx = 0 if role == "predecessor" else 1
+                            reached = {pair[idx] for pair in related}
+                            if quant == "every":
+                                if any(o not in reached for o in pools[role]):
+                                    return False
+                            elif quant == "at_least_one":
+                                if not reached:
+                                    return False
+                        return True
 
-                    for role in ("predecessor", "successor"):
-                        spec_r = binding.get(role) or {}
-                        quant = spec_r.get("quantifier")
-                        idx = 0 if role == "predecessor" else 1
-                        reached = {pair[idx] for pair in related}
-                        pool = pools[role]
-                        if quant == "every":
-                            missing = [o for o in pool if o not in reached]
-                            check(not missing,
-                                  f"{where}: {rid} binds EVERY {role} through {sig}, but "
-                                  f"no single entry of {read_field} relates {missing!r} "
-                                  "to a partner on this mapping")
-                        elif quant == "at_least_one":
-                            check(bool(reached),
-                                  f"{where}: {rid} binds at least one {role} through "
-                                  f"{sig}, and no entry of {read_field} relates any of "
-                                  f"{pool!r} to a partner. The record explains a "
-                                  "different transformation than this one.")
+                    check(any(satisfied_by(e) for e in entries),
+                          f"{where}: {rid} rests on {sig!r}, and no SINGLE entry of "
+                          f"{read_field} relates this mapping's occurrences as its "
+                          f"`record_binding` requires. Predecessors "
+                          f"{[by_id.get(o, {}).get('enclosing_symbol') or by_id.get(o, {}).get('path') for o in pools['predecessor']]!r}, "
+                          f"successors "
+                          f"{[by_id.get(o, {}).get('enclosing_symbol') or by_id.get(o, {}).get('path') for o in pools['successor']]!r}; "
+                          f"the records hold {entries!r}. Two records describing two "
+                          "transformations do not add up to one transformation.")
 
             # A defeat must be CARRIED by revision B, exactly as a boundary is.
             for signal, source in (exp.get("signals_defeated") or {}).items():
@@ -1555,6 +1567,26 @@ def main() -> int:
         check(case_name in doc, f"the doc does not mention preregistered case {case_name!r}")
     for rid in ids:
         check(rid in doc, f"the doc does not mention rule {rid!r}")
+
+    # THE CASE TABLE, ROW BY ROW. "Mentions every case" left the table free to
+    # number itself however it liked, and the prose above it claimed `Ten` while
+    # the rows ran to 12. A count restated in prose goes stale exactly as often as
+    # it is restated, so the number now lives only in the table - and the table is
+    # checked against the contract instead of being trusted.
+    doc_rows = re.findall(r"^\|\s*(\d+)\s*\|\s*`([a-z0-9-]+)`\s*\|",
+                          doc, re.M)
+    check([int(n) for n, _ in doc_rows] == list(range(1, len(preregistered) + 1)),
+          f"the doc's case table is numbered {[n for n, _ in doc_rows]}; "
+          f"`preregistered_cases` holds {len(preregistered)} cases, so the rows must "
+          "run 1..N with no gap and no repeat")
+    check([c for _, c in doc_rows] == list(preregistered),
+          "the doc's case table lists\n  "
+          + "\n  ".join(c for _, c in doc_rows)
+          + "\nbut `preregistered_cases` is\n  "
+          + "\n  ".join(preregistered)
+          + "\nSame cases in the same order, or the table is describing a different "
+            "matrix than the one that runs.")
+
     for reason in sorted(emitted):
         tail = reason.rsplit(":", 1)[-1]
         check(tail in doc, f"the doc does not mention the reason {tail!r} the policy emits")
