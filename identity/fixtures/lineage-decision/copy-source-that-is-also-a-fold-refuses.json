@@ -120,7 +120,7 @@
     {
       "outcome": "unresolved",
       "side": "b",
-      "frm": [],
+      "frm": null,
       "to": [
         "occ-b1"
       ],
@@ -140,7 +140,7 @@
     {
       "outcome": "unresolved",
       "side": "b",
-      "frm": [],
+      "frm": null,
       "to": [
         "occ-b2"
       ],

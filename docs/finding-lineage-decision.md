@@ -59,11 +59,14 @@ revisit if I change this rule?" is answered by
 ```
 recall = applicable_rules
        + decision_detail.rules_without_a_unique_candidate
+       + decision_detail.rules_excluded_by_cardinality
        + any further explicitly recorded rejected stage
 ```
 
 A rule dropped for matching two candidates is *exactly* a mapping that would
-change if that rule were made more discriminating — and it is not in
+change if that rule were made more discriminating; a rule dropped for being the
+wrong shape is exactly one that would change if its cardinality were relaxed.
+Neither is in
 `applicable_rules` at all. This is why a rejected stage is **recorded** rather
 than computed and discarded: a stage whose output is thrown away cannot be
 recalled from.

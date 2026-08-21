@@ -784,6 +784,23 @@ def main() -> int:
             if outcome == "unresolved":
                 check(exp.get("side") in ("a", "b"),
                       f"{where}: unresolved needs side 'a' or 'b', got {exp.get('side')!r}")
+                # THE RAW SHAPE, BEFORE `as_list` FLATTENS IT. finding-lineage/v1
+                # describes the two sides asymmetrically - side a "leaves `to`
+                # empty", side b "leaves `frm` null" - and its own corpus follows
+                # that exactly. This matrix wrote `frm: []` on every b side, and
+                # `as_list` normalised the difference away, so a preregistered case
+                # was teaching a shape the senior contract does not sanction to any
+                # mapper or schema consumer reading it.
+                if exp.get("side") == "b":
+                    check(exp.get("frm", "missing") is None,
+                          f"{where}: an unresolved(b) leaves `frm` NULL per "
+                          f"finding-lineage/v1, got {exp.get('frm', 'missing')!r}. An "
+                          "empty list is a different claim, and normalising it here "
+                          "would hide the divergence rather than allow it.")
+                else:
+                    check(exp.get("to") == [],
+                          f"{where}: an unresolved(a) leaves `to` EMPTY per "
+                          f"finding-lineage/v1, got {exp.get('to')!r}")
                 check(exp.get("reason") in senior_limitations_set,
                       f"{where}: reason {exp.get('reason')!r} is not a senior limitation")
                 check(not lic, f"{where}: a refusal licenses nothing")

@@ -65,7 +65,7 @@
     {
       "outcome": "unresolved",
       "side": "b",
-      "frm": [],
+      "frm": null,
       "to": [
         "occ-b1"
       ],
