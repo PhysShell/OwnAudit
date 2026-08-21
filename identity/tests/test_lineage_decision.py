@@ -91,8 +91,29 @@ POLICY = os.path.join(ROOT, "contracts", "finding-lineage-decision-v1.json")
 # and this name was a literal at three call sites, so the two could drift apart
 # with nothing to object - the contract could point a mapper at `signals_defeated`
 # and every check stayed green. Now there is one source and it is the contract's.
-UNAVAILABLE_FIELD = (json.load(open(POLICY, encoding="utf-8"))
-                     ["unavailable_inputs"]["recorded_as"])
+def _recorded_as() -> str:
+    """The field name the contract reserves for unevaluable signals, read without
+    a crash.
+
+    This is MODULE level: it runs on import, before `main()` and therefore before
+    the contract gate that exists to refuse a malformed contract once and let the
+    diagnosis be printed. Deleting `recorded_as` raised KeyError here, three
+    hundred lines above the gate, and took every other finding of that run with
+    it - a gate cannot protect what runs before it, which is a thing worth
+    knowing about gates.
+
+    It stays the CONTRACT'S name and not a default: a value this cannot read
+    comes back empty, the gate refuses the contract by name, and the run stops
+    before anything reads a fixture through it. There is still one source."""
+    try:
+        with open(POLICY, encoding="utf-8") as fh:
+            value = json.load(fh).get("unavailable_inputs", {}).get("recorded_as")
+    except (OSError, ValueError, AttributeError):
+        return ""
+    return value if isinstance(value, str) else ""
+
+
+UNAVAILABLE_FIELD = _recorded_as()
 FIXDIR = os.path.join(ROOT, "identity", "fixtures", "lineage-decision")
 DOC = os.path.join(ROOT, "docs", "finding-lineage-decision.md")
 
@@ -1276,6 +1297,18 @@ def contract_shape_failures(policy: dict, senior: dict) -> list:
     CONTAIN is the business of the checks that own it; this exists so that they
     run at all."""
     out = []
+    recorded_as = mapping_or_empty(policy.get("unavailable_inputs")).get("recorded_as")
+    if not isinstance(recorded_as, str) or not recorded_as:
+        out.append(
+            "finding-lineage-decision/v1: `unavailable_inputs.recorded_as` is "
+            f"{recorded_as!r}. It names the record field for unevaluable signals, and "
+            "this suite derives the fixture schema from it AT IMPORT - so a missing "
+            "one is read before any check can run and takes the whole run with it.")
+    elif recorded_as != UNAVAILABLE_FIELD:
+        out.append(
+            f"finding-lineage-decision/v1: `unavailable_inputs.recorded_as` is "
+            f"{recorded_as!r}, but the schema was built from {UNAVAILABLE_FIELD!r} at "
+            "import. The contract changed under the run.")
     for contract, sections, label in ((policy, POLICY_SECTIONS, "finding-lineage-decision/v1"),
                                       (senior, SENIOR_SECTIONS, "finding-lineage/v1")):
         for name, kind in sorted(sections.items()):
@@ -1337,6 +1370,22 @@ def main() -> int:
     refusals = {frozenset(r) for r in raw_refusals}
 
     # ---- 0. The policy is subordinate, enforced from ABOVE. -----------------
+    # ITS OWN NAME, not only whose it builds on. Every FIXTURE is checked for
+    # naming this contract, and the contract itself was never asked - so the
+    # frozen policy could be renamed or lose its identifier entirely with both
+    # suites green, and twelve fixtures would go on declaring conformance to a
+    # document that no longer says what it is. The senior suite has checked this
+    # of the senior contract from the start; the junior one is the adjacent site
+    # nobody asked, which is now the third time that pairing has produced a
+    # finding.
+    check(policy.get("contract") == "finding-lineage-decision/v1",
+          f"the policy declares itself {policy.get('contract')!r}; the fixtures and "
+          "this suite both name `finding-lineage-decision/v1`, and a document that "
+          "does not say which schema it is cannot be conformed to.")
+    check(senior.get("contract") == "finding-lineage/v1",
+          f"the senior contract this policy is read against declares itself "
+          f"{senior.get('contract')!r}. `builds_on` names a document; this is the "
+          "check that the document loaded IS that one.")
     check(policy["builds_on"] == "finding-lineage/v1",
           f"the policy must declare what it is subordinate to, got {policy.get('builds_on')!r}")
     check(policy["status"] == "frozen-unimplemented",
