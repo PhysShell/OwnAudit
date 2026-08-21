@@ -90,6 +90,16 @@ DOC = os.path.join(ROOT, "docs", "finding-lineage-decision.md")
 # is a FAILURE, not a downgrade: see meta-check 5d.
 EXHAUSTIVE_PROOF_BUDGET = 250_000
 
+# Reviewed ceiling for the REAL-POLICY subset sweep, in subsets. This one IS
+# exponential in the rule count - 2^n - 1, every subset enumerated and retained.
+# What the previous commit removed was the 3^k factor in front of it, not the
+# exponential itself, and calling the remainder "linear" was simply wrong: six
+# rules sweep 63 subsets, twelve sweep 4095, twenty sweep over a million.
+# So it gets the same treatment as the falsifier - a reviewed ceiling that fails
+# CI rather than a claim that the cost is fine. 4095 is twelve rules, which is
+# double the current set and still trivial to run.
+SUBSET_SWEEP_BUDGET = 4095
+
 fails: list[str] = []
 
 
@@ -101,6 +111,27 @@ def check(cond: bool, msg: str) -> None:
 def load(path: str) -> dict:
     with open(path, encoding="utf-8") as fh:
         return json.load(fh)
+
+
+def duplicate_json_keys(path: str) -> list:
+    """Keys declared twice in one object, found during the RAW parse.
+
+    Has to be its own read: `json.load` resolves duplicates by keeping the last,
+    so nothing downstream can tell a duplicated key from a single one. Returns
+    dotted paths so the message can name where."""
+    dups: list = []
+
+    def hook(pairs):
+        seen = set()
+        for key, _ in pairs:
+            if key in seen:
+                dups.append(key)
+            seen.add(key)
+        return dict(pairs)
+
+    with open(path, encoding="utf-8") as fh:
+        json.load(fh, object_pairs_hook=hook)
+    return sorted(set(dups))
 
 
 def as_list(v) -> list:
@@ -216,18 +247,18 @@ def pair_completeness_failures(ids, outcomes, raw_edges, raw_refusals) -> list:
 def dominance_sanity_failures(ids, outcomes, raw_edges) -> list:
     """PROPERTY 2, pure for the same reason."""
     out, edges = [], set(raw_edges)
-    for (w, l) in sorted(edges):
+    for (w, loser) in sorted(edges):
         if w not in outcomes:
             out.append(f"dominance names unknown winner {w!r}")
-        if l not in outcomes:
-            out.append(f"dominance names unknown loser {l!r}")
-        if w == l:
+        if loser not in outcomes:
+            out.append(f"dominance names unknown loser {loser!r}")
+        if w == loser:
             out.append(f"{w} dominates itself")
-        if w in outcomes and l in outcomes and outcomes[w] == outcomes[l]:
-            out.append(f"{w} dominates {l} but both name {outcomes[w]!r}; dominance "
+        if w in outcomes and loser in outcomes and outcomes[w] == outcomes[loser]:
+            out.append(f"{w} dominates {loser} but both name {outcomes[w]!r}; dominance "
                        "settles disagreements, and there is none")
-        if (l, w) in edges:
-            out.append(f"{w} and {l} dominate each other")
+        if (loser, w) in edges:
+            out.append(f"{w} and {loser} dominate each other")
     if has_cycle(ids, edges):
         out.append("the dominance graph has a cycle. Every rule in it is dominated, "
                    "nothing survives, and arbitration answers `unresolved` while "
@@ -303,9 +334,18 @@ def main() -> int:
               f"{rid} names outcome {outcomes[rid]!r}, which is not one of the six")
         check(outcomes[rid] not in ("ended", "new"),
               f"{rid} licenses {outcomes[rid]!r}; boundary evidence owns that, not a rule")
+        # The floor counts KINDS, so the check must too. Counting list length let
+        # `["same_path", "same_path"]` clear a floor of two with one real kind -
+        # in the same file whose whole argument is that the floor is a floor.
+        # `partner_profile` already got this right; `requires_all` did not.
+        req_all = rules[rid].get("requires_all", [])
+        check(len(set(req_all)) == len(req_all),
+              f"{rid}: requires_all repeats a kind. The floor counts kinds, so a "
+              "repeat is either a typo or an attempt to reach the floor twice over "
+              "the same evidence.")
         if outcomes[rid] == "continued":
-            check(len(rules[rid].get("requires_all", [])) >= floor,
-                  f"{rid} licenses continued on {len(rules[rid].get('requires_all', []))} "
+            check(len(set(req_all)) >= floor,
+                  f"{rid} licenses continued on {len(set(req_all))} distinct "
                   f"kind(s); the frozen floor is {floor}")
 
         # Cardinality is a PRECONDITION of the rule, so it is checked as one. The
@@ -372,11 +412,22 @@ def main() -> int:
         check(False, msg)
 
     # ---- 3. TOTALITY - a THEOREM of 1 and 2, re-checked exhaustively. -------
+    # Exponential, and budgeted for it. See SUBSET_SWEEP_BUDGET.
     expected = 2 ** len(ids) - 1
+    if expected > SUBSET_SWEEP_BUDGET:
+        check(False,
+              f"the real-policy subset sweep needs 2^{len(ids)} - 1 = {expected} "
+              f"subsets, over the reviewed ceiling of {SUBSET_SWEEP_BUDGET}. This sweep "
+              "is exponential in the rule count - it always was, and the k-independent "
+              "argument only removed the 3^k factor in front of it. Either raise the "
+              "reviewed ceiling or rely on the written proof instead of re-checking it "
+              "by enumeration. Do not skip it silently.")
+        expected = 0
     results = {}
-    for size in range(1, len(ids) + 1):
-        for sub in itertools.combinations(ids, size):
-            results[frozenset(sub)] = arbitrate(sub, outcomes, edges, refusals)
+    if expected:
+        for size in range(1, len(ids) + 1):
+            for sub in itertools.combinations(ids, size):
+                results[frozenset(sub)] = arbitrate(sub, outcomes, edges, refusals)
     check(len(results) == expected,
           f"swept {len(results)} subsets, expected {expected} for {len(ids)} rules")
     undefined = sorted((sorted(s) for s, r in results.items() if r is None), key=len)
@@ -391,12 +442,25 @@ def main() -> int:
     # asked Python whether a set remembers order. It does not, and confirming
     # that 720 times is not evidence about this contract.
     # Order-independence is already carried by the theorem, whose every step is
-    # stated over subsets and a relation. What IS worth pinning is that the input
-    # is a set of distinct ids in the first place - the shape the argument needs.
-    check(all(len(set(sub)) == len(sub) for sub in
-              itertools.chain.from_iterable(itertools.combinations(ids, n)
-                                            for n in range(1, len(ids) + 1))),
-          "arbitration input must be a set of distinct rule ids")
+    # stated over subsets and a relation.
+    #
+    # A REPLACEMENT THAT WAS ALSO VACUOUS. The first attempt at "something worth
+    # pinning" checked that every swept subset holds distinct ids - and
+    # `itertools.combinations` never repeats an element, so it asked Python a
+    # question with one possible answer. Removing a vacuous check and installing
+    # another one under a comment about vacuous checks is worse than leaving the
+    # first: it looks like the lesson was learned.
+    # `len(set(ids)) == len(ids)` would be vacuous too, one step later: `json.load`
+    # collapses duplicate object keys silently, so by the time the ids are a dict
+    # the duplicate is already gone - along with one of the two rules.
+    # What CAN fail is the raw parse, so that is what is checked, on the contracts
+    # that carry rules and vocabulary this suite reads by key.
+    for label, cpath in (("decision policy", POLICY), ("outcome contract", SENIOR)):
+        for dup in duplicate_json_keys(cpath):
+            check(False,
+                  f"the {label} declares {dup!r} twice. `json.load` keeps the last one "
+                  "and drops the other without a word, so a rule, a limitation or an "
+                  "evidence kind would vanish between the file and every check below.")
 
     for pair in refusals:
         for subset, res in results.items():
@@ -511,6 +575,21 @@ def main() -> int:
                     check(outcome == "unresolved",
                           f"{where}: no rule applied, so the outcome is unresolved")
                     check(not lic, f"{where}: nothing applied, so nothing licensed")
+                    # AN EMPTY SET IS NOT ONE SITUATION. Nothing matched, and
+                    # everything matched but singled nobody out, are different
+                    # refusals with different reasons - and the recorded rejected
+                    # stage is what tells them apart. Treating every empty
+                    # `applicable_rules` alike let a fixture claim all rules failed
+                    # uniqueness and still report `no-mapping-evidence`.
+                    blunted = ((exp.get("decision_detail") or {})
+                               .get("rules_without_a_unique_candidate") or [])
+                    if blunted:
+                        check(exp.get("reason") == senior["limitations"]
+                              .get("ambiguous-candidates"),
+                              f"{where}: {sorted(blunted)} matched and failed uniqueness, "
+                              "so several candidates were available with nothing to "
+                              "prefer between them. `arbitration.multiplicity` calls that "
+                              f"ambiguous-candidates, not {exp.get('reason')!r}.")
                 else:
                     got = arbitrate(app, outcomes, edges, refusals)
                     check(got is not None, f"{where}: arbitration has no result for {sorted(app)}")
@@ -636,6 +715,24 @@ def main() -> int:
                 # would replace that diagnosis with a traceback. A suite that dies on
                 # the evidence it came to read has happened in this repo before.
                 lim = senior["limitations"]
+                # MANDATE THE REASON FIRST, then check its arithmetic. These used to
+                # be two independent `if`s keyed on the reason, so a fixture that
+                # named a THIRD reason entered neither branch and passed - and
+                # `no-mapping-evidence` after a defeat is exactly the claim the
+                # senior contract was amended to stop: evidence was observed, then
+                # explained away, so saying none was seen is false.
+                insufficiency = {lim.get("insufficient-evidence-kind"),
+                                 lim.get("insufficient-evidence-combination")}
+                if not as_list(exp.get("inputs_unavailable")):
+                    check(reason in insufficiency,
+                          f"{where}: a defeat removed {sorted(exp['signals_defeated'])} "
+                          f"and the reason is {reason!r}. Evidence was observed and then "
+                          "explained away, so the reason is an insufficiency one: "
+                          "-kind below the floor, -combination at or above it.")
+                # A defeat AND an unevaluable input together is a shape the contract
+                # has not settled and no case has yet. It is left unmandated ON
+                # PURPOSE rather than decided here by whichever branch was typed
+                # first; settle it in the contract when a case needs it.
                 if reason == lim.get("insufficient-evidence-kind"):
                     check(len(set(surviving)) < floor,
                           f"{where}: claims insufficient KINDS, but {len(set(surviving))} "
@@ -683,12 +780,26 @@ def main() -> int:
                       f"contract, which lists {spec['defeated_by']!r}")
                 check(bool(collect(rev_b, defeater)),
                       f"{where}: claims {kind!r} is defeated by {defeater}, which is empty")
-                subject = by_id.get((frm or to or [None])[0], {})
+                # FOLLOW THE DECLARED ROLE. This used to take `frm[0]` and fall
+                # back to `to[0]`, computing `role` and then ignoring it - so a
+                # `successor.*` boundary was checked against the PREDECESSOR, and a
+                # fixture could defeat a boundary that never applied to the side it
+                # names. Every occurrence on the declared side is checked, not the
+                # first one.
                 role, attr = spec["match"].split(".")
-                check(subject.get(attr) in collect(rev_b, spec["observable_from"]),
-                      f"{where}: {kind!r} would not have applied anyway - "
-                      f"{spec['observable_from']} does not name {subject.get(attr)!r}, so "
-                      "defeating it proves nothing")
+                subjects = frm if role == "predecessor" else to
+                check(bool(subjects),
+                      f"{where}: {kind!r} matches on {spec['match']}, and this "
+                      f"expectation names no {role}. There is nothing for the boundary "
+                      "to have applied to, so defeating it proves nothing.")
+                observed = collect(rev_b, spec["observable_from"])
+                for oid in subjects:
+                    wanted = by_id.get(oid, {}).get(attr)
+                    check(wanted in observed,
+                          f"{where}: {kind!r} would not have applied to {oid} anyway - "
+                          f"{spec['observable_from']} holds {sorted(observed)!r}, which "
+                          f"does not name its {attr} {wanted!r}, so defeating it proves "
+                          "nothing")
 
         # ---- the case's PREREGISTERED OBLIGATION, not just its answer. -------
         # A case can reach the right outcome for the wrong reason: move the losing
@@ -866,7 +977,7 @@ def main() -> int:
     satisfying, counterexamples, saw_multi_survivor = 0, [], False
     for combo in itertools.product((0, 1, 2), repeat=mk):
         e, rf = [], []
-        for (x, y), state in zip(model_pairs, combo):
+        for (x, y), state in zip(model_pairs, combo, strict=True):
             if state == 0:
                 e.append((x, y))
             elif state == 1:

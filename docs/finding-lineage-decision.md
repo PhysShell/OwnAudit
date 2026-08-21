@@ -268,8 +268,15 @@ to 3^9 x 63 = 1 240 029 arbitrations, and adding an ordinary rule became a CI
 compute decision. So the theorem is now falsified against a **fixed** four-rule
 model, outcomes partitioned A, A, B, C — chosen because it contains the shape
 the survivor reading turns on, two rules of one outcome surviving together — and
-called what it is: bounded falsification, not proof. The real policy is still
-verified directly and completely, at linear cost.
+called what it is: bounded falsification, not proof.
+
+The real policy is still verified directly and completely — every subset of its
+own rule ids. That sweep is **exponential in the rule count**, `2^n - 1`: six
+rules sweep 63 subsets, twelve sweep 4095, twenty sweep over a million. An
+earlier revision of this document called it linear, which was wrong — dropping
+the `3^k` factor bought a far smaller exponent, not the absence of one. So it
+carries a reviewed ceiling of its own and fails CI when exceeded, rather than
+growing quietly until someone notices the bill.
 
 ## The preregistered matrix
 
