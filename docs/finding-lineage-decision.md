@@ -300,6 +300,8 @@ answers are available and the policy has to say which, or say neither.
 | 8 | `copy-source-that-is-also-a-fold-refuses` | `unresolved` / `conflicting-evidence` — N:M, and none of the six outcomes is N:M |
 | 9 | `every-candidate-blunted-is-an-ambiguity` | `unresolved` / `ambiguous-candidates` — every rule matched both, and none preferred one |
 | 10 | `a-defeat-can-leave-too-few-kinds` | `unresolved` / `insufficient-evidence-kind` — one kind survives against a floor of two |
+| 11 | `a-recorded-rename-is-not-an-unresolved` | `continued` — the twin of case 6, with the record readable |
+| 12 | `an-edit-elsewhere-is-still-the-same-defect` | `continued` — the line moved and the text changed |
 
 Cases 1 and 2 carry an extra burden, because a fixture can be right for the
 wrong reason: move the losing rule out of `applicable_rules` and the answer is
@@ -307,6 +309,32 @@ still `branched`, with dominance doing no work whatever. The suite cannot notice
 on its own — that is applicability again — so `case_obligations` preregisters
 what each case must *mechanically* exhibit, and both cases fail if their loser is
 quietly reclassified.
+
+Cases 11 and 12 close a coarser one. Four rules license `continued`, so
+exercising any of them ticked that outcome off — and `R-CONT-RENAME` and
+`R-CONT-DRIFT` were reached by no case at all. Either could be rewritten into a
+different policy with the whole suite green: swap the rename rule's `path_rename`
+for `same_path`, or the drift rule's `line_drift` for `path_rename`, and nothing
+went red. Worse, the suite carried an argued-for exemption saying this was fine —
+that the rename rule was constrained by the senior corpus instead. It is not:
+`finding-lineage/v1` fixtures name no decision rule ids, and this suite never
+arbitrates them. The gate is now **per rule**, and each of the two new cases
+carries `rule_licensed_alone`, so the rule it reaches is the only rule applicable
+and the conclusion rests on that rule's requirements alone.
+
+Case 11 is deliberately the same physical move as case 6 — same paths, same
+symbol, same content — differing in one respect only: whether `path_rename` could
+be evaluated. Case 6 cannot see the rename and answers `unresolved`; case 11 can
+and answers `continued`. Holding the movement fixed and varying only the
+readability of the record is what makes the absence-of-record doctrine visible as
+a decision rather than a paragraph. Case 12 rests on the one rule that does *not*
+require `anchored_content`: the text really did change, and a defect may be
+edited without ceasing to be the same defect.
+
+What the per-rule gate does **not** do is bind a rule's `requires_all` to the
+evidence a fixture carries. Reaching a rule proves the rule is reachable, not
+that its stated requirements are why it applied — that is applicability, which
+fixtures declare and this suite refuses to compute.
 
 Cases 9 and 10 close a coverage gap an outcome-shaped gate could not see. The
 policy emits five refusal reasons; `unresolved` read as covered while two of

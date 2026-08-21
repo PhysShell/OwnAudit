@@ -378,7 +378,9 @@
     "blunt-rule-loses-to-uniqueness",
     "copy-source-that-is-also-a-fold-refuses",
     "every-candidate-blunted-is-an-ambiguity",
-    "a-defeat-can-leave-too-few-kinds"
+    "a-defeat-can-leave-too-few-kinds",
+    "a-recorded-rename-is-not-an-unresolved",
+    "an-edit-elsewhere-is-still-the-same-defect"
   ],
   "preregistration_rule": [
     "Fixed before the mapper, same as slice 2 step 0. These are about the POLICY",
@@ -770,6 +772,12 @@
       ],
       "a-defeat-can-leave-too-few-kinds": [
         "defeat_removed_a_signal"
+      ],
+      "a-recorded-rename-is-not-an-unresolved": [
+        "rule_licensed_alone"
+      ],
+      "an-edit-elsewhere-is-still-the-same-defect": [
+        "rule_licensed_alone"
       ]
     },
     "meanings": {
@@ -778,7 +786,8 @@
       "defeat_removed_a_signal": "`signals_defeated` is non-empty, the defeating record is carried by revision B, and it names this occurrence.",
       "input_was_unavailable": "`inputs_unavailable` is non-empty and revision B declares the same signal in `unavailable_signals`.",
       "blunt_rule_recorded": "`decision_detail.rules_without_a_unique_candidate` is non-empty. The blunt rule must be visible as having failed to choose, not merely absent.",
-      "refusal_was_recorded": "the case exercises a pair declared in `deliberately_unresolved_conflicts` - both ids applicable together - and records them in `decision_detail.conflicting_rules` with an EMPTY `licensed_by`. Until this obligation existed the N:M refusal was frozen in the contract and pinned by no case at all, which is the shape of defect this matrix exists to catch."
+      "refusal_was_recorded": "the case exercises a pair declared in `deliberately_unresolved_conflicts` - both ids applicable together - and records them in `decision_detail.conflicting_rules` with an EMPTY `licensed_by`. Until this obligation existed the N:M refusal was frozen in the contract and pinned by no case at all, which is the shape of defect this matrix exists to catch.",
+      "rule_licensed_alone": "exactly one rule is in `applicable_rules` and the same rule is in `licensed_by`. Nothing was dominated, nothing was filtered out, and the conclusion therefore rests ENTIRELY on that rule's own requirements - which is what makes the case a pin on them. A rule reachable only in cases where some other rule also applies is a rule whose requirements can be rewritten without any fixture noticing."
     },
     "rule": [
       "Every preregistered case must appear here, and every obligation must be one",
@@ -819,5 +828,41 @@
     "That is the rule, and it has already been broken once: cardinality became a",
     "filter without a field of its own, so its rejections were either mislabelled as",
     "ambiguities or lost. A stage whose output is discarded cannot be recalled from."
+  ],
+  "rule_coverage_rule": [
+    "EVERY DECLARED RULE MUST LICENSE SOMETHING SOMEWHERE.",
+    "",
+    "Two rules - R-CONT-RENAME and R-CONT-DRIFT - were declared here, argued for in",
+    "their own `note` fields, and reached by no preregistered case at all. Both could",
+    "be rewritten into a different policy with the whole suite staying green:",
+    "swapping R-CONT-RENAME's `path_rename` for `same_path`, or R-CONT-DRIFT's",
+    "`line_drift` for `path_rename`, changed nothing any check could see. Outcome",
+    "coverage did not catch it, because other rules of outcome `continued` were",
+    "exercised and the outcome was therefore ticked off; and the senior corpus could",
+    "not catch it either, because `finding-lineage/v1` fixtures name no decision rule",
+    "ids and this suite does not arbitrate them.",
+    "",
+    "So the gate is PER RULE, not per outcome: every id in `rules` must appear in the",
+    "`licensed_by` of some expectation.",
+    "",
+    "WHAT THE GATE DOES NOT DO, stated because a check whose message claims more than",
+    "its code checks is the defect this branch has found most often. Appearing in",
+    "`licensed_by` does not verify that the rule's `requires_all` is WHY it applied -",
+    "that is applicability, which fixtures declare and this suite refuses to compute.",
+    "The gate guarantees a rule is reached, and `rule_licensed_alone` on the two cases",
+    "above guarantees the reaching is not incidental to some other rule doing the work.",
+    "Binding requirements to evidence is a separate question and it is NOT answered",
+    "here. Two invariants stand in for part of it, both chosen because neither needs",
+    "a checker to decide whether a signal holds:",
+    "",
+    "  - no rule may require a combination the senior contract freezes as mutually",
+    "    exclusive, because such a rule can never fire and takes its outcome with it;",
+    "  - no two rules may carry identical requirements under one outcome and shape,",
+    "    because that is one rule under two names.",
+    "",
+    "Together they catch every single-signal rewrite tried so far, including the two",
+    "that motivated this section. They do not catch every possible one, and the",
+    "residue is recorded as an open question rather than closed by a checker that",
+    "would have to compute applicability to do it."
   ]
 }

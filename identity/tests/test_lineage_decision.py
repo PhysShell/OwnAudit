@@ -561,12 +561,48 @@ def main() -> int:
                 check(len(set(req)) >= floor,
                       f"{rid}: partner_profile names {len(set(req))} kind(s); the frozen "
                       f"floor is {floor}. The floor is checked, never used to generate.")
+        # NO RULE MAY REQUIRE AN IMPOSSIBLE COMBINATION. The senior contract
+        # freezes which kinds cannot co-occur; a rule demanding both is dead and
+        # takes its outcome down quietly with it. This is one of the two things
+        # standing in for a binding of `requires_all` to evidence, which the
+        # suite cannot do without becoming a second mapper - see the note on
+        # `rule_coverage_rule`.
+        needs = rule_needs(rules[rid])
+        for excl in senior.get("mutually_exclusive_evidence_kinds") or []:
+            pair = set(excl.get("between") or [])
+            check(not pair <= needs,
+                  f"{rid} requires {sorted(pair)} together, which "
+                  "`finding-lineage/v1` freezes as mutually exclusive. No evidence "
+                  "can satisfy the rule, so it licenses nothing and its outcome "
+                  "silently degrades to `unresolved`.")
+
         # The abandoned wording must not creep back in under its old names.
         for dead in ("requires_per_successor", "requires_per_predecessor"):
             check(dead not in rules[rid],
                   f"{rid} still carries {dead!r}. That condition was falsified against the "
                   "frozen corpus: every continued rule needs `structural_context`, and the "
                   "copy and fold cases change the enclosing symbol.")
+
+    # TWO RULES MAY NOT BE THE SAME RULE. Identical requirements under one
+    # outcome make a pair indistinguishable: no evidence can satisfy either
+    # without satisfying both, so one of them licenses nothing that the other
+    # does not, and retiring it would change no mapping. The pair is also
+    # invisible to arbitration, which only ever sees rules AGREEING.
+    #
+    # This is the second stand-in for binding `requires_all` to evidence. It is
+    # what catches a rename rule whose `path_rename` is swapped for `same_path`:
+    # the result is R-CONT-SAME-SITE under a second name.
+    by_requirements: dict = {}
+    for rid in ids:
+        key = (outcomes[rid], frozenset(rule_needs(rules[rid])),
+               rules[rid].get("cardinality", {}).get("shape"))
+        by_requirements.setdefault(key, []).append(rid)
+    for key, group in sorted(by_requirements.items(), key=lambda kv: sorted(kv[1])):
+        check(len(group) == 1,
+              f"{sorted(group)} license {key[0]!r} at {key[2]!r} on identical "
+              f"requirements {sorted(key[1])}. They are one rule under two names: "
+              "nothing can satisfy either without satisfying both, so neither can "
+              "be cited for a mapping the other does not equally license.")
 
     # ---- 1 and 2, via the pure functions the meta-checks also exercise. -----
     conflicting = {frozenset(p) for p in itertools.combinations(ids, 2)
@@ -696,6 +732,7 @@ def main() -> int:
             check(duty in obligation_meanings,
                   f"{cname}: obligation {duty!r} has no entry in `meanings`")
     licensed_outcomes: set[str] = set()
+    licensed_rules: set[str] = set()
     exercised_refusals: set = set()
     exercised_reasons: set = set()
     for name in sorted(set(on_disk) & set(preregistered)):
@@ -747,6 +784,7 @@ def main() -> int:
                   f"{where}: licensed_by {sorted(set(lic) - set(app))} is not in "
                   "applicable_rules; a rule cannot license what it never applied to")
             licensed_outcomes.add(outcome)
+            licensed_rules.update(lic)
             if exp.get("reason"):
                 exercised_reasons.add(exp["reason"])
             for _pair in refusals:
@@ -1038,13 +1076,23 @@ def main() -> int:
             # could not choose between. Checked where it appears, and required
             # wherever a rule is recorded as unable to choose - otherwise the
             # promise in `reason_mapping.several_candidates` stays unkeepable.
+            # BOTH DIRECTIONS. This required the binding only when a rule was
+            # recorded as unable to choose, so the converse - candidates named for
+            # a rule that no stage rejected - passed. That is not cosmetic: the
+            # recall union is built from the rejecting fields, so candidates
+            # attached to nothing put a rule's ambiguity in the record while
+            # leaving it out of the recall set, and `mandated_reason` reads no
+            # blunted rule and can still demand `no-mapping-evidence`. The field
+            # is the candidate binding FOR the uniqueness rejection; with no
+            # rejection there is nothing for it to bind.
             cand = detail.get("ambiguous_candidates")
             blunted_ids = detail.get("rules_without_a_unique_candidate") or []
-            if blunted_ids:
+            if blunted_ids or cand:
                 check(isinstance(cand, dict) and set(cand) == set(blunted_ids),
-                      f"{where}: {sorted(blunted_ids)} could not choose, so "
-                      "decision_detail.ambiguous_candidates must name the candidates for "
-                      f"exactly those rules, got {sorted(cand or {})}")
+                      f"{where}: decision_detail.ambiguous_candidates must name the "
+                      "candidates for exactly the rules recorded in "
+                      f"rules_without_a_unique_candidate {sorted(blunted_ids)}, got "
+                      f"{sorted(cand or {})}")
             for rid, ids_ in (cand or {}).items():
                 check(rid in rules, f"{where}: ambiguous_candidates names unknown rule {rid!r}")
                 check(isinstance(ids_, list) and len(set(ids_)) >= 2,
@@ -1115,6 +1163,12 @@ def main() -> int:
                     met |= bool(exp.get("signals_defeated"))
                 elif duty == "input_was_unavailable":
                     met |= bool(exp.get("inputs_unavailable"))
+                elif duty == "rule_licensed_alone":
+                    # The rule is not merely present, it is the ONLY thing present.
+                    # `licensed_by` alone would be satisfied by a rule riding along
+                    # with a second one that did the real work, which is exactly the
+                    # incidental reach this obligation exists to rule out.
+                    met |= len(app_s) == 1 and app_s == lic_s
                 elif duty == "blunt_rule_recorded":
                     met |= bool((exp.get("decision_detail") or {})
                                 .get("rules_without_a_unique_candidate"))
@@ -1166,12 +1220,18 @@ def main() -> int:
         check(bool(seen_forbid), f"{name}: `forbid` is empty - the case rules nothing out")
 
     # Every outcome a RULE can license must be licensed by some case, or it is
-    # frozen in name only and a mapper may reach it however it likes. This is the
-    # analogue of step 0's outcome sweep; it is not a demand for one happy-path
-    # case per rule, because this matrix is about shapes where two answers are
-    # available and a rename that simply works is not one. R-CONT-RENAME is
-    # constrained by the senior corpus, where `rename-with-context-continues` is
-    # the only rule that licenses it.
+    # frozen in name only and a mapper may reach it however it likes.
+    #
+    # What stood here was an ARGUMENT FOR NOT CHECKING PER RULE: that this matrix
+    # is about shapes where two answers are available, that a rename which simply
+    # works is not one, and that R-CONT-RENAME is constrained by the senior corpus
+    # instead. Every clause of that was wrong. `finding-lineage/v1` fixtures name
+    # no decision rule ids and this suite never arbitrates them, so the senior
+    # corpus constrains no rule here at all; R-CONT-RENAME and R-CONT-DRIFT were
+    # both reached by nothing, and either could be rewritten into a different
+    # policy - `path_rename` for `same_path`, `line_drift` for `path_rename` -
+    # with the suite staying green. The exemption was not an oversight; it was
+    # reasoned for, in this comment, and the reasoning is what let the gap sit.
     # A declared refusal with no case is a decision nothing pins - the defect this
     # project keeps finding in its own drafts. The N:M pair was frozen in the
     # contract and exercised by no fixture at all until this check was written.
@@ -1198,6 +1258,18 @@ def main() -> int:
         check(wanted in licensed_outcomes,
               f"no preregistered case reaches {wanted!r}; the policy can license it and "
               "nothing pins how")
+
+    # PER RULE, because per outcome is not enough: four rules license `continued`,
+    # so exercising any one of them ticked the outcome off and left the other
+    # three free to be rewritten. See `rule_coverage_rule` in the contract for
+    # what this gate does NOT establish - reaching a rule is not the same as
+    # binding its `requires_all` to the evidence, which is applicability and is
+    # not this suite's to compute.
+    for rid in sorted(ids):
+        check(rid in licensed_rules,
+              f"{rid} licenses nothing in the matrix. The policy declares it, so its "
+              "requirements can be changed into a different rule and no preregistered "
+              "case would notice - which is how two of these rules were found.")
 
     # ---- 4c. THE DOC AND THE CONTRACT AGREE. --------------------------------
     # Same gate step 0 uses. A document that stops naming a case, or keeps saying

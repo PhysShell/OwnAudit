@@ -43,7 +43,17 @@
     "rule against widening from below has now fired twice, which is a better",
     "argument for writing rules down than any amount of agreeing that one should.",
     "Still frozen-unimplemented: no mapper exists, so nothing is built on the old",
-    "shape and nothing has to be migrated."
+    "shape and nothing has to be migrated.",
+    "",
+    "Amended a THIRD time by slice 2 step 1, which added",
+    "'mutually_exclusive_evidence_kinds'. Step 1's per-rule coverage gate proved that",
+    "a rule reached by a fixture is still not a rule whose REQUIREMENTS are pinned:",
+    "swapping a continued rule's `line_drift` for `path_rename` left every check",
+    "green, because binding requirements to evidence is applicability and the step 1",
+    "suite deliberately refuses to compute it. Declaring which kinds cannot co-occur",
+    "closes part of that gap from the vocabulary side instead, where it costs no",
+    "second mapper. It does not close all of it - see the open question recorded in",
+    "the step 1 pull request."
   ],
   "outcomes": {
     "continued": {
@@ -329,5 +339,34 @@
     "this list: a case removed or renamed fails the suite rather than disappearing.",
     "Every one of the six outcomes must appear somewhere in the matrix, or that",
     "outcome is frozen in name only and the mapper may implement it as it likes."
+  ],
+  "mutually_exclusive_evidence_kinds": [
+    {
+      "between": [
+        "same_path",
+        "path_rename"
+      ],
+      "why": [
+        "A path that is the SAME did not get renamed, and a path that got renamed",
+        "is not the same. These two kinds cannot both hold of one predecessor and",
+        "successor, and no rule in any junior contract may require both.",
+        "",
+        "This is frozen here rather than in the decision policy because it is a fact",
+        "about the VOCABULARY, not about any particular rule that uses it. It was",
+        "added when slice 2 step 1 found that a continued rule could have its",
+        "`line_drift` requirement swapped for `path_rename` - producing a rule that",
+        "demands a file both stay put and move - with the whole integrity suite",
+        "green. Nothing in either contract said the combination was impossible, so",
+        "nothing could object."
+      ]
+    }
+  ],
+  "mutually_exclusive_rule": [
+    "A pair listed here is UNSATISFIABLE, so a rule requiring both is dead code that",
+    "no evidence can ever reach. That is a defect and not a conservative choice: a",
+    "rule which cannot fire silently removes the conclusion it was meant to license,",
+    "and the mapping degrades to `unresolved` while the contract still advertises the",
+    "rule. Junior contracts are checked against this list; they may not add to it from",
+    "below, for the same reason they may not widen `limitations` from below."
   ]
 }

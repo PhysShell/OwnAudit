@@ -1,0 +1,73 @@
+{
+  "case": "a-recorded-rename-is-not-an-unresolved",
+  "title": "The same move as `unavailable-diff-is-not-a-deletion`, with the record readable",
+  "why": "The twin of `unavailable-diff-is-not-a-deletion`, and the pair is the point. The occurrence performs the identical physical move in both - Broker/Old.cs to Broker/New.cs, same symbol, same content - and the two cases differ in exactly one respect: whether `path_rename` could be EVALUATED. There the diff was missing and the honest answer was `unresolved` naming the missing input; here the rename record is present and the same move is a `continued`. Holding the movement fixed and varying only the readability of the record is what shows the absence-of-record doctrine changing an answer, rather than a doctrine asserted in prose. R-CONT-RENAME is the sole applicable rule: the paths differ, so neither R-CONT-SAME-SITE nor R-CONT-DRIFT can fire, and there is no copy or merge record. Nothing dominates anything, and the conclusion rests entirely on this one rule's requirements.",
+  "revision_a": {
+    "revision": "r1",
+    "occurrences": [
+      {
+        "occurrence_id": "occ-a1",
+        "path": "Broker/Old.cs",
+        "start_line": 42,
+        "start_column": null,
+        "pattern_id": "pat-A",
+        "enclosing_symbol": "DocView.Wire",
+        "anchored_content": "_store.Changed += OnChanged;"
+      }
+    ]
+  },
+  "revision_b": {
+    "revision": "r2",
+    "renames": [
+      {
+        "from": "Broker/Old.cs",
+        "to": "Broker/New.cs",
+        "similarity": 96
+      }
+    ],
+    "occurrences": [
+      {
+        "occurrence_id": "occ-b1",
+        "path": "Broker/New.cs",
+        "start_line": 42,
+        "start_column": null,
+        "pattern_id": "pat-A",
+        "enclosing_symbol": "DocView.Wire",
+        "anchored_content": "_store.Changed += OnChanged;"
+      }
+    ]
+  },
+  "expect": [
+    {
+      "outcome": "continued",
+      "frm": [
+        "occ-a1"
+      ],
+      "to": [
+        "occ-b1"
+      ],
+      "applicable_rules": [
+        "R-CONT-RENAME"
+      ],
+      "licensed_by": [
+        "R-CONT-RENAME"
+      ],
+      "not_applicable": {
+        "R-CONT-SAME-SITE": "the paths differ, so same_path did not fire",
+        "R-CONT-DRIFT": "the paths differ, so same_path did not fire; line_drift alone is not this rule",
+        "R-CONT-COPY": "no copy record",
+        "R-BRANCH-COPY": "no copy record",
+        "R-MERGE-FOLD": "no merge record"
+      },
+      "note": "one rule applicable and the same rule licensing. `arbitration.all_agree` read on a set of one, which is the general law and not a special case for singletons."
+    }
+  ],
+  "forbid": [
+    "unresolved - the record that was missing in the twin case is present here",
+    "R-CONT-SAME-SITE applying across two different paths",
+    "path_rename licensing this on its own; a rename relates FILES",
+    "inputs_unavailable naming path_rename - it was evaluated here, and it held"
+  ],
+  "contract": "finding-lineage-decision/v1",
+  "status": "preregistered-unimplemented"
+}

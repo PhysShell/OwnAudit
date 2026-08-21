@@ -1,0 +1,66 @@
+{
+  "case": "an-edit-elsewhere-is-still-the-same-defect",
+  "title": "The line moved and the text changed, in the same file and the same symbol",
+  "why": "R-CONT-DRIFT is the only rule in this policy that does NOT require `anchored_content`, and its note says why: a defect may be edited without ceasing to be the same defect. That claim is only worth anything if some case actually rests on it, so this one is built to make `anchored_content` FALSE - the argument gained a null check - while the path and the enclosing symbol hold. R-CONT-SAME-SITE therefore cannot fire, and R-CONT-DRIFT is the sole applicable rule. Were the drift rule quietly rewritten to demand content, or to demand a rename, this case is what stops it: nothing else in the matrix reaches it.",
+  "revision_a": {
+    "revision": "r1",
+    "occurrences": [
+      {
+        "occurrence_id": "occ-a1",
+        "path": "Broker/Doc.cs",
+        "start_line": 42,
+        "start_column": null,
+        "pattern_id": "pat-A",
+        "enclosing_symbol": "DocView.Wire",
+        "anchored_content": "_store.Changed += OnChanged;"
+      }
+    ]
+  },
+  "revision_b": {
+    "revision": "r2",
+    "occurrences": [
+      {
+        "occurrence_id": "occ-b1",
+        "path": "Broker/Doc.cs",
+        "start_line": 57,
+        "start_column": null,
+        "pattern_id": "pat-A",
+        "enclosing_symbol": "DocView.Wire",
+        "anchored_content": "if (_store != null) _store.Changed += OnChanged;"
+      }
+    ]
+  },
+  "expect": [
+    {
+      "outcome": "continued",
+      "frm": [
+        "occ-a1"
+      ],
+      "to": [
+        "occ-b1"
+      ],
+      "applicable_rules": [
+        "R-CONT-DRIFT"
+      ],
+      "licensed_by": [
+        "R-CONT-DRIFT"
+      ],
+      "not_applicable": {
+        "R-CONT-SAME-SITE": "the content changed, so anchored_content did not fire",
+        "R-CONT-RENAME": "the file did not move; there is no rename record",
+        "R-CONT-COPY": "no copy record",
+        "R-BRANCH-COPY": "no copy record",
+        "R-MERGE-FOLD": "no merge record"
+      },
+      "note": "`line_drift` is doing the work `anchored_content` does elsewhere: the occurrence is in the same file and the same symbol, displaced by an edit above it. Requiring the text to be identical here would end a lineage every time someone touched the line."
+    }
+  ],
+  "forbid": [
+    "unresolved - the site is intact and the pattern is the same",
+    "R-CONT-SAME-SITE applying across changed content",
+    "ended for occ-a1 plus new for occ-b1 - an edit is not a death and a birth",
+    "line_drift licensing this on its own; a line number is not an identity"
+  ],
+  "contract": "finding-lineage-decision/v1",
+  "status": "preregistered-unimplemented"
+}
