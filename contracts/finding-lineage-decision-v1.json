@@ -229,7 +229,8 @@
   "arbitration": {
     "none_applies": {
       "outcome": "unresolved",
-      "reason": "lineage-id-unavailable:no-mapping-evidence"
+      "reason": "lineage-id-unavailable:no-mapping-evidence",
+      "implements": "no_rule_applied"
     },
     "all_agree": {
       "outcome": "the shared outcome",
@@ -247,6 +248,7 @@
     "conflict": {
       "outcome": "unresolved",
       "reason": "lineage-id-unavailable:conflicting-evidence",
+      "implements": "conflicting_rules",
       "unless": "after removing every rule dominated by another APPLICABLE rule, the surviving rules are non-empty and all name the same outcome; then the outcome is that shared outcome and `licensed_by` is EVERY surviving rule",
       "licensed_by_on_refusal": "EMPTY. Nothing licensed the refusal.",
       "why": "two rules reaching different conclusions from the same evidence is a defect in this contract, and a mapper is the wrong place to paper over it. Refusing makes it visible; picking one hides it behind whichever branch was typed first.",
@@ -271,7 +273,8 @@
       "several_candidates_with_a_structural_record": "branched or merged, per R-BRANCH-COPY / R-MERGE-FOLD, whose `cardinality` guards already require the multiplicity rather than tolerating it",
       "several_candidates_without_one": {
         "outcome": "unresolved",
-        "reason": "lineage-id-unavailable:ambiguous-candidates"
+        "reason": "lineage-id-unavailable:ambiguous-candidates",
+        "implements": "several_candidates"
       },
       "why": [
         "This is what makes twins work without any rule mentioning twins. Two",
@@ -293,6 +296,18 @@
       "rule dominates - and it is empty exactly when the outcome is a refusal.",
       "Dominated rules never appear in it. They stay in `applicable_rules`, where",
       "the disagreement remains readable without being credited with the answer."
+    ],
+    "reason_declarations_rule": [
+      "EVERY branch here that names a `reason` also names the `reason_mapping` entry",
+      "it IMPLEMENTS, and the integrity suite requires the two to agree.",
+      "The reason is that this file states each refusal value three times - here, in",
+      "`reason_mapping`, and for a refused pair in `deliberately_unresolved_conflicts`",
+      "- and for a while nothing tied them together. Repointing any one of the three",
+      "left the suite green, so a mapper implementing from this section could emit a",
+      "value the mapping and every fixture reject.",
+      "The correspondence is declared rather than known by the checker, for the same",
+      "reason `observable_from` is: a checker that knows which branch means which",
+      "entry has an opinion nobody can review."
     ]
   },
   "dominance": {
@@ -368,18 +383,27 @@
     "rather than the vocabulary: each is a shape where two answers are available",
     "and the contract has to say which, or say neither.",
     "The matrix on disk must equal this list EXACTLY - the same gate step 0 uses.",
-    "It has already paid for itself once: trying to write the first two cases is",
+    "It has already paid for itself twice: trying to write the first two cases is",
     "what proved the structural rules could not license the outcomes the senior",
-    "contract had frozen. A half-matrix of the cases that happened to pass would",
-    "have hidden that, which is the whole reason partial credit is not offered.",
-    "SEVEN, not the six first listed. `copy-at-one-to-one-is-not-a-branch` was",
-    "added during review: `copy-record-dominates-the-single-match` shows a copy",
-    "record licensing a branch, and nothing showed the same record at 1:1, where",
-    "the cardinality guard means it explains a MOVE instead. One record, two",
-    "readings, and cardinality is what chooses - a boundary worth a case of its",
-    "own rather than a sentence in someone else's. A case may be ADDED with its",
-    "entry here; none may be removed or renamed to make an implementation look",
-    "better."
+    "contract had frozen, and a later check found the declared N:M refusal pinned",
+    "by no case at all. A half-matrix of the cases that happened to pass would have",
+    "hidden both, which is why partial credit is not offered.",
+    "THE LIST ABOVE IS THE COUNT, and this paragraph does not repeat it. Two",
+    "earlier revisions of these lines said SIX and then SEVEN while the list said",
+    "otherwise - a number restated in prose goes stale exactly as often as it is",
+    "restated. Both cases added after the first draft are named here rather than",
+    "folded in silently:",
+    "  `copy-at-one-to-one-is-not-a-branch` - the same copy record at 1:1, where",
+    "  the cardinality guard means it explains a MOVE rather than a multiplicity.",
+    "  One record, two readings, and cardinality is what chooses.",
+    "  `copy-source-that-is-also-a-fold-refuses` - the N:M shape that",
+    "  `deliberately_unresolved_conflicts` freezes. That refusal was a decision",
+    "  this contract had already made and no fixture exercised; a witness check",
+    "  found it, which is the argument for proofs over the rule set rather than",
+    "  fixtures alone, made twice now.",
+    "A case may be ADDED with its entry here and an obligation in",
+    "`case_obligations`; none may be removed or renamed to make an implementation",
+    "look better."
   ],
   "conflict_completeness_rule": [
     "PAIR COMPLETENESS. Every pair of DECLARED rule ids naming a different outcome",

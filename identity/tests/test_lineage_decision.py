@@ -424,6 +424,30 @@ def main() -> int:
     # `outcome: continued` with a no-mapping-evidence reason left the suite green
     # while that entry, `arbitration.conflict` and `reason_mapping.conflicting_rules`
     # all disagreed.
+    # ONE REASON, DECLARED THREE TIMES. Each arbitration branch names the
+    # `reason_mapping` entry it implements, and the two must agree. Nothing tied
+    # them together before: repointing `arbitration.conflict.reason` - or
+    # `none_applies`, or the multiplicity branch, all three were loose - left the
+    # suite green while a mapper implementing from that section would emit a value
+    # the mapping and every fixture reject.
+    branches = [(("arbitration", "none_applies"), policy["arbitration"]["none_applies"]),
+                (("arbitration", "conflict"), policy["arbitration"]["conflict"]),
+                (("arbitration", "multiplicity", "several_candidates_without_one"),
+                 policy["arbitration"]["multiplicity"]["several_candidates_without_one"])]
+    for where_b, node in branches:
+        key = node.get("implements")
+        check(key in policy["reason_mapping"],
+              f"{'.'.join(where_b)} names reason {node.get('reason')!r} and implements "
+              f"{key!r}, which is not a `reason_mapping` entry. The correspondence is "
+              "declared, not guessed - a checker that knows which branch means which "
+              "entry has an opinion nobody can review.")
+        if key in policy["reason_mapping"]:
+            want_b = (policy["reason_mapping"][key] or {}).get("reason")
+            check(node.get("reason") == want_b,
+                  f"{'.'.join(where_b)} says {node.get('reason')!r} but implements "
+                  f"{key!r}, which selects {want_b!r}. One value, stated three times, "
+                  "and all three have to say it.")
+
     conflict_reason = (policy["reason_mapping"].get("conflicting_rules") or {}).get("reason")
     for entry in policy["deliberately_unresolved_conflicts"]:
         pair = sorted(entry.get("between") or [])
