@@ -789,8 +789,13 @@ def main() -> int:
 
     # ---- 4. Structural signals are observable, like boundary evidence. ------
     catalog = policy["structural_signals"]
-    kind_records = {k: v for k, v in (policy.get("evidence_kind_records") or {}).items()
-                    if isinstance(v, str)}
+    # NO TYPE FILTER. This read the whole object and kept the string values, to
+    # skip the prose sibling - so a mapping whose target was `null`, a list or an
+    # object vanished BEFORE validation and resolved to `catalog.get(None)`,
+    # leaving the rule licensed and its record unchecked. The mappings now live
+    # under `map` and the prose does not, so there is nothing to classify and
+    # every entry is validated.
+    kind_records = (policy.get("evidence_kind_records") or {}).get("map") or {}
     for name, spec in catalog.items():
         for field in ("observable_from", "matches", "why"):
             check(field in spec, f"structural signal {name!r} must state {field!r}")
@@ -871,7 +876,14 @@ def main() -> int:
     # `missing_rename_record` left R-CONT-RENAME licensed and its record
     # unchecked - fail-open, in the resolution step added to close a fail-open.
     senior_kinds = set(senior["evidence_kinds"])
+    check(isinstance(kind_records, dict) and bool(kind_records),
+          "`evidence_kind_records.map` must carry the kind -> record mappings; an "
+          "empty or missing map silently unbinds every rule naming a senior kind")
     for kind, sig_name in sorted(kind_records.items()):
+        check(isinstance(sig_name, str),
+              f"`evidence_kind_records.map[{kind!r}]` is {sig_name!r}. A non-string "
+              "target resolves to no record and skips the binding, which is the "
+              "fail-open this map exists to close.")
         check(kind in senior_kinds,
               f"`evidence_kind_records` maps {kind!r}, which `finding-lineage/v1` does "
               "not carry as an evidence kind. The map exists to say where a SENIOR "

@@ -937,7 +937,9 @@
     "at_one_to_one": "A 1:1 rule declares NO `record_binding`, because at one occurrence per role `every` and `at_least_one` are the same condition and there is nothing to choose. The record must still relate the pair: skipping the check there let R-CONT-COPY license a `continued` on a copy pointing at an unrelated path."
   },
   "evidence_kind_records": {
-    "path_rename": "rename_record",
+    "map": {
+      "path_rename": "rename_record"
+    },
     "why": [
       "Some rules name a senior EVIDENCE KIND in `requires_all` and some name a",
       "record from `structural_signals` directly. `path_rename` is the first sort, and",
@@ -948,7 +950,14 @@
       "",
       "This maps the kind to the record that OBSERVES it. It does not change what any",
       "rule requires - `requires_all` still names `path_rename` - it says where a",
-      "checker or a mapper must look to see whether the claim is carried."
+      "checker or a mapper must look to see whether the claim is carried.",
+      "",
+      "The mappings live under `map` and nothing else does. They were siblings of this",
+      "prose, so the suite filtered the object by value type to tell them apart - and",
+      "that filter was itself a fail-open: `path_rename: null` dropped out before",
+      "validation and resolved to no record, leaving R-CONT-RENAME licensed with its",
+      "rename record unchecked. A type filter standing in for a namespace is a check",
+      "that silently agrees with whatever it cannot classify."
     ]
   }
 }
