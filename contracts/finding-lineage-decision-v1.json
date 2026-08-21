@@ -349,9 +349,9 @@
   "record_additions": {
     "applicable_rules": "the DISTINCT ids of rules with a SURVIVING application - matched, then past uniqueness and cardinality, per `decision_procedure` step 5. A set of ids, not a count of applications. Rules that matched and failed uniqueness are NOT here; they are in `decision_detail.rules_without_a_unique_candidate`, and both are needed for re-judgement - see `recall_set`.",
     "licensed_by": "the SURVIVING rules the outcome rests on - the applicable rules that no other applicable rule dominates, per `arbitration.licensed_by_rule`. Non-empty for continued, branched and merged; EMPTY on a refused conflict.",
-    "decision_detail": "decision-layer precision that the senior contract's `reason` vocabulary does not carry: `conflicting_rules`, `inputs_unavailable`, `rules_without_a_unique_candidate` (matched, singled nobody out) and `rules_excluded_by_cardinality` (matched, wrong shape - no ambiguity involved). The last two are not cosmetic: without them a rule that lost before arbitration leaves no trace, and `applicable_rules` would either have to omit it (losing the recall set) or include it (claiming it supported the answer). It did neither.",
+    "decision_detail": "decision-layer precision that the senior contract's `reason` vocabulary does not carry: `conflicting_rules`, `rules_without_a_unique_candidate` (matched, singled nobody out) and `rules_excluded_by_cardinality` (matched, wrong shape - no ambiguity involved). The last two are not cosmetic: without them a rule that lost before arbitration leaves no trace, and `applicable_rules` would either have to omit it (losing the recall set) or include it (claiming it supported the answer). It did neither. NOT `inputs_unavailable` and NOT `signals_defeated`: both are top level, and listing them here as well gave each two homes - the same ambiguity, twice, and the second survived one review after the first was fixed.",
     "signals_defeated": "signal name -> the record that defeated it. TOP LEVEL, and spelled this way everywhere: an earlier revision also called it `defeated_signals` inside `decision_detail`, so two conforming implementations could have produced different JSON while each followed part of this contract. Present whenever step 2 removed anything.",
-    "inputs_unavailable": "signal names that could not be evaluated. Present whenever any were."
+    "inputs_unavailable": "signal names that could not be evaluated. TOP LEVEL, like `signals_defeated`, and declared in exactly one place. Present whenever any were."
   },
   "preregistered_cases": [
     "copy-record-dominates-the-single-match",
@@ -738,7 +738,7 @@
     },
     "meanings": {
       "dominance_did_work": "some rule in `applicable_rules` is absent from `licensed_by` AND is dominated by a rule that is in it. The conflict is real and arbitration resolved it, rather than there having been one candidate all along.",
-      "cardinality_excluded_a_rule": "the case names `excluded_by_cardinality`, and each rule there is genuinely unable to fit the declared shape - checked against its own `min_successors` / `min_predecessors`, not against prose.",
+      "cardinality_excluded_a_rule": "the case names `decision_detail.rules_excluded_by_cardinality`, and each rule there is genuinely unable to fit the declared shape - checked against its own `min_successors` / `min_predecessors`, not against prose. An earlier revision of this entry still named a top-level `excluded_by_cardinality`, abandoned when the stage got a declared home; a fixture author following it would have produced a shape the checker rejects and the recall union never sees.",
       "defeat_removed_a_signal": "`signals_defeated` is non-empty, the defeating record is carried by revision B, and it names this occurrence.",
       "input_was_unavailable": "`inputs_unavailable` is non-empty and revision B declares the same signal in `unavailable_signals`.",
       "blunt_rule_recorded": "`decision_detail.rules_without_a_unique_candidate` is non-empty. The blunt rule must be visible as having failed to choose, not merely absent."

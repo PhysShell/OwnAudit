@@ -76,6 +76,7 @@ attempt to break it at a size where every classification can be tried.
 import itertools
 import json
 import os
+import re
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -161,7 +162,7 @@ def mandated_reason(exp, lim, floor):
     # More than one rejecting stage fired at once. Each has its own reason and
     # the contract does not rank them; picking one here would be this file
     # deciding a contract question in a checker.
-    stages = [bool(defeated), bool(unavailable), bool(blunted)]
+    stages = [bool(defeated), bool(unavailable), bool(blunted), bool(miscard)]
     if sum(stages) > 1:
         return None, "several rejecting stages fired; the contract has not ranked them"
     if defeated:
@@ -686,9 +687,15 @@ def main() -> int:
             # Mirror sides (`side: b`) are exempt: they restate the other half of a
             # refusal already accounted for and raise no new rule question.
             if exp.get("side") != "b":
+                # BOTH rejecting stages count as an account of a rule. Listing only
+                # the uniqueness one meant a fixture recording a rule solely under
+                # the new cardinality stage was reported as never mentioning it -
+                # hidden today only because the copy fixture repeats that rule in
+                # `not_applicable` as well.
+                _dd = exp.get("decision_detail") or {}
                 named = (set(app) | set(exp.get("not_applicable") or {})
-                         | set((exp.get("decision_detail") or {})
-                               .get("rules_without_a_unique_candidate") or []))
+                         | set(_dd.get("rules_without_a_unique_candidate") or [])
+                         | set(_dd.get("rules_excluded_by_cardinality") or []))
                 check(named >= set(ids),
                       f"{where}: says nothing about {sorted(set(ids) - named)}. Every rule "
                       "must be accounted for - applicable, not applicable with a reason, or "
@@ -973,6 +980,20 @@ def main() -> int:
     for reason in sorted(emitted):
         tail = reason.rsplit(":", 1)[-1]
         check(tail in doc, f"the doc does not mention the reason {tail!r} the policy emits")
+    # ...and the section that calls itself exhaustive must actually be. Token
+    # presence anywhere in the file is too weak: the refusal table went stale
+    # while staying green, because `insufficient-evidence-kind` happened to appear
+    # in a different section a hundred lines earlier.
+    table = doc.partition("### Every refusal this policy can emit")[2].partition("\n## ")[0]
+    check(bool(table), "the doc must carry a section listing every refusal the policy emits")
+    listed = set(re.findall(r"^\| `([a-z-]+)` \|", table, re.M))
+    want = {r.rsplit(":", 1)[-1] for r in emitted}
+    check(listed == want,
+          "the refusal table and the policy disagree.\n"
+          f"  table lists: {sorted(listed)}\n"
+          f"  policy emits: {sorted(want)}\n"
+          "  A section that calls itself exhaustive has to be, or a reader "
+          "implementing from it misses a branch that exists.")
 
     # ---- 5. META: the proof checks are checked, in-process. ----------------
     # a05edeb was titled "move the arbitration proofs out of the terminal" and

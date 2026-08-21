@@ -222,7 +222,7 @@ completeness check found it on its first run.
 
 ### Every refusal this policy can emit
 
-Four, and all four are drawn from step 0's vocabulary. **The decision layer
+Five, and all five are drawn from step 0's vocabulary. **The decision layer
 invents no reason values.** When a situation is genuinely unsayable in the senior
 vocabulary the senior contract is amended in the open — which has now happened
 twice, both times because this rule fired on review rather than because anyone
@@ -231,7 +231,8 @@ remembered it unprompted.
 | reason | when |
 |---|---|
 | `no-mapping-evidence` | nothing was observed that could license a link — including the case where the deciding signal could not be *evaluated*, with `inputs_unavailable` naming which |
-| `insufficient-evidence-combination` | evidence was observed, some of it defeated, and no declared combination survives |
+| `insufficient-evidence-kind` | a defeat left **fewer** kinds standing than the senior floor — there the shortage really is of kinds |
+| `insufficient-evidence-combination` | a defeat left the floor cleared, and no declared combination survives |
 | `ambiguous-candidates` | several partners, and nothing prefers one — a choice with no grounds |
 | `conflicting-evidence` | one observed structure supporting incompatible conclusions — grounds that argue with each other |
 
