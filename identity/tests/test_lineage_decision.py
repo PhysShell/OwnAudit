@@ -1297,18 +1297,40 @@ def main() -> int:
               "the rule is 1:1, and guessing is how a lone successor gets `branched`")
         if isinstance(card, dict):
             shape = card.get("shape")
-            if outcomes[rid] == "continued":
-                check(shape == "1:1", f"{rid} licenses continued at cardinality {shape!r}; "
-                                      "continued is 1:1 in the senior contract")
-            elif outcomes[rid] == "branched":
-                check(shape == "1:N", f"{rid} licenses branched at {shape!r}")
+            # READ OFF THE SENIOR CONTRACT, not restated next to a sentence
+            # claiming the senior contract says so. The three shapes stood here
+            # as the literals "1:1", "1:N" and "N:1", so `outcomes.continued`
+            # could be edited upstairs to 1:N and this check went on enforcing
+            # 1:1 while its own message cited the file it had stopped agreeing
+            # with. A junior contract may not narrow senior from below; a junior
+            # CHECKER restating senior is the same move one level down, and it
+            # keeps its answer when senior changes its mind. Found by mutating
+            # the senior contract: both suites stayed green.
+            # `isinstance`, not `or {}`. The truthy spelling handles `null` and
+            # `{}` and dies on `42` - the same half-guard this branch has now
+            # written eight times, and it died on the senior contract, which is
+            # the input this check exists to read.
+            senior_spec = senior["outcomes"].get(outcomes[rid])
+            senior_card = (senior_spec.get("cardinality")
+                           if isinstance(senior_spec, dict) else None)
+            check(isinstance(senior_card, str),
+                  f"the senior contract gives outcome {outcomes[rid]!r} no `cardinality` "
+                  f"string, so there is nothing for {rid} to be checked against")
+            if isinstance(senior_card, str):
+                check(shape == senior_card,
+                      f"{rid} licenses {outcomes[rid]} at cardinality {shape!r}; the "
+                      f"senior contract makes {outcomes[rid]} {senior_card!r}")
+            # The MINIMUM on the plural side, keyed on the shape rather than on
+            # the outcome name - the shape is what says which side is plural.
+            # Two is not read from senior: senior says "several", which is prose,
+            # and `min_successors` is the junior contract's own reading of it.
+            if shape == "1:N":
                 check(card.get("min_successors", 0) >= 2,
-                      f"{rid} licenses branched without requiring two successors; "
-                      "a branch with one is a continued, and the senior contract says so")
-            elif outcomes[rid] == "merged":
-                check(shape == "N:1", f"{rid} licenses merged at {shape!r}")
+                      f"{rid} licenses {outcomes[rid]} without requiring two successors; "
+                      "a group of one is a 1:1 under another name")
+            elif shape == "N:1":
                 check(card.get("min_predecessors", 0) >= 2,
-                      f"{rid} licenses merged without requiring two predecessors")
+                      f"{rid} licenses {outcomes[rid]} without requiring two predecessors")
 
             # IF AND ONLY IF, for the minima too. Each was required where the
             # shape needs it and forbidden nowhere, so a 1:1 rule could carry
