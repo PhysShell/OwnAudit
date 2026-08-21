@@ -316,13 +316,27 @@
         "different thing from arriving at the same answer two sections later."
       ]
     },
-    "licensed_by_rule": [
-      "ONE definition, and the branches above are readings of it: `licensed_by` is",
-      "the set of SURVIVING rules - the applicable rules that no other applicable",
-      "rule dominates - and it is empty exactly when the outcome is a refusal.",
-      "Dominated rules never appear in it. They stay in `applicable_rules`, where",
-      "the disagreement remains readable without being credited with the answer."
-    ],
+    "licensed_by_rule": {
+      "selects": "undominated_applicable",
+      "empty_exactly_when": "refusal",
+      "dominated_rules_remain_in": "applicable_rules",
+      "why": [
+        "ONE definition, and the branches above are readings of it: `licensed_by` is",
+        "the set of SURVIVING rules - the applicable rules that no other applicable",
+        "rule dominates - and it is empty exactly when the outcome is a refusal.",
+        "Dominated rules never appear in it. They stay in `applicable_rules`, where",
+        "the disagreement remains readable without being credited with the answer.",
+        "",
+        "MACHINE-READABLE, because the prose alone was checked for EXISTENCE and",
+        "nothing else: replacing these lines with the opposite claim - that",
+        "`licensed_by` carries every applicable rule, dominated ones included -",
+        "left the whole suite green. A mapper reading the contract and a suite",
+        "reading the code could then disagree about the provenance a record",
+        "carries, which is the one thing `licensed_by` exists to make legible.",
+        "The tokens above are swept against the arbitration procedure over every",
+        "subset of the rule set, so changing one changes the verdict."
+      ]
+    },
     "reason_declarations_rule": [
       "EVERY branch here that names a `reason` also names the `reason_mapping` entry",
       "it IMPLEMENTS, and the integrity suite requires the two to agree.",

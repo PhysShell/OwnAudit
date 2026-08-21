@@ -1133,6 +1133,77 @@ def dominance_sanity_failures(ids, outcomes, raw_edges) -> list:
     return out
 
 
+# What `licensed_by` may be declared to select. Two entries, and the second is
+# not decoration: `all_applicable` differs from `undominated_applicable` on
+# exactly the subsets where dominance does any work, so the token the contract
+# names changes the verdict of the sweep below.
+LICENSED_BY_SELECTORS = {
+    "undominated_applicable":
+        lambda subset, edges: {r for r in subset
+                               if not any((w, r) in edges for w in subset)},
+    "all_applicable": lambda subset, edges: set(subset),
+}
+LICENSED_BY_EMPTINESS = ("refusal", "never")
+
+
+def licensed_by_rule_failures(policy: dict, results: dict, edges, refusals) -> list:
+    """The contract's account of `licensed_by`, checked against the procedure.
+
+    It was a paragraph, and the paragraph was checked for EXISTENCE. Replacing it
+    with the opposite claim - that `licensed_by` carries every applicable rule,
+    dominated ones included - left the whole suite green, so a mapper reading the
+    contract and this suite reading `arbitrate` could disagree about the
+    provenance every record carries, with nothing to object.
+
+    Same shape as the floor: a sentence that states what some code decides, and
+    binds to it only if it is machine-readable. Swept over every subset rather
+    than asserted once, because the two selectors agree on most subsets and
+    differ precisely where dominance does its work.
+
+    Dominance between rules of ONE outcome is already refused by property 2, so
+    the all-agree branch of `arbitrate` returning the whole subset is the
+    undominated set on that branch - not a third selector hiding in the code."""
+    out = []
+    rule = mapping_or_empty(mapping_or_empty(policy.get("arbitration"))
+                            .get("licensed_by_rule"))
+    selects = rule.get("selects")
+    if selects not in LICENSED_BY_SELECTORS:
+        return [f"`arbitration.licensed_by_rule.selects` is {selects!r}; the vocabulary "
+                f"is {sorted(LICENSED_BY_SELECTORS)}. Prose here was checked for "
+                "existence and said nothing, which is why it is a token now."]
+    empty_when = rule.get("empty_exactly_when")
+    if empty_when not in LICENSED_BY_EMPTINESS:
+        return [f"`arbitration.licensed_by_rule.empty_exactly_when` is {empty_when!r}; "
+                f"the vocabulary is {list(LICENSED_BY_EMPTINESS)}."]
+    if rule.get("dominated_rules_remain_in") != "applicable_rules":
+        out.append("`arbitration.licensed_by_rule.dominated_rules_remain_in` must be "
+                   "`applicable_rules`; a dominated rule that leaves the record "
+                   "entirely takes the disagreement with it, and the recall set is "
+                   "the union that has to keep it.")
+    select = LICENSED_BY_SELECTORS[selects]
+    for subset, result in sorted(results.items(), key=lambda kv: sorted(kv[0])):
+        if result is None:
+            continue
+        outcome_, licensed = result
+        refused = any(frozenset(pair) <= subset for pair in refusals)
+        if refused:
+            if empty_when != "refusal" or licensed:
+                out.append(f"{sorted(subset)}: the subset exercises a declared refusal "
+                           f"and arbitration licenses {sorted(licensed)!r}. The contract "
+                           f"says `licensed_by` is empty exactly when {empty_when!r}.")
+            continue
+        want = select(subset, edges)
+        if set(licensed) != want:
+            out.append(f"{sorted(subset)}: arbitration licenses {sorted(licensed)!r}, "
+                       f"but `licensed_by_rule.selects` is {selects!r}, which names "
+                       f"{sorted(want)!r}. The contract and the procedure disagree "
+                       "about which rules the outcome rests on.")
+        if empty_when == "never" and not licensed:
+            out.append(f"{sorted(subset)}: licenses nothing while the contract says "
+                       "`licensed_by` is never empty.")
+    return out[:6]
+
+
 def arbitrate(subset, outcomes, edges, refusals):
     """The contract's procedure, read structurally. Returns (outcome, licensed_by)
     where licensed_by is the SURVIVOR set - empty on a refusal - or None for 'no
@@ -1622,6 +1693,8 @@ def main() -> int:
                 results[frozenset(sub)] = arbitrate(sub, outcomes, edges, refusals)
     check(len(results) == expected,
           f"swept {len(results)} subsets, expected {expected} for {len(ids)} rules")
+    for msg in licensed_by_rule_failures(policy, results, edges, refusals):
+        check(False, msg)
     undefined = sorted((sorted(s) for s, r in results.items() if r is None), key=len)
     check(not undefined,
           f"subsets with no defined result: {undefined[:4]}. The theorem says this "
@@ -2657,6 +2730,40 @@ def main() -> int:
                       f"{sorted(collect(rev_b, spec['observable_from']))!r}, which names "
                       f"no {role} this expectation declares. The boundary never applied "
                       "here, so defeating it proves nothing.")
+                # AND THE RECORD MUST NAME THE OCCURRENCE IT DEFEATS. Both bots
+                # found this independently, and they were right: "the record is
+                # carried" and "the boundary applied" were both checked, and
+                # nothing ever asked whether the record was about the SAME
+                # occurrence. A copy of an unrelated file, or a rename of one, is
+                # an allowed defeater path and a non-empty collection, so it
+                # satisfied every test here while explaining nothing about the
+                # predecessor whose file was deleted.
+                #
+                # This is the discipline the rule bindings and the signal defeats
+                # already keep - "no SINGLE entry relates this mapping", "a defeat
+                # must be carried AND name these occurrences" - and the boundary
+                # path was the one place it was never asked. A record cited where
+                # it was named and never asked of the site next to it.
+                # STRINGS ONLY, and not a `set` of whatever the records hold.
+                # `collect` returns raw values, so a record whose `from` is an
+                # object made `set(...)` raise TypeError: unhashable - the ninth
+                # time on this branch that a guard has died on the malformed
+                # input it exists to examine, and this one was written in the
+                # same commit that quotes the other eight. A non-string record
+                # value is a real violation, and it belongs to
+                # `entry_shape_failures`, which reports it by name; this check
+                # compares paths and symbols, so it looks at the values that are
+                # paths and symbols.
+                defeating = {v for v in collect(rev_b, defeater) if isinstance(v, str)}
+                attr = str(spec["match"]).partition(".")[2]
+                relieved = sorted(oid for oid in hit
+                                  if by_id.get(oid, {}).get(attr) in defeating)
+                check(bool(relieved) or not hit,
+                      f"{where}: {defeater} holds {sorted(defeating)!r}, none of which "
+                      f"names the {attr} of any occurrence {kind!r} applied to "
+                      f"({sorted(by_id.get(o, {}).get(attr) for o in hit)!r}). An allowed "
+                      "record about somebody else is not a defeat; it is the boundary "
+                      "standing undisturbed while the fixture says otherwise.")
 
         # ---- the case's PREREGISTERED OBLIGATION, not just its answer. -------
         # A case can reach the right outcome for the wrong reason: move the losing
