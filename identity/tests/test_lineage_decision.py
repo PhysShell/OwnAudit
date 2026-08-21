@@ -943,6 +943,19 @@ def main() -> int:
           f"unexpected {sorted(set(observation) - set(senior['evidence_kinds']))}. A "
           "kind left unclassified is one a partner profile would have to guess about, "
           "which is the fact this section exists to settle.")
+    # ...and the VALUES, here rather than only where the junior map consumes them.
+    # Totality alone accepted `same_pattern_id: "sometimes"`: a string, so it
+    # survived the filter and counted toward the key set, and its value was
+    # checked nowhere because that kind is reached only through a partner profile
+    # and so is deliberately outside the map's domain. Present-and-total is not
+    # the same as meaningful, which is this family of defect one notch over.
+    OBSERVATION_CLASSES = ("pair_property", "revision_record")
+    for kind, how in sorted(observation.items()):
+        check(how in OBSERVATION_CLASSES,
+              f"`evidence_kind_observation[{kind!r}]` is {how!r}, which is not one of "
+              f"{list(OBSERVATION_CLASSES)}. An unrecognised class says a kind was "
+              "classified without saying how it is observed, and every consumer must "
+              "then guess exactly what this section exists to settle.")
 
     NO_RECORD = "no_structural_record"
     direct = {k for r in rules.values() for k in (r.get("requires_all") or [])}
@@ -962,11 +975,7 @@ def main() -> int:
         # `path_rename: no_structural_record` unbound the rename rule and stayed
         # green: an explicit "nothing observes this" is only honest for kinds
         # `finding-lineage/v1` classifies as pair properties.
-        observed_as = (senior.get("evidence_kind_observation") or {}).get(kind)
-        check(observed_as in ("pair_property", "revision_record"),
-              f"`finding-lineage/v1` does not classify {kind!r} as observed from a "
-              "pair or from a record, so nothing here can say whether a record is "
-              "owed for it")
+        observed_as = observation.get(kind)
         check((sig_name == NO_RECORD) == (observed_as == "pair_property"),
               f"`evidence_kind_records.map[{kind!r}]` is {sig_name!r} while the senior "
               f"contract observes that kind as a {observed_as!r}. A "
