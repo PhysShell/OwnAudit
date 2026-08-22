@@ -188,7 +188,7 @@ def rule_needs(rule) -> set:
     return needs | set(list_or_empty(profile.get("requires_all")))
 
 
-def mandated_reason(exp, mapping, floor, senior):
+def mandated_reason(exp, mapping, floor, senior, selector=None):
     """The reason the policy REQUIRES for this refusal, or None if the contract
     has not settled the shape.
 
@@ -220,28 +220,53 @@ def mandated_reason(exp, mapping, floor, senior):
     unavailable = as_list(exp.get(UNAVAILABLE_FIELD))
     detail = exp.get("decision_detail") or {}
     blunted = detail.get("rules_without_a_unique_candidate") or []
-    miscard = detail.get("rules_excluded_by_cardinality") or []
+    conflicting = detail.get("conflicting_rules") or []
+    ambiguous = detail.get("ambiguous_candidates") or {}
 
-    if app:
-        # Rules applied and the answer is still a refusal: they disagreed.
-        return of("conflicting_rules"), "rules applied and disagreed"
-    # More than one rejecting stage fired at once. Each has its own reason and
-    # the contract does not rank them; picking one here would be this file
-    # deciding a contract question in a checker.
-    stages = [bool(defeated), bool(unavailable), bool(blunted), bool(miscard)]
-    if sum(stages) > 1:
-        return None, "several rejecting stages fired; the contract has not ranked them"
-    if defeated:
-        surv = {k for k in (exp.get("evidence_surviving") or [])}
-        return (of("no_rule_applied_after_a_defeat", surv),
-                f"a defeat left {len(surv)} kind(s) against a floor of {floor}")
-    if blunted:
-        return of("several_candidates"), "rules matched and singled nobody out"
-    if unavailable:
-        return of("no_rule_applied"), "a signal could not be evaluated"
-    if miscard:
-        return of("no_rule_applied"), "the only matches were the wrong shape"
-    return of("no_rule_applied"), "nothing matched at all"
+    # THE ORDER IS THE CONTRACT'S, READ NOT RESTATED. This used to refuse the
+    # moment two rejecting stages fired at once - correctly, because nothing
+    # ranked them and choosing here would have been a checker settling a policy
+    # question. `reason_selector` ranks them now, so the refusal is replaced by
+    # reading the ranking.
+    #
+    # `rules_excluded_by_cardinality` is DELIBERATELY not a condition of any
+    # branch. A cardinality filter says a rule does not govern this shape; it is
+    # not a statement about the evidence and it selects no reason. It stays in
+    # the record for the recall set - see `reason_selector.cardinality_selects_no_reason`.
+    holds = {
+        "conflicting_rules_present": bool(app) or bool(conflicting),
+        "ambiguous_candidates_present": bool(blunted) or bool(ambiguous),
+        "a_defeat_left_no_surviving_rule": bool(defeated),
+        "otherwise": True,
+    }
+    says = {
+        "conflicting_rules_present": ("conflicting_rules", "rules applied and disagreed"),
+        "ambiguous_candidates_present": ("several_candidates",
+                                         "rules matched and singled nobody out"),
+        "a_defeat_left_no_surviving_rule": ("no_rule_applied_after_a_defeat", None),
+        "otherwise": ("no_rule_applied", "nothing licensed a link"),
+    }
+    for step in list_or_empty(selector):
+        when = mapping_or_empty(step).get("when")
+        if when == "eligibility_refused":
+            continue          # stage 0 never reaches the relation corpus
+        if not isinstance(when, str) or when not in holds:
+            return None, (f"`reason_selector` names condition {when!r}, which this "
+                          "suite cannot evaluate from a record. An order it cannot "
+                          "read is an order it is not applying")
+        if not holds[when]:
+            continue
+        key, why_ = says[when]
+        if key == "no_rule_applied_after_a_defeat":
+            surv = {k for k in (exp.get("evidence_surviving") or []) if isinstance(k, str)}
+            return (of(key, surv),
+                    f"a defeat left {len(surv)} kind(s) against a floor of {floor}")
+        if unavailable and key == "no_rule_applied":
+            why_ = "a signal could not be evaluated"
+        return of(key), why_
+    return None, ("`reason_selector.order` ran out without matching. It has to end in "
+                  "a branch that always holds, or a record exists that the policy "
+                  "assigns no reason")
 
 
 def as_list(v) -> list:
@@ -2538,7 +2563,25 @@ def main() -> int:
                 # AND it must be the reason the POLICY BRANCH mandates. Vocabulary
                 # membership alone accepted any of the six - `missing-occurrence-id`
                 # passed on a case whose occurrences both carry ids.
-                want, why_branch = mandated_reason(exp, policy["reason_mapping"], floor, senior)
+                # A REFUSAL THAT NAMES NO PREDECESSOR CARRIES NO PAIR EVIDENCE. Both
+                # `signals_defeated` and `evidence_surviving` are statements about a
+                # RELATION - which signal was removed from it, which kinds survived in
+                # it - and a b-side record has `frm: null`, so there is no pair for
+                # either to be about. Three fixtures carried the a-side's defeat across
+                # by symmetry, which recorded evidence about a relation the record does
+                # not state. If the reason a b-side refusal happened ever needs the
+                # candidates that were tried, that is a candidate-attempt trace and a
+                # different shape, not this one.
+                if exp.get("frm") is None:
+                    for field in ("signals_defeated", "evidence_surviving"):
+                        check(not exp.get(field),
+                              f"{where}: names no predecessor and still carries "
+                              f"{field}={exp.get(field)!r}. That is a claim about a pair "
+                              "this record does not name; a defeat is why a relation signal "
+                              "was removed, and there is no relation here to remove it from.")
+                want, why_branch = mandated_reason(exp, policy["reason_mapping"], floor, senior,
+                                   mapping_or_empty(policy.get("reason_selector"))
+                                   .get("order"))
                 if want is None:
                     # FAIL-CLOSED on an unranked shape. Abstaining was the right call
                     # for a CHECKER - the contract has not ranked these stages, so
@@ -3164,6 +3207,37 @@ def main() -> int:
                     # with a second one that did the real work, which is exactly the
                     # incidental reach this obligation exists to rule out.
                     met |= len(app_s) == 1 and app_s == lic_s
+                elif duty == "required_kind_withheld_a_rule":
+                    # A rule that did NOT apply because a kind its `requires_all`
+                    # names failed to hold - and `not_applicable` has to say which
+                    # kind, by its senior name. Written for R-CONT-DRIFT gaining
+                    # `same_pattern_id`: the value that decides the case must be
+                    # preregistered as the reason the rule stood down, not left as
+                    # an assertion in this file.
+                    # THE WITNESS IS NAMED, not searched for. Asking whether SOME
+                    # rule mentioned SOME kind it requires is satisfied by any
+                    # case - rules stand down naming their requirements all the
+                    # time - so the obligation written to pin E's decision passed
+                    # with R-CONT-DRIFT's entry saying nothing about
+                    # `same_pattern_id`. See `required_kind_witnesses`.
+                    spec_w = mapping_or_empty(
+                        mapping_or_empty(policy.get("required_kind_witnesses")).get(name))
+                    w_rule, w_kind = spec_w.get("rule"), spec_w.get("kind")
+                    check(isinstance(w_rule, str) and w_rule in rules
+                          and isinstance(w_kind, str),
+                          f"{name}: carries `required_kind_withheld_a_rule` and "
+                          f"`required_kind_witnesses` names {spec_w or None!r}. The rule "
+                          "and the kind the case turns on are declared in the contract, "
+                          "not looked for here.")
+                    if (isinstance(w_rule, str) and w_rule in rules
+                            and isinstance(w_kind, str)):
+                        check(w_kind in rule_needs(rules[w_rule]),
+                              f"{name}: the witness names {w_kind!r}, which "
+                              f"{w_rule} does not require. A rule cannot stand down "
+                              "over a requirement it does not have.")
+                        said = mapping_or_empty(exp.get("not_applicable")).get(w_rule)
+                        if isinstance(said, str) and w_kind in said:
+                            met = True
                 elif duty == "blunt_rule_recorded":
                     met |= bool((exp.get("decision_detail") or {})
                                 .get("rules_without_a_unique_candidate"))
@@ -3197,6 +3271,38 @@ def main() -> int:
                               f"{name}: {rid} is claimed excluded by cardinality, but "
                               f"{card} does not rule out a {nf}:{nt} shape. The guard has "
                               "to do the excluding, not the note.")
+                        # AND THE RULE HAS TO HAVE MATCHED SOMETHING. "Excluded by
+                        # cardinality" means it matched its record and then met a
+                        # shape it does not govern - so the record must be there.
+                        # Deleting `revision_b.merged_symbols` from
+                        # `an-ambiguity-outranks-a-cardinality-rejection` left the
+                        # suite green: the case asserted a rule was considered and
+                        # the thing it was considered on was gone. The same
+                        # question is already asked of LICENSED rules one loop
+                        # over; this is it asked of the adjacent site.
+                        for kind_c in list_or_empty(mapping_or_empty(rules.get(rid))
+                                                    .get("requires_all")):
+                            sig_c = (kind_c if kind_c in catalog
+                                     else kind_records.get(kind_c))
+                            cat_c = catalog.get(sig_c)
+                            if not cat_c:
+                                continue
+                            read_c, entries_c, pairs_c = catalog_read(cat_c, rev_b)
+                            # ...and an entry that NAMES something. `from: []`
+                            # left a fold record present and relating nobody, so
+                            # "it matched" was satisfied by a record with no
+                            # sources in it. Shape present, content vacuous - the
+                            # same reading that let a prose field be emptied.
+                            entries_c = [e for e in entries_c
+                                         if isinstance(e, dict) and all(
+                                             e.get(k) for k, _, _ in pairs_c)]
+                            check(bool(entries_c),
+                                  f"{name}: {rid} is recorded as excluded by "
+                                  f"cardinality, which says it MATCHED {sig_c!r} and "
+                                  f"then met the wrong shape - and {read_c} carries "
+                                  "nothing. A rule excluded from a match it never had "
+                                  "is a recall-set entry for a consideration that did "
+                                  "not happen.")
                         met = True
             check(met, f"{name}: preregistered to exhibit {duty!r}, and no expectation "
                        f"does. {obligation_meanings.get(duty, '')}")

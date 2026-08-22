@@ -522,6 +522,8 @@ one not.
 | 12 | `an-edit-elsewhere-is-still-the-same-defect` | `continued` — the line moved and the text changed |
 | 13 | `a-copy-into-two-new-files-is-a-branch` | `branched` — and no successor shares the predecessor's `pattern_id` |
 | 14 | `a-fold-across-files-is-still-a-merge` | `merged` — the folded predecessor lives in another file |
+| 15 | `an-ambiguity-outranks-a-cardinality-rejection` | `unresolved` / `ambiguous-candidates` — both rejecting stages fire, and only one of them is an answer |
+| 16 | `a-different-defect-at-the-same-site-is-not-a-drift` | `unresolved` / `no-mapping-evidence` — the site is shared and the diagnostic is not |
 
 Cases 1 and 2 carry an extra burden, because a fixture can be right for the
 wrong reason: move the losing rule out of `applicable_rules` and the answer is
@@ -581,9 +583,65 @@ one naming the *wrong* outcome — which is worse than a gap. That is also how
 A half-matrix of the cases that happened to pass would have hidden all of it,
 which is why partial credit is not on offer.
 
+## Two rejecting stages, one answer
+
+Step 4 records a uniqueness rejection and a cardinality rejection separately, and
+always has. What it never said is which of them the record's `reason` comes from
+when both fire in one mapping — so a mapper could have reported either and been
+reading the contract correctly. No case exercised the coincidence: fourteen
+fixtures had one rejection or the other and never both.
+
+`reason_selector` ranks them, and the order is total and readable from the
+record's own fields, which is the point — no step of it needs applicability:
+
+1. eligibility refused → `missing-occurrence-id` (absorbs before evidence is read)
+2. conflicting rules → `conflicting-evidence`
+3. ambiguous candidates → `ambiguous-candidates`
+4. a defeat left no surviving rule → `insufficient-evidence-{kind,combination}`
+5. otherwise → `no-mapping-evidence`
+
+**Cardinality is deliberately nowhere in that order.** It is the one rejection
+that is not about the evidence at all: it says a rule does not govern this shape,
+which is not a reason a relation failed. `rules_excluded_by_cardinality` stays in
+the record as provenance for the recall set and selects nothing.
+`an-ambiguity-outranks-a-cardinality-rejection` is where both stages fire at once
+and the ambiguity answers.
+
+## A refusal that names no predecessor carries no pair evidence
+
+A b-side `unresolved` has `frm: null`. `signals_defeated` says why a **relation**
+signal was removed and `evidence_surviving` says which kinds survived **in a
+pair** — and there is no pair here for either to be about.
+
+Three fixtures used to carry the a-side's defeat across to the b-side by
+symmetry. That recorded evidence about a relation the record itself does not
+state, and it also made the b-side reason follow from the a-side's floor
+arithmetic rather than from anything observable on the b-side. They now say what
+is true there: nothing links this occurrence back, and nothing says it is new —
+`no-mapping-evidence`. If the reason ever needs to explain *which* candidate
+predecessors were tried and rejected, that is a candidate-attempt trace and a
+different record shape, not this one.
+
 ## What is deliberately not decided here
 
 - **The mapper.** Still none. This is the decision policy, not the code.
+- **Whether the integrity suite may compute applicability. It may not, and that
+  is settled.** Fixtures preregister `applicable_rules`; this suite checks shape,
+  carried records and arbitration, and never re-evaluates a rule's predicates. A
+  checker that did would be a second mapper — hidden, unversioned, and certain to
+  disagree with the first one the day either changed, with both equally
+  confident. Applicability is first computed by the reference evaluator at the
+  real-history gate, once, in one place. This is an architectural boundary of
+  step 1, not an open question.
+- **Whether a named rescuer actually reaches its excluded partner.** It follows
+  from the line above that this cannot be shown here:
+  `excluded_partners_reached_by` pins that every dropped partner is named, that
+  the named rescuer is applicable and concludes the required outcome, and that no
+  rescuer catches more partners than its cardinality relates — but proving the
+  rule's application *includes* that occurrence means evaluating its
+  `requires_all`, which is applicability. `excluded_partners_rescuer_rule`
+  records the boundary. In the reference evaluator the link becomes computable
+  naturally, by the one evaluator rather than by a second hidden inside a test.
 - **Whether a rule set this small is enough.** It is explicitly not exhaustive.
   Adding a rule is a contract edit: declare it, declare its cardinality and
   partner profile, and classify its conflicts. The completeness law covers

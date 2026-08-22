@@ -1,0 +1,77 @@
+{
+  "case": "a-different-defect-at-the-same-site-is-not-a-drift",
+  "contract": "finding-lineage-decision/v1",
+  "status": "preregistered-unimplemented",
+  "title": "One diagnostic leaves a method, another appears in it, and the site is the same",
+  "why": "THE CASE R-CONT-DRIFT NEEDED BEFORE IT COULD REQUIRE A PATTERN. The rule used to ask for `same_path`, `structural_context` and `line_drift` and nothing about the diagnostic - so it identified the SITE and called that the same defect. Here `DocView.Wire` keeps its path and its name, the old finding is gone from line 42 and a DIFFERENT finding of the same rule sits at line 57 with a different message. Under the old requirements every one of them held and the lineage was inherited because a chair came free a few lines lower.\n\n`finding-pattern/v1` hashes path, rule AND message, so a changed message is a changed pattern id: f964274604b5c187 for the predecessor and a different value for the successor, both computed here rather than asserted. Adding `same_pattern_id` to the rule's `requires_all` is what makes this case `unresolved` instead of a false continuity, and it is safe to require precisely because R-CONT-DRIFT is a same-path rule - it never pretended to survive a move, which is what the sixth senior amendment was for.\n\nFor a fail-closed lineage, refusing here is the conservative answer: if the diagnostic changed enough to change the pattern, `unresolved` costs a link and a wrong `continued` costs the truth.",
+  "revision_a": {
+    "revision": "r1",
+    "occurrences": [
+      {
+        "occurrence_id": "occ-a1",
+        "path": "Broker/Doc.cs",
+        "rule": "DOTNET_RESOURCE_LEAK",
+        "message": "event handler subscribed and never removed",
+        "start_line": 42,
+        "start_column": null,
+        "pattern_id": "f964274604b5c187",
+        "enclosing_symbol": "DocView.Wire",
+        "anchored_content": "_store.Changed += OnChanged;"
+      }
+    ]
+  },
+  "revision_b": {
+    "revision": "r2",
+    "occurrences": [
+      {
+        "occurrence_id": "occ-b1",
+        "path": "Broker/Doc.cs",
+        "rule": "DOTNET_RESOURCE_LEAK",
+        "message": "disposable field is never disposed",
+        "start_line": 57,
+        "start_column": null,
+        "pattern_id": "c4c27796b2347407",
+        "enclosing_symbol": "DocView.Wire",
+        "anchored_content": "_timer = new Timer(Tick);"
+      }
+    ]
+  },
+  "expect": [
+    {
+      "outcome": "unresolved",
+      "side": "a",
+      "frm": "occ-a1",
+      "to": [],
+      "reason": "lineage-id-unavailable:no-mapping-evidence",
+      "applicable_rules": [],
+      "licensed_by": [],
+      "not_applicable": {
+        "R-CONT-SAME-SITE": "anchored_content differs - the content at the new site is not the old content",
+        "R-CONT-DRIFT": "same_pattern_id does not hold: the message changed, so `finding-pattern/v1` computes a different id",
+        "R-CONT-RENAME": "no rename record, and the path did not change",
+        "R-CONT-COPY": "no copy record",
+        "R-BRANCH-COPY": "no copy record, and the shape is 1:1",
+        "R-MERGE-FOLD": "no merge record, and the shape is 1:1"
+      },
+      "note": "same path, same enclosing symbol and a line difference all hold. They identify the place, and the place is not the defect."
+    },
+    {
+      "outcome": "unresolved",
+      "side": "b",
+      "frm": null,
+      "to": [
+        "occ-b1"
+      ],
+      "reason": "lineage-id-unavailable:no-mapping-evidence",
+      "applicable_rules": [],
+      "licensed_by": [],
+      "note": "the mirror side, and its reason comes from what is observable HERE: no record links this occurrence back, and nothing says it is new. No signal is reported as defeated, because a defeat is a statement about a relation and this record names no predecessor."
+    }
+  ],
+  "forbid": [
+    "continued from occ-a1 to occ-b1 - the site is shared and the diagnostic is not",
+    "ended for occ-a1 or new for occ-b1 - neither carries boundary evidence",
+    "same_pattern_id treated as holding because the rule and the path match - the message is hashed too",
+    "insufficient-evidence-kind or insufficient-evidence-combination - nothing was defeated here"
+  ]
+}

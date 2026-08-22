@@ -68,15 +68,10 @@
       "to": [
         "occ-b1"
       ],
-      "reason": "lineage-id-unavailable:insufficient-evidence-kind",
+      "reason": "lineage-id-unavailable:no-mapping-evidence",
       "applicable_rules": [],
       "licensed_by": [],
-      "signals_defeated": {
-        "anchored_content": "reformatted_paths"
-      },
-      "evidence_surviving": [
-        "same_rule_message"
-      ]
+      "note": "the mirror side, and its reason comes from what is observable HERE. A defeat is a statement about why a RELATION signal was removed, and this record names no predecessor - `frm` is null - so there is nothing for a predecessor-bound defeater to attach to. Carrying the a-side's `signals_defeated` and `evidence_surviving` across would have recorded evidence about a relation the record itself does not state. What is left observable is that nothing links this occurrence back and nothing says it is new."
     }
   ],
   "forbid": [

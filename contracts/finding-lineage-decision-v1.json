@@ -152,10 +152,11 @@
       "requires_all": [
         "same_path",
         "structural_context",
-        "line_drift"
+        "line_drift",
+        "same_pattern_id"
       ],
       "means": "same file and same enclosing symbol, moved by an edit elsewhere",
-      "note": "content is NOT required: a defect may be edited without ceasing to be the same defect"
+      "note": "content is NOT required: a defect may be edited without ceasing to be the same defect. The PATTERN is required, and that is a different claim - `same_pattern_id` says the analyser is still saying the same thing about the same file, which is what makes this the same defect rather than the same PLACE. Without it, a `pat-A` that disappears and a single `pat-B` appearing a few lines lower in the same method inherits the lineage because a chair came free nearby. Same path and same enclosing symbol identify the SITE well enough; they do not identify the diagnostic, and for a fail-closed lineage `unresolved` is the better answer than a false continuity. `same_pattern_id` is safe to require here precisely because this rule is same-path: nothing about it pretends to survive a move, which is the thing the sixth senior amendment was needed for."
     },
     "R-CONT-RENAME": {
       "outcome": "continued",
@@ -521,7 +522,9 @@
     "a-recorded-rename-is-not-an-unresolved",
     "an-edit-elsewhere-is-still-the-same-defect",
     "a-copy-into-two-new-files-is-a-branch",
-    "a-fold-across-files-is-still-a-merge"
+    "a-fold-across-files-is-still-a-merge",
+    "an-ambiguity-outranks-a-cardinality-rejection",
+    "a-different-defect-at-the-same-site-is-not-a-drift"
   ],
   "preregistration_rule": [
     "Fixed before the mapper, same as slice 2 step 0. These are about the POLICY",
@@ -948,56 +951,64 @@
       "the fixture's own declarations."
     ],
     "obligations": {
-      "copy-record-dominates-the-single-match": [
-        "dominance_did_work"
+      "a-copy-into-two-new-files-is-a-branch": [
+        "rule_licensed_alone"
       ],
-      "merge-record-dominates-the-single-match": [
-        "dominance_did_work"
+      "a-defeat-can-leave-too-few-kinds": [
+        "defeat_removed_a_signal"
+      ],
+      "a-different-defect-at-the-same-site-is-not-a-drift": [
+        "required_kind_withheld_a_rule"
+      ],
+      "a-fold-across-files-is-still-a-merge": [
+        "rule_licensed_alone"
+      ],
+      "a-recorded-rename-is-not-an-unresolved": [
+        "rule_licensed_alone"
+      ],
+      "an-ambiguity-outranks-a-cardinality-rejection": [
+        "blunt_rule_recorded",
+        "cardinality_excluded_a_rule"
+      ],
+      "an-edit-elsewhere-is-still-the-same-defect": [
+        "rule_licensed_alone"
+      ],
+      "blunt-rule-loses-to-uniqueness": [
+        "blunt_rule_recorded"
       ],
       "copy-at-one-to-one-is-not-a-branch": [
         "cardinality_excluded_a_rule"
       ],
+      "copy-record-dominates-the-single-match": [
+        "dominance_did_work"
+      ],
+      "copy-source-that-is-also-a-fold-refuses": [
+        "refusal_was_recorded"
+      ],
       "defeated-signal-drops-below-the-floor": [
         "defeat_removed_a_signal"
+      ],
+      "every-candidate-blunted-is-an-ambiguity": [
+        "blunt_rule_recorded"
+      ],
+      "merge-record-dominates-the-single-match": [
+        "dominance_did_work"
       ],
       "renamed-symbol-defeats-structural-context": [
         "defeat_removed_a_signal"
       ],
       "unavailable-diff-is-not-a-deletion": [
         "input_was_unavailable"
-      ],
-      "blunt-rule-loses-to-uniqueness": [
-        "blunt_rule_recorded"
-      ],
-      "copy-source-that-is-also-a-fold-refuses": [
-        "refusal_was_recorded"
-      ],
-      "every-candidate-blunted-is-an-ambiguity": [
-        "blunt_rule_recorded"
-      ],
-      "a-defeat-can-leave-too-few-kinds": [
-        "defeat_removed_a_signal"
-      ],
-      "a-recorded-rename-is-not-an-unresolved": [
-        "rule_licensed_alone"
-      ],
-      "an-edit-elsewhere-is-still-the-same-defect": [
-        "rule_licensed_alone"
-      ],
-      "a-copy-into-two-new-files-is-a-branch": [
-        "rule_licensed_alone"
-      ],
-      "a-fold-across-files-is-still-a-merge": [
-        "rule_licensed_alone"
       ]
     },
     "meanings": {
-      "dominance_did_work": "some rule in `applicable_rules` is absent from `licensed_by` AND is dominated by a rule that is in it. The conflict is real and arbitration resolved it, rather than there having been one candidate all along.",
+      "blunt_rule_recorded": "`decision_detail.rules_without_a_unique_candidate` is non-empty. The blunt rule must be visible as having failed to choose, not merely absent.",
       "cardinality_excluded_a_rule": "the case names `decision_detail.rules_excluded_by_cardinality`, and each rule there is genuinely unable to fit the declared shape - checked against its own `min_successors` / `min_predecessors`, not against prose. An earlier revision of this entry still named a top-level `excluded_by_cardinality`, abandoned when the stage got a declared home; a fixture author following it would have produced a shape the checker rejects and the recall union never sees.",
       "defeat_removed_a_signal": "`signals_defeated` is non-empty, the defeating record is carried by revision B, and it names this occurrence.",
+      "dominance_did_work": "some rule in `applicable_rules` is absent from `licensed_by` AND is dominated by a rule that is in it. The conflict is real and arbitration resolved it, rather than there having been one candidate all along.",
       "input_was_unavailable": "`inputs_unavailable` is non-empty and revision B declares the same signal in `unavailable_signals`.",
-      "blunt_rule_recorded": "`decision_detail.rules_without_a_unique_candidate` is non-empty. The blunt rule must be visible as having failed to choose, not merely absent.",
       "refusal_was_recorded": "the case exercises a pair declared in `deliberately_unresolved_conflicts` - both ids applicable together - and records them in `decision_detail.conflicting_rules` with an EMPTY `licensed_by`. Until this obligation existed the N:M refusal was frozen in the contract and pinned by no case at all, which is the shape of defect this matrix exists to catch.",
+      "required_kind_withheld_a_rule": "the case names, in `not_applicable`, a rule that stood down because a kind its own `requires_all` lists did not hold - and names that kind. This is what pins a rule's requirement to a case rather than to an assertion in the suite: R-CONT-DRIFT gained `same_pattern_id` because a same-site drift must stay the same DEFECT and not merely the same PLACE, and `a-different-defect-at-the-same-site-is-not-a-drift` is where that requirement is either doing work or is decoration.",
       "rule_licensed_alone": "exactly one rule is in `applicable_rules` and the same rule is in `licensed_by`. Nothing was dominated, nothing was filtered out, and the conclusion therefore rests ENTIRELY on that rule's own requirements - which is what makes the case a pin on them. A rule reachable only in cases where some other rule also applies is a rule whose requirements can be rewritten without any fixture noticing."
     },
     "rule": [
@@ -1195,6 +1206,7 @@
       "line_drift": "no_structural_record",
       "path_rename": "rename_record",
       "same_path": "no_structural_record",
+      "same_pattern_id": "no_structural_record",
       "structural_context": "no_structural_record"
     },
     "why": [
@@ -1286,5 +1298,78 @@
     "branch of the mapping it was describing. That was a TYPO, not a retired name,",
     "and it was corrected rather than listed here - which is the distinction this",
     "section exists to keep."
-  ]
+  ],
+  "reason_selector": {
+    "order": [
+      {
+        "when": "eligibility_refused",
+        "reason": "lineage-id-unavailable:missing-occurrence-id",
+        "observed_from": "the finding's own null `occurrence_id`"
+      },
+      {
+        "when": "conflicting_rules_present",
+        "reason": "lineage-id-unavailable:conflicting-evidence",
+        "observed_from": "decision_detail.conflicting_rules"
+      },
+      {
+        "when": "ambiguous_candidates_present",
+        "reason": "lineage-id-unavailable:ambiguous-candidates",
+        "observed_from": "decision_detail.ambiguous_candidates"
+      },
+      {
+        "when": "a_defeat_left_no_surviving_rule",
+        "reason": "reason_mapping.no_rule_applied_after_a_defeat.reason_by_surviving_kinds",
+        "observed_from": "signals_defeated"
+      },
+      {
+        "when": "otherwise",
+        "reason": "lineage-id-unavailable:no-mapping-evidence",
+        "observed_from": "nothing licensed a link and nothing explains why more precisely"
+      }
+    ],
+    "cardinality_selects_no_reason": "`decision_detail.rules_excluded_by_cardinality` is PROVENANCE, never a reason. A cardinality filter says only that a rule does not govern this shape; it does not say why the relation failed. Where it coincides with `rules_without_a_unique_candidate`, the honest account of why a known 1:1 hypothesis produced no relation is the AMBIGUITY, and the cardinality-excluded rule stays recorded beside it for the recall set.",
+    "why": [
+      "TWO REJECTING STAGES CAN FIRE AT ONCE, AND ONLY ONE OF THEM IS AN ANSWER.",
+      "",
+      "`decision_procedure` step 4 already insisted the two rejections are recorded",
+      "SEPARATELY, and was right to. What it did not say is which of them the RECORD's",
+      "`reason` comes from when both happen in one mapping - and a mapper reading that",
+      "step alone could reasonably have reported either.",
+      "",
+      "The order here is total and it is checkable from the record's own fields, which",
+      "is the point: no stage of it needs applicability. Eligibility absorbs before any",
+      "evidence is read. A conflict is grounds that argue with each other. An ambiguity",
+      "is several partners with nothing to choose between them. A defeat that leaves no",
+      "rule standing is answered by the floor. Everything else is",
+      "`no-mapping-evidence`, which is what the senior contract already means by",
+      "'nothing was observed that could license a link'.",
+      "",
+      "Cardinality is deliberately nowhere in that order. It is the one rejection that",
+      "is not about the evidence at all."
+    ]
+  },
+  "required_kind_witnesses": {
+    "a-different-defect-at-the-same-site-is-not-a-drift": {
+      "rule": "R-CONT-DRIFT",
+      "kind": "same_pattern_id"
+    },
+    "rule": [
+      "WHICH RULE STOOD DOWN FOR WHICH KIND, NAMED BY THE CONTRACT RATHER THAN BY THE",
+      "SUITE. A case carrying `required_kind_withheld_a_rule` declares its witness here,",
+      "and the suite checks that the named rule appears in that case's",
+      "`not_applicable`, that the text there names the kind, and that the kind is one",
+      "the rule's own `requires_all` lists.",
+      "",
+      "The first form of the obligation asked only whether SOME rule in",
+      "`not_applicable` mentioned SOME kind it requires - which any case satisfies,",
+      "because rules stand down naming their requirements all the time. It would have",
+      "passed with R-CONT-DRIFT's entry rewritten to say nothing about",
+      "`same_pattern_id` at all, so the obligation written to pin E's decision did not",
+      "pin it. Membership standing in for the correct member, one more time.",
+      "",
+      "Hard-coding the pair in the checker was the other option and it is the one this",
+      "project keeps refusing: the value that decides a case belongs in the frozen",
+      "document, where a reader can disagree with it."
+    ]
+  }
 }
