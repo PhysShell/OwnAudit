@@ -421,5 +421,67 @@
       "rename rule while every check on the mapping still passed. That mutation was",
       "green until this section existed."
     ]
+  },
+  "pair_property_equality_fields": {
+    "map": {
+      "anchored_content": [
+        "anchored_content"
+      ],
+      "same_path": [
+        "path"
+      ],
+      "same_pattern_id": [
+        "pattern_id"
+      ],
+      "same_rule_message": [
+        "rule",
+        "message"
+      ],
+      "structural_context": [
+        "enclosing_symbol"
+      ]
+    },
+    "not_an_equality": {
+      "line_drift": "the line MOVED. It is a pair property and it is not an equality of any field - comparing `start_line` for equality would assert the opposite of what the kind means - so it has no entry above and says so here instead of being missing."
+    },
+    "why": [
+      "WHICH OCCURRENCE FIELDS A PAIR PROPERTY COMPARES, frozen HERE for exactly",
+      "the reason the section above it is frozen here: a junior contract that",
+      "defines what a senior kind compares has redefined the kind.",
+      "",
+      "The decision policy carried this table for one commit and review took it",
+      "apart in the obvious way. The list was validated as a non-empty list of",
+      "strings, so `same_rule_message` could be widened to `[rule, message, path]`",
+      "- and then a witness whose rule and message AGREE still reads as the kind",
+      "failing, because the paths differ. The fixture written to prove the",
+      "requirement went back to being able to lie, one level below where that was",
+      "last repaired, and the amended kind would have made R-CONT-RENAME and",
+      "R-CONT-COPY unsatisfiable on every real move.",
+      "",
+      "`same_rule_message` compares the rule and the message and NOTHING ELSE. It",
+      "is the path-independent kind - that is its whole purpose, since",
+      "`finding-pattern/v1` hashes the path into `same_pattern_id` and no occurrence",
+      "that moved can carry one.",
+      "",
+      "TOTAL over the pair properties: every kind `evidence_kind_observation` calls",
+      "a `pair_property` appears in `map` or in `not_an_equality`, and nowhere else.",
+      "A kind missing from both is a kind whose comparison nobody has written down.",
+      "",
+      "WIDENING IS A CONTRADICTION, NOT A PREFERENCE, and it is checkable without",
+      "any of this being asserted: a kind whose fields CONTAIN another kind's",
+      "entails that kind, so widening `same_rule_message` with `path` makes it entail",
+      "`same_path` - and `same_path` is frozen mutually exclusive with",
+      "`path_rename`, which R-CONT-RENAME requires. The rule becomes dead, and the",
+      "existing law against requiring an impossible combination says so.",
+      "",
+      "INDEPENDENT, NOT MERELY DISTINCT. No kind's fields may contain another's. The",
+      "floor for a `continued` counts KINDS, so a kind that is another kind and more",
+      "would let one observation satisfy two and meet the floor by itself - the same",
+      "argument the sixth amendment made for keeping `same_rule_message` one kind",
+      "rather than `same_rule` beside `same_message`. Widening with `path` is caught",
+      "by the exclusivity law above; widening `same_rule_message` with",
+      "`anchored_content`, or `same_pattern_id` with `path`, is caught only here, and",
+      "both were green until this said so."
+    ]
   }
 }

@@ -1860,13 +1860,37 @@ def main() -> int:
         # suite cannot do without becoming a second mapper - see the note on
         # `rule_coverage_rule`.
         needs = rule_needs(rules[rid])
+        # AND THE COMBINATION CAN BE IMPOSSIBLE WITHOUT BEING WRITTEN DOWN. A kind
+        # whose equality fields CONTAIN another kind's entails that kind: comparing
+        # `[rule, message, path]` is comparing `[path]` and more. So the exclusive
+        # pairs are closed under that entailment before they are applied.
+        # This is what makes widening a senior kind a contradiction rather than a
+        # preference: `same_rule_message` widened with `path` entails `same_path`,
+        # `same_path` is frozen exclusive with `path_rename`, and R-CONT-RENAME
+        # requires both - the rule is dead and the existing law says so. Review
+        # found the widening by hand; nothing here could object to it, because the
+        # field list was checked for being a non-empty list of strings and nothing
+        # else, one level below where the same defect was last repaired.
+        eq_fields = {k: set(v) for k, v in mapping_or_empty(mapping_or_empty(
+            senior.get("pair_property_equality_fields")).get("map")).items()
+            if isinstance(v, list) and all(isinstance(f, str) for f in v) and v}
+        entailed = set(needs)
+        for kind_n, fields_n in eq_fields.items():
+            if kind_n in needs:
+                entailed |= {other for other, f_o in eq_fields.items()
+                             if f_o and f_o <= fields_n}
         for excl in list_or_empty(senior.get("mutually_exclusive_evidence_kinds")):
             pair = set(excl.get("between") or [])
-            check(not pair <= needs,
+            check(not pair <= entailed,
                   f"{rid} requires {sorted(pair)} together, which "
                   "`finding-lineage/v1` freezes as mutually exclusive. No evidence "
                   "can satisfy the rule, so it licenses nothing and its outcome "
-                  "silently degrades to `unresolved`.")
+                  "silently degrades to `unresolved`."
+                  + ("" if pair <= needs else
+                     f" It reaches them through the equality fields the senior "
+                     f"contract gives {sorted(needs & set(eq_fields))}: a kind that "
+                     "compares everything another kind compares requires that kind "
+                     "too."))
 
         # The abandoned wording must not creep back in under its old names.
         for dead in ("requires_per_successor", "requires_per_predecessor"):
@@ -2132,6 +2156,72 @@ def main() -> int:
                   f"(got {kind_records.get(kind)!r}). A kind reached only through a "
                   "`partner_profile` is outside that map by design, so classifying one "
                   "this way demands evidence the contract gives no way to read.")
+
+    # EVERY PAIR PROPERTY SAYS WHAT IT COMPARES, or says it is not a comparison.
+    # `pair_property_equality_fields` is what the witness obligation reads to
+    # decide whether a kind really failed in a case, and it decides entailment
+    # between kinds. It lives in the senior contract because a junior defining
+    # what a senior kind compares has redefined the kind - the junior copy this
+    # replaces could be widened with `path`, and then a witness whose rule and
+    # message AGREED still read as `same_rule_message` failing.
+    #
+    # TOTAL over the pair properties and PARTITIONED: a kind in neither table is
+    # a comparison nobody wrote down, and one in both says two things at once.
+    # `line_drift` is the reason the second table exists - the line MOVED, which
+    # is a pair property and not an equality of any field.
+    eq_decl = mapping_or_empty(senior.get("pair_property_equality_fields"))
+    eq_map = mapping_or_empty(eq_decl.get("map"))
+    eq_not = mapping_or_empty(eq_decl.get("not_an_equality"))
+    pair_kinds = {k for k, how in observation.items() if how == "pair_property"}
+    check(pair_kinds == set(eq_map) | set(eq_not),
+          "`finding-lineage/v1.pair_property_equality_fields` must cover every kind "
+          f"`evidence_kind_observation` calls a pair property. Missing "
+          f"{sorted(pair_kinds - set(eq_map) - set(eq_not))}, unexpected "
+          f"{sorted((set(eq_map) | set(eq_not)) - pair_kinds)}. A kind in neither "
+          "table is a comparison nobody has written down, and the witness obligation "
+          "reads this to decide whether a kind really failed.")
+    check(not (set(eq_map) & set(eq_not)),
+          f"`pair_property_equality_fields` puts {sorted(set(eq_map) & set(eq_not))} "
+          "in both tables. A kind is an equality of some fields or it is not one.")
+    for kind_e in sorted(eq_map):
+        fields_e = eq_map[kind_e]
+        check(isinstance(fields_e, list) and fields_e
+              and all(isinstance(f, str) and f in OCCURRENCE_KINDS for f in fields_e),
+              f"`pair_property_equality_fields.map[{kind_e!r}]` is {fields_e!r}. It has "
+              f"to name occurrence fields out of {sorted(OCCURRENCE_KINDS)} - a kind "
+              "compared on a field the occurrences do not carry is compared on nothing.")
+    # AND NO KIND IS ANOTHER KIND AND MORE. The floor counts KINDS: two are
+    # required for a `continued`. If one kind's fields contained another's, a
+    # single observation would satisfy both and meet the floor by itself - which
+    # is the argument the sixth senior amendment already made for making
+    # `same_rule_message` ONE kind rather than `same_rule` beside `same_message`.
+    # Containment is also what the entailment above turns into a contradiction,
+    # so requiring the sets to be independent says the same thing at the source.
+    #
+    # This is the half review's report left open. Widening `same_rule_message`
+    # with `path` is caught by the exclusivity law; widening it with
+    # `anchored_content`, or `same_pattern_id` with `path`, was not - both are
+    # inert on the present rules and neither lets a witness lie, and both are
+    # still a kind quietly becoming a stronger kind than the one the senior
+    # contract defines.
+    for kind_a in sorted(eq_map):
+        for kind_b in sorted(eq_map):
+            fa, fb = eq_map.get(kind_a), eq_map.get(kind_b)
+            if kind_a == kind_b or not isinstance(fa, list) or not isinstance(fb, list):
+                continue
+            check(not (fb and set(fb) < set(fa)),
+                  f"`pair_property_equality_fields.map` gives {kind_a!r} {fa!r} and "
+                  f"{kind_b!r} {fb!r}, so anything satisfying {kind_a!r} satisfies "
+                  f"{kind_b!r}. The floor for a `continued` counts KINDS, and two "
+                  "kinds one observation cannot separate meet it by themselves - "
+                  "which is why the sixth senior amendment made `same_rule_message` "
+                  "one kind instead of two halves.")
+
+    for kind_e in sorted(eq_not):
+        check(isinstance(eq_not[kind_e], str) and eq_not[kind_e].strip(),
+              f"`pair_property_equality_fields.not_an_equality[{kind_e!r}]` is "
+              f"{eq_not[kind_e]!r}. Excusing a kind from having a comparison is exactly "
+              "where a reason is owed.")
 
     direct = {k for r in rules.values() for k in (r.get("requires_all") or [])}
     want_domain = {k for k in direct if k in senior_kinds}
@@ -3450,16 +3540,22 @@ def main() -> int:
                         # to make, contradicted by the case, accepted. The two
                         # cross-path witnesses survived only because recomputing
                         # `pattern_id` caught the edit, which is luck, not a check.
-                        # `pair_property_kinds` says which kinds are readable from
-                        # a pair of occurrences - two strings the producer emitted,
-                        # compared - and every witness kind must be one, so the
-                        # table cannot be emptied into a vacuum.
+                        # `pair_property_equality_fields` says which kinds are
+                        # readable from a pair of occurrences - two strings the
+                        # producer emitted, compared - and every witness kind must
+                        # be one, so the table cannot be emptied into a vacuum. It
+                        # lives in the SENIOR contract: a junior defining what a
+                        # senior kind compares has redefined the kind, and the
+                        # junior copy could be widened with `path` until a witness
+                        # whose rule and message AGREED still read as the kind
+                        # failing.
                         fields_w = mapping_or_empty(mapping_or_empty(
-                            policy.get("pair_property_kinds")).get("map")).get(w_kind)
+                            senior.get("pair_property_equality_fields")
+                        ).get("map")).get(w_kind)
                         check(isinstance(fields_w, list) and fields_w
                               and all(isinstance(f, str) for f in fields_w),
                               f"{name}: the witness names {w_kind!r}, and "
-                              "`pair_property_kinds.map` gives it "
+                              "`finding-lineage/v1.pair_property_equality_fields.map` gives it "
                               f"{fields_w!r}. A witness whose kind cannot be read "
                               "off the pair is a claim this corpus cannot falsify.")
                         if isinstance(fields_w, list) and all(

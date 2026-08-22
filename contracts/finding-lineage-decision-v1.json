@@ -1471,43 +1471,21 @@
       "site, across a rename, and across a copy each inherited a lineage it had not",
       "earned. Each rule now names a kind and each has its own case: the copy did not",
       "get the rename's result by symmetry, which is the assumption this branch keeps",
-      "having to unmake."
-    ]
-  },
-  "pair_property_kinds": {
-    "map": {
-      "same_pattern_id": [
-        "pattern_id"
-      ],
-      "same_rule_message": [
-        "rule",
-        "message"
-      ]
-    },
-    "why": [
-      "A WITNESS HAS TO BE FALSIFIABLE BY THE PAYLOAD IT SITS IN.",
+      "having to unmake.",
       "",
-      "`required_kind_witnesses` named the rule and the kind, and the obligation",
-      "checked that `not_applicable` said so and that the rule really requires the",
-      "kind. What nothing checked is whether the kind FAILS in the case's own",
-      "occurrences. So a witness could declare that R-CONT-SAME-SITE stood down for",
-      "`same_pattern_id` while both occurrences carried the same pattern id - the",
-      "claim the fixture exists to make, contradicted by the fixture, accepted.",
-      "Membership standing in for the correct member yet again, one level below",
-      "where it was last repaired.",
+      "A witness also has to be FALSIFIABLE BY THE PAYLOAD IT SITS IN. Naming the rule",
+      "and the kind pinned the DECLARATION and nothing else, so the same-site witness",
+      "could be rewritten to carry one pattern id on both sides while still declaring",
+      "that R-CONT-SAME-SITE stood down because it did not. The kind must therefore",
+      "genuinely FAIL between the predecessor and every successor of the case.",
       "",
-      "These kinds are properties of a PAIR of occurrences and nothing else: two",
-      "strings the producer already emitted, compared. Evaluating them needs no",
-      "applicability and no mapper, which is what makes them checkable here at all",
-      "and keeps this from becoming the second decision engine step 1 refuses to",
-      "grow.",
-      "",
-      "EVERY witness kind must appear in `map`. That is what stops this from being",
-      "emptied into a vacuum: drop an entry and the witnesses naming it fail",
-      "immediately, rather than passing unevaluated. A kind that genuinely cannot be",
-      "read from a pair - a structural record, a boundary - would need this rule",
-      "amended in the open before a witness could name it, and that is the intended",
-      "cost."
+      "What it compares is read from `finding-lineage/v1`.",
+      "`pair_property_equality_fields` lives there and not here: this contract carrying",
+      "its own copy is a junior redefining a senior kind, and the first version of that",
+      "table could be widened with `path` until a witness whose rule and message AGREED",
+      "still read as the kind failing. Every witness kind must be one the senior map",
+      "names, so the table cannot be emptied into a vacuum either - drop an entry and",
+      "the witnesses naming it fail at once rather than passing unevaluated."
     ]
   }
 }
