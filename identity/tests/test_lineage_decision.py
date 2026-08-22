@@ -2572,6 +2572,13 @@ def main() -> int:
             # quantifiers live inside one entry: a fold split into
             # `WireA -> WireA` and `WireB -> WireA` describes two separate folds,
             # and two records do not add up to one transformation.
+            # WHAT THE EXCLUSIONS DROPPED, ACROSS THE WHOLE EXPECTATION. The
+            # stray-entry check used to live inside the exclusion branch, so an
+            # expectation whose licensed rules exclude NOTHING carried any
+            # `excluded_partners_reached_by` it liked, unread - the contract said
+            # naming an undropped partner is rejected and the empty case was the
+            # one nobody asked. Collected here, judged once, below.
+            dropped_all: dict = {}
             for rid in lic:
                 rule_r = rules[rid]
                 binding = rule_r.get("record_binding")
@@ -2632,6 +2639,8 @@ def main() -> int:
                             excl_spec = mapping_or_empty(
                                 axes["excluding"].get(spec_r["excluding"]))
                             want_out = excl_spec.get("requires_applicable_outcome")
+                            for o_ in dropped:
+                                dropped_all.setdefault(o_, (rid, role, want_out))
                             if dropped and want_out:
                                 # PER PARTNER, and that is the whole difference.
                                 # The first form of this check asked only whether
@@ -2664,13 +2673,6 @@ def main() -> int:
                                           "another rule carries THIS partner; a rule "
                                           "that carries a different one carries "
                                           "nothing here.")
-                                stray = sorted(set(rescue) - set(dropped))
-                                check(not stray,
-                                      f"{where}: `excluded_partners_reached_by` names "
-                                      f"{stray}, which {rid} did not exclude. The field "
-                                      "records who the exclusion dropped and who "
-                                      "catches them; naming anyone else describes a "
-                                      "rescue nothing needed.")
                         pools[role] = pool
 
                     def shown(ids_):
@@ -2712,6 +2714,52 @@ def main() -> int:
                           f"Predecessors {shown(pools['predecessor'])!r}, "
                           f"successors {shown(pools['successor'])!r}; the records hold "
                           f"{entries!r}.")
+
+            # THE RESCUE MAP, JUDGED AGAINST EVERY EXCLUSION THIS EXPECTATION MADE
+            # - the empty case included. `an-edit-elsewhere-is-still-the-same-defect`
+            # excludes nobody and accepted `{"occ-nobody": "R-MERGE-FOLD"}` in
+            # silence, because the only reader of the field ran inside a branch
+            # that case never entered.
+            rescue_all = mapping_or_empty(exp.get("excluded_partners_reached_by"))
+            stray = sorted(set(rescue_all) - set(dropped_all))
+            check(not stray,
+                  f"{where}: `excluded_partners_reached_by` names {stray}, which no "
+                  "exclusion in this expectation dropped. The field records who an "
+                  "exclusion dropped and who catches them; naming anyone else "
+                  "describes a rescue nothing needed - and an expectation that "
+                  "excludes NOBODY may not carry the field at all.")
+            # ONE 1:1 RESCUER CANNOT CATCH TWO PARTNERS. The map was checked
+            # partner by partner, and each entry only for the rule's id, outcome
+            # and membership in `applicable_rules` - so the SAME rescuer answered
+            # for every dropped partner, and a second same-path successor with a
+            # changed enclosing symbol rode in on the first one's. Both reviewers
+            # found this independently, on the fix for the round before.
+            #
+            # What is checkable WITHOUT this suite becoming a second mapper is the
+            # SHAPE: a rule whose cardinality relates one occurrence in a role
+            # cannot relate two of them in one mapping. Two candidates satisfying a
+            # 1:1 rule is `arbitration.multiplicity` - an ambiguity, not two
+            # rescues. See `excluded_partners_rescuer_rule` for what this still does
+            # NOT establish.
+            per_rescuer: dict = {}
+            for partner, named in sorted(rescue_all.items()):
+                if isinstance(named, str) and partner in dropped_all:
+                    per_rescuer.setdefault(named, []).append(partner)
+            for named, partners in sorted(per_rescuer.items()):
+                shape = str(mapping_or_empty(
+                    mapping_or_empty(rules.get(named)).get("cardinality")).get("shape"))
+                role = dropped_all[partners[0]][1]
+                side = shape.partition(":")[0 if role == "predecessor" else 2]
+                if side == "1" and len(partners) > 1:
+                    check(False,
+                          f"{where}: `excluded_partners_reached_by` names {named!r} as "
+                          f"the rescuer of {sorted(partners)} - {len(partners)} "
+                          f"partners in the {role} role - and {named} declares "
+                          f"cardinality {shape!r}, which relates ONE. A 1:1 rule "
+                          "reaching two occurrences of this mapping is an ambiguity "
+                          "under `arbitration.multiplicity`, not two rescues; one of "
+                          "them is being absorbed on a rescuer that cannot have "
+                          "reached it.")
 
             # A REFUSED CONFLICT LICENSES NOTHING, and the loop above therefore
             # skipped it entirely - so `copy-source-that-is-also-a-fold-refuses`
@@ -3180,6 +3228,38 @@ def main() -> int:
     # A declared refusal with no case is a decision nothing pins - the defect this
     # project keeps finding in its own drafts. The N:M pair was frozen in the
     # contract and exercised by no fixture at all until this check was written.
+    # EVERY BACKTICKED TOP-LEVEL KEY A PROSE BLOCK CITES HAS TO EXIST. I wrote
+    # `what_the_suite_refuses_to_compute` into a new section this round - a
+    # section whose whole subject is a claim nothing checks - and the key it
+    # names has never existed. A cross-reference to nothing is the same defect as
+    # a declaration nothing reads, and cheaper to catch.
+    # THE NAMES THIS CONTRACT DEFINES, from everywhere it defines them - not
+    # top-level keys alone. The first form of this check knew only top-level keys
+    # and flagged `rule_licensed_alone`, which is a real case obligation: a
+    # cross-reference gate that does not know the vocabulary it polices is worse
+    # than none, because it teaches the next reader to silence it.
+    defined = set(policy) | set(rules) | set(policy["record_additions"])
+    defined |= set(mapping_or_empty(policy["case_obligations"]).get("meanings") or {})
+    defined |= set(policy["structural_signals"]) | set(senior["evidence_kinds"])
+    defined |= set(senior) | set(senior["outcomes"])
+    for axis in ("quantifier", "excluding", "coverage"):
+        defined |= set(mapping_or_empty(vocab.get(axis)))
+    defined |= set(EXPECTATION_KINDS) | set(OCCURRENCE_KINDS) | set(FIXTURE_KINDS)
+    for section in sorted(policy):
+        for line in list_or_empty(policy[section]):
+            if not isinstance(line, str):
+                continue
+            for cited in sorted(set(re.findall(r"`([a-z][a-z0-9]*(?:_[a-z0-9]+){2,})`",
+                                               line))):
+                check(cited in defined,
+                      f"`{section}` cites `{cited}`, which is not a name this contract "
+                      "defines anywhere - not a section, rule, record field, "
+                      "obligation, signal, evidence kind or binding token. A "
+                      "cross-reference to nothing reads as though something were "
+                      "checking it, which is how "
+                      "`what_the_suite_refuses_to_compute` got written into a section "
+                      "whose whole subject is a claim nothing checks.")
+
     for pair in sorted(({frozenset(c["between"]) for c in
                          policy["deliberately_unresolved_conflicts"]}), key=sorted):
         check(pair in exercised_refusals,

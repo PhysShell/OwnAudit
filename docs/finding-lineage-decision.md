@@ -175,6 +175,33 @@ predecessor's path the exclusion lifts nothing and assumes nothing, which is why
 in the contract rather than spelled in the checker, for the same reason the
 quantifiers are.
 
+And **one rescuer cannot catch two partners**. Naming a rule per partner was not
+enough on its own: the same rescuer answered for every dropped partner, so a
+second same-path successor with a changed enclosing symbol rode in on the first
+one's. What is checkable without the suite becoming a second mapper is the
+*shape* — a rule whose cardinality relates one occurrence in a role cannot relate
+two of them in one mapping, because two candidates satisfying a 1:1 rule is an
+ambiguity, not two rescues.
+
+#### What the rescue map does not establish
+
+That a named rescuer's application actually *includes* the partner it is named
+for. With one dropped partner and one named 1:1 rescuer, nothing shows that rule
+reaches *that* occurrence rather than some other. Showing it would mean
+evaluating the rescuer's `requires_all` against the pair — deciding which rules a
+record produces, which is applicability, and which this suite refuses to compute
+on purpose.
+
+The residue is a deliberate boundary, not an oversight, and it is written down in
+`excluded_partners_rescuer_rule` with the three ways out and what each costs:
+let the suite compute applicability for this one purpose and accept a second
+implementation of the evidence predicates; have the fixture declare the rescuing
+relation as its own expectation, which the corpus cannot currently express
+because in `copy-record-dominates-the-single-match` the rescuer reached its
+partner and was then *dominated*; or remove the exclusion entirely, which rejects
+the very case it exists for. Closing it is a decision about what the integrity
+suite is allowed to be, and it belongs to the repository owner.
+
 Making it satisfiable needed a second axis. Git writes **one copy record per
 destination**, so no single entry can name both successors; a fold is the
 opposite, one record naming all of its sources, and two records naming one each
