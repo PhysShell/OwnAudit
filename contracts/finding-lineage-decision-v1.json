@@ -226,7 +226,13 @@
           "destination, so the branch is described by the records together and by no one of",
           "them alone."
         ],
-        "coverage": "union_of_entries"
+        "coverage": "union_of_entries",
+        "coverage_witness": {
+          "case": "a-copy-into-two-new-files-is-a-branch",
+          "transform": "none",
+          "verdict": "accepts",
+          "why": "The case as committed already separates the two readings: two off-path successors and one copy record each, which `union_of_entries` accepts and `single_entry` rejects because no one record names both. No transform is needed, and `none` is declared rather than the field omitted - an absent witness and a witness that needs nothing done to it are different claims."
+        }
       }
     },
     "R-MERGE-FOLD": {
@@ -261,13 +267,21 @@
           "and the quantifier is what makes that different from the copy case rather than a",
           "matter of taste.",
           "",
-          "`coverage: single_entry` is the other half, and it is NOT inherited from the",
-          "copy rule by symmetry - it was probed on its own. Two records naming one source",
-          "each describe two folds into the same successor, not the one transformation this",
-          "mapping claims; both that split and a record naming a single source are rejected",
-          "by `a-fold-across-files-is-still-a-merge`."
+          "`coverage: single_entry` is the other half, and it is NOT inherited from the copy",
+          "rule by symmetry. Two records naming one source each describe two folds into the",
+          "same successor, not the one transformation this mapping claims - and that claim",
+          "is EXECUTED rather than argued: `coverage_witness` below names the case, the",
+          "transform that produces exactly that input, and the verdict this reading has to",
+          "reach on it. It was a probe run once in a scratch directory before that, which is",
+          "the difference between a decision and a recollection of one."
         ],
-        "coverage": "single_entry"
+        "coverage": "single_entry",
+        "coverage_witness": {
+          "case": "a-fold-across-files-is-still-a-merge",
+          "transform": "split_records_one_partner_each",
+          "verdict": "rejects",
+          "why": "The corpus as committed CANNOT separate the fold's two readings: every case satisfies the stronger one, so weakening it changes nothing and the choice would be made on paper. The separating input is that case's own record spread over one source each - `from: [A, B]` becomes two records - which is two folds into one successor rather than the one transformation the mapping claims. `single_entry` rejects it and `union_of_entries` accepts it, which is the whole difference between the two values.\n\nAn earlier revision of this contract called that input an invalid mapping that could not be preregistered, and reported the fold's value as pinned only by being the stronger reading. The first half confused the RECORD being partial with the INPUT being unpreregisterable, and the second half was a disclosed gap standing in for a closed one. The transform is applied by the suite now, so the claim in `why` above is executed rather than believed."
+        }
       }
     }
   },
@@ -1106,7 +1120,23 @@
       "DESTINATION: no single entry of `revision_b.copies` can name both. A fold is the",
       "opposite - one record names all of its sources, and two records naming one each",
       "describe two folds. `coverage` is where that difference is now declared instead",
-      "of being a property of whichever rule the checker happened to be written for."
+      "of being a property of whichever rule the checker happened to be written for.",
+      "",
+      "AND BOTH VALUES ARE PINNED, BY A LAW RATHER THAN BY ARGUMENT. A declared",
+      "coverage that nothing can distinguish from its alternatives is a policy nobody",
+      "chose, which is how the copy sat at `at_least_one` for twelve fixtures. Each",
+      "rule therefore names a `coverage_witness`: a committed case, a transform of it",
+      "the suite applies, and the verdict the declared reading must reach. The sweep",
+      "requires the declared value to DISAGREE with every other value there and to",
+      "reach the DECLARED VERDICT - the second half added after the first draft of the",
+      "law stayed green while the fold's value was flipped, because proving two",
+      "readings differ says nothing about which one was taken.",
+      "",
+      "A paragraph here reported the fold as pinned only by being the stronger",
+      "reading, its separating input being 'an invalid mapping no valid case can",
+      "express'. That confused the RECORD being partial with the INPUT being",
+      "unpreregisterable: a repository where two folds were recorded separately is an",
+      "ordinary state with a definite answer. It is now the fold's witness."
     ],
     "quantifier": {
       "every": "the record must name EVERY occurrence in that role for this mapping",

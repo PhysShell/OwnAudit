@@ -430,6 +430,62 @@ def related_by(entry: dict, pairs: list, preds, succs, by_id: dict) -> set:
     return out
 
 
+def quantifiers_hold(binding: dict, pools: dict, rel: set) -> bool:
+    """The quantifiers of one binding, asked of a set of related pairs."""
+    for role in SUBJECT_ROLES:
+        quant = mapping_or_empty(binding.get(role)).get("quantifier")
+        reached = {p[0 if role == "predecessor" else 1] for p in rel}
+        if quant == "every" and any(o not in reached for o in pools[role]):
+            return False
+        if quant == "at_least_one" and not reached:
+            return False
+    return True
+
+
+def coverage_holds(coverage, binding: dict, pools: dict, rels: list) -> bool:
+    """The quantifiers under ONE reading of how the record entries combine.
+
+    Module level, and taking `coverage` as an argument rather than reading it
+    off the binding, because the discrimination sweep has to ask the SAME
+    question under a value the rule did not declare. A second copy of these two
+    readings written for the sweep would be a sweep that proves the copy agrees
+    with itself."""
+    if coverage == "union_of_entries":
+        return quantifiers_hold(binding, pools, set().union(*rels) if rels else set())
+    if coverage == "single_entry":
+        return any(quantifiers_hold(binding, pools, r) for r in rels)
+    return False
+
+
+def split_one_partner_each(entries: list, pairs: list) -> list:
+    """Every multi-valued matched field spread over one entry per value.
+
+    The transform a fold record must not survive: `from: [A, B]` becomes two
+    records naming one source each, which describes two folds into the same
+    successor rather than the one transformation the mapping claims."""
+    out = []
+    keys = {key for key, _, _ in pairs}
+    for entry in entries:
+        if not isinstance(entry, dict):
+            out.append(entry)
+            continue
+        multi = [k for k in sorted(keys)
+                 if isinstance(entry.get(k), list) and len(entry[k]) > 1]
+        if not multi:
+            out.append(entry)
+            continue
+        for key in multi:
+            for value in entry[key]:
+                out.append({**entry, key: [value]})
+    return out
+
+
+COVERAGE_TRANSFORMS = {
+    "none": lambda entries, pairs: list(entries),
+    "split_records_one_partner_each": split_one_partner_each,
+}
+
+
 def catalog_read(cat_spec: dict, rev_b: dict) -> tuple:
     """(field path, entries, match keys) for one structural signal."""
     field = str(cat_spec.get("observable_from", "")).split("[].")[0]
@@ -2186,6 +2242,7 @@ def main() -> int:
     licensed_rules: set[str] = set()
     exercised_refusals: set = set()
     exercised_reasons: set = set()
+    coverage_inputs: dict = {}
     for name in sorted(set(on_disk) & set(preregistered)):
         with open(os.path.join(FIXDIR, f"{name}.json"), encoding="utf-8") as fh:
             case = json.load(fh)
@@ -2530,18 +2587,6 @@ def main() -> int:
                                   "would then explain nothing this mapping needs.")
                         pools[role] = pool
 
-                    def satisfied(rel: set) -> bool:
-                        """The quantifiers, asked of a set of related pairs."""
-                        for role in SUBJECT_ROLES:
-                            quant = mapping_or_empty(binding.get(role)).get("quantifier")
-                            reached = {p[0 if role == "predecessor" else 1] for p in rel}
-                            if quant == "every" and any(o not in reached
-                                                        for o in pools[role]):
-                                return False
-                            if quant == "at_least_one" and not reached:
-                                return False
-                        return True
-
                     def shown(ids_):
                         return [by_id.get(o, {}).get("enclosing_symbol")
                                 or by_id.get(o, {}).get("path") for o in ids_]
@@ -2554,15 +2599,19 @@ def main() -> int:
                     # at `at_least_one`, and `at_least_one` licensed a branch over a
                     # successor no record named.
                     coverage = mapping_or_empty(binding).get("coverage")
+                    # WHAT THE DISCRIMINATION SWEEP NEEDS, taken from the real
+                    # evaluation rather than rebuilt later from the fixture.
+                    coverage_inputs.setdefault((name, rid), []).append(
+                        (binding, pools, entries, pairs, by_id))
                     if coverage == "union_of_entries":
-                        held, how = satisfied(set().union(*rels) if rels else set()), (
+                        held, how = coverage_holds(coverage, binding, pools, rels), (
                             f"and the records of {read_field} do not TOGETHER relate "
                             "this mapping as its `record_binding` requires. Under "
                             "`union_of_entries` every partner the quantifier ranges "
                             "over has to be named by some record; one that is named "
                             "by none of them is not part of this transformation.")
                     elif coverage == "single_entry":
-                        held, how = any(satisfied(r) for r in rels), (
+                        held, how = coverage_holds(coverage, binding, pools, rels), (
                             f"and no SINGLE entry of {read_field} relates this mapping "
                             "as its `record_binding` requires. Two records describing "
                             "two transformations do not add up to one transformation.")
@@ -3051,6 +3100,86 @@ def main() -> int:
               f"the declared refusal {sorted(pair)} is exercised by no preregistered "
               "case. A conflict the contract deliberately refuses is a decision, and a "
               "decision with no case is frozen in name only.")
+
+    # ---- 3c-bis. EVERY DECLARED `coverage` HAS TO MATTER. -------------------
+    # A value the corpus cannot distinguish is a policy nobody chose. That is
+    # exactly how `R-BRANCH-COPY` sat at `at_least_one` for twelve fixtures: no
+    # case had two off-path successors, so the weaker reading was indistinguishable
+    # from the stronger one and the weaker one licensed a branch over a successor
+    # no record named. The contract said so in prose - "declared and not pinned" -
+    # and the prose was where it stopped.
+    #
+    # The fold then repeated it one field over. `single_entry` was chosen, argued
+    # for, and distinguished by NOTHING in the corpus: flipping it to
+    # `union_of_entries` left all fourteen cases green, so two records naming one
+    # source each would have been accepted as one fold against the contract's own
+    # words. I reported that as a disclosed asymmetry instead of closing it, which
+    # is the same move as the comment above - a reasoned-for exemption.
+    #
+    # So the law, and not the special case: for every rule that declares a
+    # coverage, the declared value and some other value in the vocabulary must
+    # DISAGREE on an input this suite actually evaluated. Where the corpus as
+    # committed cannot separate them, the rule names a transform of a committed
+    # case that can - `coverage_witness` - and the transform is applied here
+    # rather than described.
+    for rid in sorted(rules):
+        binding_d = mapping_or_empty(rules[rid].get("record_binding"))
+        declared = binding_d.get("coverage")
+        if not declared:
+            continue
+        others = [v for v in sorted(axes["coverage"]) if v != declared]
+        witness = mapping_or_empty(binding_d.get("coverage_witness"))
+        wcase, wtransform = witness.get("case"), witness.get("transform")
+        check(wtransform in COVERAGE_TRANSFORMS,
+              f"{rid}.record_binding.coverage_witness names transform "
+              f"{wtransform!r}; this suite can apply "
+              f"{sorted(COVERAGE_TRANSFORMS)}. A witness it cannot run is a witness "
+              "nobody hears.")
+        # AND WHAT IT MUST CONCLUDE. Separation alone was the first draft of this
+        # check and it did not catch the finding it was written for: flipping the
+        # fold to `union_of_entries` left the witness still separating the two
+        # readings, so the sweep passed a value the contract's own `why` rejects.
+        # A law that proves two options are distinguishable says nothing about
+        # which one was taken. The verdict is declared beside the value, in the
+        # contract, and executed here.
+        verdict = witness.get("verdict")
+        check(verdict in ("accepts", "rejects"),
+              f"{rid}.record_binding.coverage_witness declares verdict {verdict!r}, "
+              "not 'accepts' or 'rejects'. Without it the witness shows only that the "
+              "readings differ, which is true whichever one the rule picked.")
+        recorded = coverage_inputs.get((wcase, rid))
+        check(bool(recorded),
+              f"{rid}.record_binding.coverage_witness names case {wcase!r}, and this "
+              f"rule's binding was not evaluated on it. `coverage_inputs` holds "
+              f"{sorted(k[0] for k in coverage_inputs if k[1] == rid)} for {rid}. A "
+              "witness has to be a case where the binding actually ran.")
+        if (wtransform not in COVERAGE_TRANSFORMS or not recorded
+                or verdict not in ("accepts", "rejects")):
+            continue
+        separated, verdicts = set(), set()
+        for binding_w, pools_w, entries_w, pairs_w, by_id_w in recorded:
+            moved = COVERAGE_TRANSFORMS[wtransform](entries_w, pairs_w)
+            rels_w = [related_by(e, pairs_w, pools_w["predecessor"],
+                                 pools_w["successor"], by_id_w) for e in moved]
+            mine = coverage_holds(declared, binding_w, pools_w, rels_w)
+            verdicts.add(mine)
+            for other in others:
+                if coverage_holds(other, binding_w, pools_w, rels_w) != mine:
+                    separated.add(other)
+        check(separated == set(others),
+              f"{rid} declares coverage {declared!r}, and on {wcase!r} under "
+              f"transform {wtransform!r} it agrees with {sorted(set(others) - separated)} "
+              "- so those readings are the same policy here and this rule chose "
+              "between them on paper only. Either the witness does not separate "
+              "them or the declaration is not load-bearing; both are a value nobody "
+              "picked.")
+        check(verdicts == {verdict == "accepts"},
+              f"{rid} declares coverage {declared!r} and a witness that it "
+              f"{verdict} {wcase!r} under {wtransform!r} - and it does not: the "
+              f"reading concludes {sorted(verdicts)} where "
+              f"{verdict == 'accepts'} was declared. Two records naming one partner "
+              "each are two transformations or they are one; the contract says which, "
+              "and this is where it either holds or is a sentence.")
 
     # ---- 3d. THE ELIGIBILITY CORPUS. ----------------------------------------
     # Stage 0 is answered before the relation problem is posed, so its cases live

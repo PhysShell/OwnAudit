@@ -152,16 +152,31 @@ checker was written for. It is now declared: `coverage: union_of_entries` on the
 copy, `coverage: single_entry` on the fold, required of every rule that binds a
 record and rejected if it is a word the vocabulary does not carry.
 
-The two values are not pinned equally, and the asymmetry is worth stating.
-`union_of_entries` on the copy is pinned by a valid preregistered case — remove
-a record and the case fails. `single_entry` on the fold is not, because the
-input that would distinguish it is a fold record naming only some of its
-sources, which is an invalid mapping and cannot be preregistered as a valid
-case. What pins it is that it is the *stronger* of the two readings — anything
-one entry relates, the union relates too — so the corpus satisfying it is real
-evidence, and the residual risk is a valid mapping wrongly rejected rather than
-an invented one accepted. Weakening it was probed directly, and the split fold
-that `single_entry` rejects does pass under `union_of_entries`.
+Both values are pinned, and by the same law. A declared `coverage` that no
+input can distinguish from its alternatives is a policy nobody chose — which is
+precisely how the copy rule sat at `at_least_one` for twelve fixtures. So each
+rule names a **coverage witness**: a committed case, a transform of it the suite
+can apply, and the verdict the declared reading must reach on the result. The
+sweep applies the transform, evaluates every value in the vocabulary, and
+requires two things — that the declared value *disagrees* with each of the
+others there, and that it reaches the *declared verdict*.
+
+The copy's witness is `a-copy-into-two-new-files-is-a-branch` untransformed
+(`accepts`): two off-path successors with one record each, which
+`union_of_entries` admits and `single_entry` cannot. The fold's is
+`a-fold-across-files-is-still-a-merge` with its record spread over one source
+each (`rejects`): two folds into one successor, not the one transformation the
+mapping claims.
+
+An earlier version of this section reported the fold's value as pinned only by
+being the *stronger* reading, on the grounds that the separating input was an
+invalid mapping no valid case could express. That confused the *record* being
+partial with the *input* being unpreregisterable, and it was a disclosed gap
+standing in for a closed one. The first draft of the law that replaced it was
+also wrong, and in an instructive way: it required only that the readings be
+*distinguishable* on the witness, which stayed green when the fold's value was
+flipped — a law proving two options differ says nothing about which was taken.
+The verdict is the half that makes it bite.
 
 ### 4. What the suite refuses to compute
 
