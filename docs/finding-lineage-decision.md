@@ -154,14 +154,26 @@ continued rule reaches it either. It was then absorbed into the branch by
 by copy records and one explained by nothing, and the suite reported OK.
 
 So `excluding.partners_where_same_path_holds` now declares
-`requires_applicable_outcome: continued`, and where the exclusion actually
-removes a partner, the mapping must declare an applicable rule reaching that
-outcome. It binds only when something was removed — where no partner sits at the
+`requires_applicable_outcome: continued`, and the expectation names, **per
+dropped partner**, the rule that reaches it — `excluded_partners_reached_by`,
+the same shape as `signals_defeated` and `boundary_defeated`: the thing, and what
+explains it. The named rule must be in `applicable_rules` and must conclude that
+outcome. It need *not* be in `licensed_by`: a rule that reached a partner and was
+then dominated still reached it, which is exactly what
+`copy-record-dominates-the-single-match` records.
+
+The per-partner half was the second attempt. The first asked only whether *some*
+applicable rule concluded `continued` — and one such rule then discharged the
+promise for every dropped partner at once, so a second same-path successor with a
+different enclosing symbol rode in on the first one's rescuer while being reached
+by nothing itself. Membership standing in for the correct member, written into
+the fix for the previous instance of it.
+
+It binds only when something was removed — where no partner sits at the
 predecessor's path the exclusion lifts nothing and assumes nothing, which is why
-`a-copy-into-two-new-files-is-a-branch` is untouched by it and
-`copy-record-dominates-the-single-match`, whose `R-CONT-SAME-SITE` is exactly the
-rule the promise meant, satisfies it. The outcome is named in the contract rather
-than spelled in the checker, for the same reason the quantifiers are.
+`a-copy-into-two-new-files-is-a-branch` is untouched by it. The outcome is named
+in the contract rather than spelled in the checker, for the same reason the
+quantifiers are.
 
 Making it satisfiable needed a second axis. Git writes **one copy record per
 destination**, so no single entry can name both successors; a fold is the

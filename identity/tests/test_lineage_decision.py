@@ -597,6 +597,10 @@ EXPECTATION_KINDS = {
     UNAVAILABLE_FIELD: "list",
     "not_applicable": "object", "signals_defeated": "object",
     "boundary_defeated": "object", "decision_detail": "object",
+    # occurrence id -> the rule that reaches it, for partners a record binding
+    # excluded. Same shape as `signals_defeated` and `boundary_defeated`: the
+    # thing, and what explains it.
+    "excluded_partners_reached_by": "object",
 }
 DETAIL_KINDS = {
     "conflicting_rules": "list", "rules_without_a_unique_candidate": "list",
@@ -2226,7 +2230,8 @@ def main() -> int:
     # answering it here would be the checker deciding what belongs in a record.
     validated_record_fields = {"applicable_rules", "licensed_by", "decision_detail",
                                "signals_defeated", UNAVAILABLE_FIELD,
-                               "evidence_surviving", "boundary_defeated"}
+                               "evidence_surviving", "boundary_defeated",
+                               "excluded_partners_reached_by"}
     missing_declarations = sorted(validated_record_fields - set(policy["record_additions"]))
     check(not missing_declarations,
           f"`record_additions` does not declare {missing_declarations}, which this "
@@ -2628,19 +2633,44 @@ def main() -> int:
                                 axes["excluding"].get(spec_r["excluding"]))
                             want_out = excl_spec.get("requires_applicable_outcome")
                             if dropped and want_out:
-                                reached = [r for r in app
-                                           if mapping_or_empty(rules.get(r)).get("outcome")
-                                           == want_out]
-                                check(bool(reached),
-                                      f"{where}: {rid} excludes {shown_ids(dropped, by_id)!r} "
-                                      "from the record's coverage because they sit at the "
-                                      "predecessor's path - and this mapping declares no "
-                                      f"applicable rule that concludes {want_out!r}, so "
-                                      "nothing reaches them. The exclusion lifts the "
-                                      "record requirement on the promise that another "
-                                      "rule carries it; where no such rule applies, the "
-                                      "promise is the only thing holding the partner in "
-                                      "and it holds nothing.")
+                                # PER PARTNER, and that is the whole difference.
+                                # The first form of this check asked only whether
+                                # SOME applicable rule concluded the outcome, and
+                                # one such rule then discharged the promise for
+                                # every dropped partner at once: a second same-path
+                                # successor with a different enclosing symbol rode
+                                # in on the first one's rescuer, reached by nothing
+                                # itself. Membership standing in for the correct
+                                # member - the sub-form this branch has now found
+                                # more times than any other, written into the fix
+                                # for the previous instance of it.
+                                rescue = mapping_or_empty(
+                                    exp.get("excluded_partners_reached_by"))
+                                for o_ in dropped:
+                                    named = rescue.get(o_)
+                                    check(isinstance(named, str)
+                                          and mapping_or_empty(rules.get(named)).get(
+                                              "outcome") == want_out
+                                          and named in app,
+                                          f"{where}: {rid} excludes "
+                                          f"{shown_ids([o_], by_id)[0]!r} from the "
+                                          "record's coverage because it sits at the "
+                                          "predecessor's path, and "
+                                          "`excluded_partners_reached_by` names "
+                                          f"{named!r} for it - which has to be a rule "
+                                          f"this mapping declares applicable AND that "
+                                          f"concludes {want_out!r}. The exclusion lifts "
+                                          "the record requirement on the promise that "
+                                          "another rule carries THIS partner; a rule "
+                                          "that carries a different one carries "
+                                          "nothing here.")
+                                stray = sorted(set(rescue) - set(dropped))
+                                check(not stray,
+                                      f"{where}: `excluded_partners_reached_by` names "
+                                      f"{stray}, which {rid} did not exclude. The field "
+                                      "records who the exclusion dropped and who "
+                                      "catches them; naming anyone else describes a "
+                                      "rescue nothing needed.")
                         pools[role] = pool
 
                     def shown(ids_):
@@ -3186,6 +3216,25 @@ def main() -> int:
         others = [v for v in sorted(axes["coverage"]) if v != declared]
         witness = mapping_or_empty(binding_d.get("coverage_witness"))
         wcase, wtransform = witness.get("case"), witness.get("transform")
+        # STRINGS FIRST, because both are about to be used as dictionary keys.
+        # `wtransform in COVERAGE_TRANSFORMS` raises TypeError on a list, and
+        # `coverage_inputs.get((wcase, rid))` raises on an unhashable case - the
+        # thirteenth and fourteenth guards on this branch to die on the input they
+        # exist to examine, both introduced by the check that closed the twelfth.
+        #
+        # The fixture and contract censuses did not see these: both mutate
+        # CONTAINERS INTO SCALARS and never the reverse, so a string field turning
+        # into a list is a direction the instrument does not sweep. That is a gap
+        # in the measurement, not only in the code.
+        shape_bad = [f"{rid}.record_binding.coverage_witness.{field} is {value!r}, "
+                     "not a string. It is used as a dictionary key, and an "
+                     "unhashable one raises instead of reporting."
+                     for field, value in (("case", wcase), ("transform", wtransform))
+                     if not isinstance(value, str)]
+        for msg in shape_bad:
+            check(False, msg)
+        if shape_bad:
+            continue
         check(wtransform in COVERAGE_TRANSFORMS,
               f"{rid}.record_binding.coverage_witness names transform "
               f"{wtransform!r}; this suite can apply "

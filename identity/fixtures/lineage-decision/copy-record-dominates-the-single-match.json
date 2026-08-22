@@ -73,7 +73,10 @@
         "R-CONT-COPY": "cardinality 1:1, and the copy record explains a second successor here",
         "R-MERGE-FOLD": "no merge record, and the shape is 1:N not N:1"
       },
-      "note": "R-CONT-SAME-SITE stays in applicable_rules and out of licensed_by. It proposed `continued` to occ-b1 and lost; recording it as licensing `branched` would attribute a conclusion to a rule that never reached it, and dropping it would lose the recall set - retiring R-BRANCH-COPY later must find exactly this mapping."
+      "note": "R-CONT-SAME-SITE stays in applicable_rules and out of licensed_by. It proposed `continued` to occ-b1 and lost; recording it as licensing `branched` would attribute a conclusion to a rule that never reached it, and dropping it would lose the recall set - retiring R-BRANCH-COPY later must find exactly this mapping.",
+      "excluded_partners_reached_by": {
+        "occ-b1": "R-CONT-SAME-SITE"
+      }
     }
   ],
   "forbid": [
@@ -81,7 +84,8 @@
     "R-CONT-SAME-SITE named in licensed_by",
     "R-CONT-SAME-SITE missing from applicable_rules - the disagreement IS the record",
     "unresolved - this pair is classified in dominance, not refused",
-    "an empty licensed_by on an outcome that is not a refusal"
+    "an empty licensed_by on an outcome that is not a refusal",
+    "the exclusion of occ-b1 discharged by any applicable continued rule rather than by the one that reaches occ-b1 - a second same-path successor would then ride in on this one's rescuer"
   ],
   "contract": "finding-lineage-decision/v1",
   "status": "preregistered-unimplemented"
