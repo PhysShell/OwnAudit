@@ -47,6 +47,16 @@ import sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(os.path.dirname(HERE))
 sys.path.insert(0, ROOT)
+sys.path.insert(0, HERE)
+
+# The RAW parse, before anything is read by key. This suite had no such scan at
+# all: `json.load` keeps the last of a duplicated key and drops the other in
+# silence, so a case declaring `expect` twice was checked against half of what it
+# says. Verified by injecting a second `expect` into
+# `added-file-is-an-evidenced-birth` - the first declaration vanished and this
+# suite stayed green. The scanner is imported rather than copied from the
+# decision suite, which is where it lived while covering only that suite's files.
+from jsonscan import duplicate_json_keys  # noqa: E402
 
 CONTRACT = os.path.join(ROOT, "contracts", "finding-lineage-v1.json")
 FIXDIR = os.path.join(ROOT, "identity", "fixtures", "lineage")
@@ -168,6 +178,17 @@ def amendment_ordinal_failures(note) -> list:
 
 
 def main() -> int:
+    scanned = [("outcome contract", CONTRACT)]
+    scanned += [(f"fixture {f}", os.path.join(FIXDIR, f))
+                for f in sorted(os.listdir(FIXDIR)) if f.endswith(".json")]
+    for label, cpath in scanned:
+        for dup in duplicate_json_keys(cpath):
+            check(False,
+                  f"the {label} declares {dup!r} twice. `json.load` keeps the last "
+                  "one and drops the other without a word, so an outcome, a "
+                  "limitation, an evidence kind or half a preregistered expectation "
+                  "would vanish between the file and every check below.")
+
     with open(CONTRACT, encoding="utf-8") as fh:
         contract = json.load(fh)
 

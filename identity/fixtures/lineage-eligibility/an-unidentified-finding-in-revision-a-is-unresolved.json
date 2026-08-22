@@ -3,7 +3,7 @@
   "contract": "finding-lineage-decision/v1",
   "status": "preregistered-unimplemented",
   "title": "A revision A finding whose occurrence id was never earned",
-  "why": "`identity/occurrence.py` returns None for the occurrence id when the producer run id is missing, and `aggregate/normalize.py` writes that None into the record. This is ordinary output of a run without producer provenance, not malformed input. The decision layer had no path for it at all: the procedure began at COLLECT, no reason_mapping branch emitted the senior contract's frozen `missing-occurrence-id`, and no case in the relation corpus could express it - the relation schema requires a string id, correctly, because an edge has to name its subject. Stage 0 answers it before the relation problem is posed.",
+  "why": "`identity/occurrence.py` returns None for the occurrence id when the producer run id is missing, and `aggregate/normalize.py` writes that None into the record. This is ordinary output of a run without producer provenance, not malformed input. The decision layer had no path for it at all: the procedure began at COLLECT, no reason_mapping branch emitted the senior contract's frozen `missing-occurrence-id`, and no case in the relation corpus could express it - the relation schema requires a string id, correctly, because an edge has to name its subject. Stage 0 answers it before the relation problem is posed. Its anchor is COMPLETE - a real start column - so the only limitation is the missing provenance, and `resolve()` returns that one and no other. A finding can lose its identity without its anchor being degraded too, and the corpus says so on this side.",
   "revision": "a",
   "finding": {
     "occurrence_id": null,
@@ -11,7 +11,7 @@
     "rule": "DOTNET_RESOURCE_LEAK",
     "message": "event handler subscribed and never removed",
     "start_line": 42,
-    "start_column": null,
+    "start_column": 17,
     "pattern_id": "f964274604b5c187",
     "enclosing_symbol": "DocView.Wire",
     "anchored_content": "_store.Changed += OnChanged;",

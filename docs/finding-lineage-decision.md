@@ -380,13 +380,27 @@ successor). The relation schema still requires a string occurrence id, and is
 not relaxed — that requirement is what stops an unanswerable edge being
 preregistered.
 
-Each case's null id has to come with a reason `identity/occurrence.py` actually
-emits, and a reason of the kind that produces a null id: the suite reads the
-vocabulary off that module's `LIMIT_*` constants rather than restating it, and
-requires at least one limitation under the `occurrence-id-unavailable:` prefix,
-since `physical-anchor-missing:start-column` alone does not block one. A fixture
-that paired a null id with reasons that would not have produced it would be
-triggering stage 0 with nothing.
+Each case's limitations are checked by **running the producer**, not by
+restating its rules. The suite calls `identity/occurrence.py`'s `resolve()` on
+the finding as written — reading the two inputs a normalized record does not
+carry, producer provenance and anchor ambiguity, off the declared limitations so
+the fixture still picks its own scenario — and requires that the returned id is
+`None` and the returned limitation list matches the declared one exactly.
+
+That replaced a weaker check which asked only that some declared token carried
+the `occurrence-id-unavailable:` prefix. It passed limitation sets `resolve()`
+could not have produced: both cases set `start_column: null` and neither declared
+`physical-anchor-missing:start-column`, which `resolve()` appends unconditionally
+in that case, so both fixtures froze a record the producer cannot emit. It would
+also have accepted `occurrence-id-unavailable:path` on a finding that has a path.
+Reimplementing the predicates in the checker would only have frozen a second
+opinion about them; calling the producer freezes the producer.
+
+The two cases now differ in anchor quality on purpose. The revision-A finding has
+a complete anchor and exactly one limitation — the missing provenance — because a
+finding can lose its identity without its anchor being degraded too. The
+revision-B finding has no start column and carries both tokens, one blocking and
+one not.
 
 | # | case | expected |
 |---|---|---|

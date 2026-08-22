@@ -88,6 +88,10 @@ sys.path.insert(0, ROOT)
 # function, and the whole reason this branch needed a sixth senior amendment is
 # that nobody was checking fixture ids against the first one.
 from identity import pattern as finding_pattern  # noqa: E402
+# The duplicate-key scanner, now shared with the senior suite rather than
+# living here and being copied there. See `identity/tests/jsonscan.py`.
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from jsonscan import duplicate_json_keys  # noqa: E402
 # ...and the ONE producer of identity limitations, for the same reason. The
 # eligibility corpus asserts that a null occurrence id came with a reason
 # `occurrence.py` actually emits; a hand-copied list of tokens here would be a
@@ -97,10 +101,6 @@ from identity import occurrence as finding_occurrence  # noqa: E402
 LIMITATION_VOCABULARY = frozenset(
     v for k, v in vars(finding_occurrence).items()
     if k.startswith("LIMIT_") and isinstance(v, str))
-# `resolve()` returns a null id for exactly the limitations under this prefix -
-# `physical-anchor-missing:start-column` does not block an id. The prefix is
-# taken from a named constant rather than spelled again here.
-BLOCKING_LIMITATION = finding_occurrence.LIMIT_NO_RUN_ID.split(":")[0] + ":"
 
 SENIOR = os.path.join(ROOT, "contracts", "finding-lineage-v1.json")
 POLICY = os.path.join(ROOT, "contracts", "finding-lineage-decision-v1.json")
@@ -169,59 +169,6 @@ def check(cond: bool, msg: str) -> None:
 def load(path: str) -> dict:
     with open(path, encoding="utf-8") as fh:
         return json.load(fh)
-
-
-class _Marked(dict):
-    """A parsed JSON object that remembers the keys declared twice inside it.
-
-    `json.load` keeps the last of a duplicated key and drops the other without a
-    word, so the duplication has to be caught during the raw parse. A plain dict
-    cannot carry that fact to a later walk; this can."""
-    __slots__ = ("duplicate_keys",)
-
-
-def duplicate_json_keys(path: str) -> list:
-    """Dotted paths to keys declared twice in ONE object, from the RAW parse.
-
-    Two earlier versions of this function got its own description wrong, in
-    opposite directions. The first promised dotted paths and returned bare names.
-    The second returned the key plus its siblings and asserted that a path was not
-    obtainable, because `object_pairs_hook` is called innermost-first and never
-    learns where it is. That second claim was false: the hook does not know, but a
-    walk from the root afterwards does, once each object carries what it saw. So
-    the paths are real - `arbitration.conflict.reason`, not `reason` - and the
-    docstring finally matches the code.
-
-    Stating something impossible when it is merely inconvenient is the same defect
-    this suite keeps finding elsewhere: a description that claims more, or less,
-    than the code does."""
-    def hook(pairs):
-        obj = _Marked(pairs)
-        seen, dups = set(), []
-        for key, _ in pairs:
-            if key in seen:
-                dups.append(key)
-            seen.add(key)
-        obj.duplicate_keys = dups
-        return obj
-
-    with open(path, encoding="utf-8") as fh:
-        root = json.load(fh, object_pairs_hook=hook)
-
-    found: list = []
-
-    def walk(node, trail):
-        if isinstance(node, _Marked):
-            for key in node.duplicate_keys:
-                found.append(".".join(trail + [key]) or key)
-            for key, value in node.items():
-                walk(value, trail + [key])
-        elif isinstance(node, list):
-            for i, value in enumerate(node):
-                walk(value, trail + [f"[{i}]"])
-
-    walk(root, [])
-    return sorted(set(found))
 
 
 def rule_needs(rule) -> set:
@@ -1859,6 +1806,14 @@ def main() -> int:
     # declaration vanishes and the suite stays green.
     scanned += [(f"fixture {f}", os.path.join(FIXDIR, f))
                 for f in sorted(os.listdir(FIXDIR)) if f.endswith(".json")]
+    # ...AND THE ELIGIBILITY CORPUS, which the comment above already claimed was
+    # covered by saying "the FIXTURES". It meant one directory. The other arrived
+    # later and never joined the list, so an eligibility case could declare
+    # `expect` twice - an invalid one first, the valid one second - and lose the
+    # invalid half to `json.load` before any check saw it. Verified: injecting a
+    # first `expect` naming `continued` left the suite green.
+    scanned += [(f"eligibility fixture {f}", os.path.join(ELIGDIR, f))
+                for f in sorted(os.listdir(ELIGDIR)) if f.endswith(".json")]
     for label, cpath in scanned:
         for dup in duplicate_json_keys(cpath):
             check(False,
@@ -3222,13 +3177,40 @@ def main() -> int:
                       "`occurrence.py` does not emit. The fixture stands in for a "
                       "record that module produced; a token it never produces "
                       "describes an input the mapper will not receive.")
-            check(any(isinstance(x, str) and x.startswith(BLOCKING_LIMITATION)
-                      for x in limits),
-                  f"{where}: identity_limitations is {limits!r} and none of them "
-                  f"starts with {BLOCKING_LIMITATION!r}. Those are the only ones for "
-                  "which `resolve()` returns a null id - so this fixture pairs a null "
-                  "id with reasons that would not have produced one, and stage 0 is "
-                  "then triggered by nothing.")
+            # THE PRODUCER'S OWN ANSWER, asked of the finding as written. A
+            # prefix test stood here - "at least one token blocks an id" - and it
+            # passed a limitation set `resolve()` could not have produced for THIS
+            # finding: both cases set `start_column: null` and neither declared
+            # `physical-anchor-missing:start-column`, which `resolve()` appends
+            # unconditionally in that case. The fixtures froze a record the
+            # producer cannot emit, and a checker that reimplements the predicate
+            # would only have frozen a second opinion about it.
+            #
+            # The two inputs `resolve()` takes that a normalized finding does not
+            # carry - producer provenance and anchor ambiguity - are read OFF the
+            # declared limitations, so the fixture still chooses its own scenario.
+            # Everything derivable from the finding's own fields is then the
+            # producer's to decide, and the answer has to match exactly.
+            if limits and all(isinstance(x, str) for x in limits):
+                phys = {"path": finding["path"], "start_line": finding["start_line"],
+                        "start_column": finding["start_column"]}
+                blind = finding_occurrence.LIMIT_NO_RUN_ID in limits
+                got_id, got_limits = finding_occurrence.resolve(
+                    finding["pattern_id"], phys,
+                    None if blind else "preregistered-run",
+                    None if blind else "preregistered-producer",
+                    finding_occurrence.LIMIT_AMBIGUOUS_ANCHOR in limits)
+                check(got_id is None,
+                      f"{where}: `resolve()` returns {got_id!r} for this finding, not "
+                      "None. The limitations it declares do not withhold an identity, "
+                      "so the mapper would receive an identified finding and stage 0 "
+                      "would never see it.")
+                check(sorted(limits) == got_limits,
+                      f"{where}: the finding declares {sorted(limits)} and `resolve()` "
+                      f"returns {got_limits} for it. It returns EVERY applicable "
+                      "limitation, not the first - so a set that differs from the "
+                      "producer's is a record the producer cannot emit, whichever "
+                      "direction it differs in.")
 
         exp = ecase["expect"]
         ebad = kind_table_failures(f"{where}.expect", exp, ELIGIBILITY_EXPECT_KINDS,
