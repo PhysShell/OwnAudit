@@ -2211,6 +2211,51 @@ def main() -> int:
               "decision does not come from, and nothing else in this document "
               "corrects it.")
 
+    # `entry_shape` AGREES WITH `matches`, WHICH IS THE NORMATIVE HALF. An unknown
+    # token was already rejected, but a WRONG KNOWN one was not:
+    # `copy_record.entry_shape.to = "enclosing symbol"` passed while the record's
+    # `to` is a path and `matches` says so. Membership standing in for the correct
+    # member, in the structural-signal catalog this time - found by the reader
+    # audit, which is the only place it could have been found, since no fixture
+    # reads `entry_shape` at all.
+    # AN EXACT VOCABULARY, not a substring. `want_word in said_n` accepted
+    # `"path-x"`, so the field could say something meaningless and still name the
+    # right attribute inside it. Half-checked is what this audit exists to remove.
+    SHAPE_TOKENS = {"path": {"path", "list of paths"},
+                    "enclosing_symbol": {"enclosing symbol",
+                                         "list of enclosing symbols"}}
+    for sig_n in sorted(policy["structural_signals"]):
+        spec_n = mapping_or_empty(policy["structural_signals"][sig_n])
+        raw_shape = spec_n.get("entry_shape")
+        # A record whose entries are bare values declares one shape for the whole
+        # entry rather than a shape per key - `reformatted_paths` is a list of
+        # paths. Both forms describe the same thing and both are checked.
+        shape_n = mapping_or_empty(raw_shape)
+        for key_n, subject in sorted(mapping_or_empty(spec_n.get("matches")).items()):
+            attr = str(subject).partition(".")[2]
+            legal = SHAPE_TOKENS.get(attr, set())
+            said_n = raw_shape if isinstance(raw_shape, str) else shape_n.get(key_n)
+            check(said_n in legal,
+                  f"`structural_signals.{sig_n}.entry_shape.{key_n}` is {said_n!r} "
+                  f"and `matches` binds that key to {subject!r}, so the shape has to "
+                  f"be one of {sorted(legal)}. `matches` is the normative half; a "
+                  "record whose declared shape contradicts what it is matched on "
+                  "tells a mapper to read the wrong field, and one that is not a "
+                  "shape at all tells it nothing.")
+
+    # EVERY DECLARED OBLIGATION MEANING IS CARRIED BY SOME CASE. A meaning nothing
+    # declares is a duty nobody owes - the same rule this contract already applies
+    # to a declared refusal with no case, asked one section over.
+    declared_duties = {x for v in mapping_or_empty(
+        mapping_or_empty(policy.get("case_obligations")).get("obligations")).values()
+        for x in list_or_empty(v) if isinstance(x, str)}
+    for duty_n in sorted(mapping_or_empty(
+            mapping_or_empty(policy.get("case_obligations")).get("meanings"))):
+        check(duty_n in declared_duties,
+              f"`case_obligations.meanings` defines {duty_n!r} and no case declares "
+              "it. An obligation nobody carries is a duty nobody owes, and it reads "
+              "as coverage that is not there.")
+
     vocab = mapping_or_empty(policy.get("record_binding_vocabulary"))
     # THE VOCABULARY ITSELF, BEFORE ANYTHING IS LOOKED UP IN IT. Membership -
     # `token in vocab["quantifier"]` - raises TypeError when that axis is a
@@ -3994,6 +4039,24 @@ def main() -> int:
     # continuity the new case exists to forbid. Anyone implementing from the table
     # would have written the defect. Reported by review; the row is corrected and
     # the class is closed here rather than the instance.
+    # THE REFUSAL TABLE IS THE OTHER FINITE SET THE DOC RESTATES. It listed six
+    # reasons under a sentence saying "Five" - the sixth arrived with stage 0 and
+    # the count was never updated - and nothing compared the table to the set the
+    # policy can actually emit. Same shape as the rule table, one section down.
+    emitted_short = {r.rsplit(":", 1)[-1] for r in emitted}
+    tabled = {m for m in re.findall(r"^\| `([a-z][a-z-]+)` \|", doc, re.M)
+              if m in {v.rsplit(":", 1)[-1] for v in senior["limitations"].values()}}
+    check(tabled == emitted_short,
+          f"the doc's refusal table names {sorted(tabled)} and this policy can emit "
+          f"{sorted(emitted_short)}. The table is where a reader learns which "
+          "refusals exist; a reason it omits is one nobody will handle, and one it "
+          "invents is a value the policy never produces.")
+    check(re.search(r"^Six, and all six are drawn from step 0", doc, re.M) is not None,
+          "the refusal section must open by counting the refusals it lists, and the "
+          "count must be six. It said `Five` while the table held six: the sentence "
+          "was written before stage 0 added `missing-occurrence-id` and was never "
+          "asked again.")
+
     for rid_d in sorted(rules):
         row = re.search(r"^\| `" + re.escape(rid_d) + r"` \|.*$", doc, re.M)
         check(row is not None,
@@ -4002,12 +4065,45 @@ def main() -> int:
               "from it is a rule nobody implementing from the document will write.")
         if row is None:
             continue
-        absent = [k for k in list_or_empty(mapping_or_empty(rules[rid_d]).get("requires_all"))
-                  if isinstance(k, str) and f"`{k}`" not in row.group(0)]
+        # `rule_needs`, NOT `requires_all`. A group rule's per-partner profile is a
+        # requirement of the same rule - `rule_needs` has said so since it was
+        # written, and this file already calls it in three other places - and the
+        # table presents both in one `requires` column. Reading only the direct
+        # list let the R-BRANCH-COPY row drop `same_rule_message` and
+        # `anchored_content` and stay green, describing a branch that needs only
+        # its structural record. A mapper built from that row would accept any
+        # successor the copy record named.
+        # BOTH DIRECTIONS. Checking only contract -> doc left the contract free to
+        # DROP a requirement: the row would then name one more than the rule, and
+        # nothing noticed. That is why the reader audit found `requires_all`
+        # unpinned on all three 1:1 rules whose first member is not a structural
+        # record - removing `same_path` from R-CONT-SAME-SITE changed no verdict.
+        # The table is a second declaration of the same finite set, so the honest
+        # relation is equality.
+        needs = {k for k in rule_needs(mapping_or_empty(rules[rid_d]))
+                 if isinstance(k, str)}
+        named = set(re.findall(r"`([a-z_]+)`", row.group(0)))
+        absent = sorted(needs - named)
+        extra = sorted(k for k in named - needs if k in senior["evidence_kinds"]
+                       or k in policy["structural_signals"])
         check(not absent,
-              f"the doc's row for {rid_d} does not name {absent}, which its "
-              "`requires_all` does. The contract and the table would then describe "
-              "two different rules, and the table is the one a mapper is built from.")
+              f"the doc's row for {rid_d} does not name {absent}, which the rule "
+              "requires. The contract and the table would then describe two "
+              "different rules, and the table is the one a mapper is built from.")
+        check(not extra,
+              f"the doc's row for {rid_d} names {extra}, which the rule does NOT "
+              "require. Either the row is stale or the contract quietly dropped a "
+              "requirement - and a dropped requirement is a rule that licenses more "
+              "than it was frozen to license.")
+        rule_d = mapping_or_empty(rules[rid_d])
+        check(f"`{rule_d.get('outcome')}`" in row.group(0),
+              f"the doc's row for {rid_d} does not name its outcome "
+              f"{rule_d.get('outcome')!r}. The outcome column is the same "
+              "declaration as `rules.{rid}.outcome` and had no link to it.")
+        shape_d = mapping_or_empty(rule_d.get("cardinality")).get("shape")
+        check(isinstance(shape_d, str) and shape_d in row.group(0),
+              f"the doc's row for {rid_d} does not name its cardinality shape "
+              f"{shape_d!r}.")
 
     check("finding-lineage-decision/v1" in doc, "the doc must name the contract it freezes")
     check("implementation not started" in doc,

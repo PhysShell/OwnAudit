@@ -371,7 +371,7 @@ completeness check found it on its first run.
 
 ### Every refusal this policy can emit
 
-Five, and all five are drawn from step 0's vocabulary. **The decision layer
+Six, and all six are drawn from step 0's vocabulary. **The decision layer
 invents no reason values.** When a situation is genuinely unsayable in the senior
 vocabulary the senior contract is amended in the open — which has now happened
 twice, both times because this rule fired on review rather than because anyone
