@@ -1304,27 +1304,37 @@
       {
         "when": "eligibility_refused",
         "reason": "lineage-id-unavailable:missing-occurrence-id",
-        "observed_from": "the finding's own null `occurrence_id`"
+        "observed_from": [
+          "occurrence_id"
+        ]
       },
       {
         "when": "conflicting_rules_present",
         "reason": "lineage-id-unavailable:conflicting-evidence",
-        "observed_from": "decision_detail.conflicting_rules"
+        "observed_from": [
+          "applicable_rules",
+          "decision_detail.conflicting_rules"
+        ]
       },
       {
         "when": "ambiguous_candidates_present",
         "reason": "lineage-id-unavailable:ambiguous-candidates",
-        "observed_from": "decision_detail.ambiguous_candidates"
+        "observed_from": [
+          "decision_detail.ambiguous_candidates",
+          "decision_detail.rules_without_a_unique_candidate"
+        ]
       },
       {
         "when": "a_defeat_left_no_surviving_rule",
         "reason": "reason_mapping.no_rule_applied_after_a_defeat.reason_by_surviving_kinds",
-        "observed_from": "signals_defeated"
+        "observed_from": [
+          "signals_defeated"
+        ]
       },
       {
         "when": "otherwise",
         "reason": "lineage-id-unavailable:no-mapping-evidence",
-        "observed_from": "nothing licensed a link and nothing explains why more precisely"
+        "observed_from": []
       }
     ],
     "cardinality_selects_no_reason": "`decision_detail.rules_excluded_by_cardinality` is PROVENANCE, never a reason. A cardinality filter says only that a rule does not govern this shape; it does not say why the relation failed. Where it coincides with `rules_without_a_unique_candidate`, the honest account of why a known 1:1 hypothesis produced no relation is the AMBIGUITY, and the cardinality-excluded rule stays recorded beside it for the recall set.",
@@ -1345,7 +1355,24 @@
       "'nothing was observed that could license a link'.",
       "",
       "Cardinality is deliberately nowhere in that order. It is the one rejection that",
-      "is not about the evidence at all."
+      "is not about the evidence at all.",
+      "",
+      "`observed_from` NAMES RECORD FIELDS, and it is checked against the predicate.",
+      "It was a sentence beside each step and nothing read it, so pointing the",
+      "ambiguity branch at `signals_defeated` left the suite green and this document",
+      "telling a mapper to look where the decision does not come from. Both reviewers",
+      "found that independently.",
+      "",
+      "Writing it down also corrected it. Two branches were UNDER-DECLARED: a conflict",
+      "is observed from `applicable_rules` as well as `decision_detail.conflicting_rules`",
+      "- rules that applied and still produced a refusal disagreed - and an ambiguity",
+      "from `rules_without_a_unique_candidate` as well as `ambiguous_candidates`. The",
+      "prose had named one field each. `otherwise` names none, which is what makes it",
+      "the branch that always holds.",
+      "",
+      "`eligibility_refused` names `occurrence_id`, and that field is on the FINDING",
+      "rather than on a relation record - stage 0 answers before a relation record",
+      "exists, which is the whole of `eligibility.record_shape: input_local`."
     ]
   },
   "required_kind_witnesses": {

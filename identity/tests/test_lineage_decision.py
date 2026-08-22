@@ -188,6 +188,20 @@ def rule_needs(rule) -> set:
     return needs | set(list_or_empty(profile.get("requires_all")))
 
 
+# WHICH RECORD FIELDS EACH SELECTOR BRANCH IS OBSERVED FROM. One table: the
+# predicate in `mandated_reason` is built from it and the contract's declared
+# `observed_from` is checked against it, so a branch cannot read one field while
+# the frozen document names another.
+SELECTOR_FIELDS = {
+    "conflicting_rules_present": ("applicable_rules",
+                                  "decision_detail.conflicting_rules"),
+    "ambiguous_candidates_present": ("decision_detail.rules_without_a_unique_candidate",
+                                     "decision_detail.ambiguous_candidates"),
+    "a_defeat_left_no_surviving_rule": ("signals_defeated",),
+    "otherwise": (),
+}
+
+
 def mandated_reason(exp, mapping, floor, senior, selector=None):
     """The reason the policy REQUIRES for this refusal, or None if the contract
     has not settled the shape.
@@ -233,12 +247,20 @@ def mandated_reason(exp, mapping, floor, senior, selector=None):
     # branch. A cardinality filter says a rule does not govern this shape; it is
     # not a statement about the evidence and it selects no reason. It stays in
     # the record for the recall set - see `reason_selector.cardinality_selects_no_reason`.
-    holds = {
-        "conflicting_rules_present": bool(app) or bool(conflicting),
-        "ambiguous_candidates_present": bool(blunted) or bool(ambiguous),
-        "a_defeat_left_no_surviving_rule": bool(defeated),
-        "otherwise": True,
-    }
+    # THE FIELDS EACH BRANCH READS, from `SELECTOR_FIELDS` - the same table the
+    # contract's `observed_from` is checked against, so the declaration and the
+    # predicate cannot describe different fields. They could before: pointing the
+    # ambiguity branch's `observed_from` at `signals_defeated` left the suite green
+    # and the frozen selector telling a mapper to look in the wrong place. Both
+    # reviewers found it independently.
+    def reads(path: str):
+        node = exp
+        for seg in path.split("."):
+            node = mapping_or_empty(node).get(seg) if isinstance(node, dict) else None
+        return node
+    holds = {when_k: (True if not fields_k
+                      else any(reads(f) for f in fields_k))
+             for when_k, fields_k in SELECTOR_FIELDS.items()}
     says = {
         "conflicting_rules_present": ("conflicting_rules", "rules applied and disagreed"),
         "ambiguous_candidates_present": ("several_candidates",
@@ -2177,6 +2199,17 @@ def main() -> int:
               f"branch it labels yields {want_!r}. The order is enforced and the "
               "reasons beside it were not, so this section could say one thing while "
               "the policy did another - which is the shape it was written to close.")
+        # ...and the SAME question about `observed_from`, which was the other
+        # unread field beside it.
+        saw_ = mapping_or_empty(step).get("observed_from")
+        want_f = (["occurrence_id"] if when_ == "eligibility_refused"
+                  else sorted(SELECTOR_FIELDS.get(when_, ())))
+        check(saw_ == want_f,
+              f"`reason_selector` step {when_!r} declares observed_from {saw_!r} and "
+              f"the predicate for that branch reads {want_f}. A frozen selector that "
+              "names the wrong record field tells a mapper to look somewhere the "
+              "decision does not come from, and nothing else in this document "
+              "corrects it.")
 
     vocab = mapping_or_empty(policy.get("record_binding_vocabulary"))
     # THE VOCABULARY ITSELF, BEFORE ANYTHING IS LOOKED UP IN IT. Membership -
@@ -3569,6 +3602,13 @@ def main() -> int:
               "nothing and cannot be compared against a citation.")
     defined |= {n_ for n_ in list_or_empty(policy.get("retired_names"))
                 if isinstance(n_, str)}
+    # ...and the selector's condition tokens, which the contract defines as VALUES
+    # of a declared enumeration rather than as keys. Prose explaining why a branch
+    # reads what it reads has to be able to name the branch.
+    defined |= {mapping_or_empty(st).get("when")
+                for st in list_or_empty(
+                    mapping_or_empty(policy.get("reason_selector")).get("order"))
+                if isinstance(mapping_or_empty(st).get("when"), str)}
     # WHOLE BACKTICKED SPANS, then segment by segment. Matching the identifier
     # pattern anywhere in the line found `excluded_by_cardinality` INSIDE
     # `decision_detail.rules_excluded_by_cardinality` - the gate inventing a
@@ -3948,6 +3988,27 @@ def main() -> int:
     # confident description of something else.
     with open(DOC, encoding="utf-8") as fh:
         doc = fh.read()
+    # THE DOC'S RULE TABLE IS WHAT A MAPPER IS BUILT FROM. Adding `same_pattern_id`
+    # to R-CONT-DRIFT left that row saying the old three requirements, so the
+    # frozen policy demanded a refusal while the documentation described the false
+    # continuity the new case exists to forbid. Anyone implementing from the table
+    # would have written the defect. Reported by review; the row is corrected and
+    # the class is closed here rather than the instance.
+    for rid_d in sorted(rules):
+        row = re.search(r"^\| `" + re.escape(rid_d) + r"` \|.*$", doc, re.M)
+        check(row is not None,
+              f"the doc's rule table has no row for {rid_d}. The table is the "
+              "human-readable statement of what each rule requires; a rule missing "
+              "from it is a rule nobody implementing from the document will write.")
+        if row is None:
+            continue
+        absent = [k for k in list_or_empty(mapping_or_empty(rules[rid_d]).get("requires_all"))
+                  if isinstance(k, str) and f"`{k}`" not in row.group(0)]
+        check(not absent,
+              f"the doc's row for {rid_d} does not name {absent}, which its "
+              "`requires_all` does. The contract and the table would then describe "
+              "two different rules, and the table is the one a mapper is built from.")
+
     check("finding-lineage-decision/v1" in doc, "the doc must name the contract it freezes")
     check("implementation not started" in doc,
           "the doc must keep saying no mapper exists, until one does")

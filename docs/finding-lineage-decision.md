@@ -302,7 +302,7 @@ Six, deliberately small and deliberately not exhaustive.
 | id | outcome | shape | requires |
 |---|---|---|---|
 | `R-CONT-SAME-SITE` | `continued` | 1:1 | `same_path`, `structural_context`, `anchored_content` |
-| `R-CONT-DRIFT` | `continued` | 1:1 | `same_path`, `structural_context`, `line_drift` |
+| `R-CONT-DRIFT` | `continued` | 1:1 | `same_path`, `structural_context`, `line_drift`, `same_pattern_id` |
 | `R-CONT-RENAME` | `continued` | 1:1 | `path_rename`, `structural_context`, `anchored_content` |
 | `R-CONT-COPY` | `continued` | 1:1 | `copy_record`, `structural_context`, `anchored_content` |
 | `R-BRANCH-COPY` | `branched` | 1:N, N>=2 | `copy_record` (group) + per successor: `same_rule_message`, `anchored_content` |
