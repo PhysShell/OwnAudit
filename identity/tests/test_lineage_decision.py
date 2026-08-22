@@ -2099,7 +2099,26 @@ def main() -> int:
               "ends of it: with one end unnamed, every occurrence on that side counts "
               "as reached and the record licenses a mapping it does not describe.")
 
-    vocab = policy["record_binding_vocabulary"]
+    vocab = mapping_or_empty(policy.get("record_binding_vocabulary"))
+    # THE VOCABULARY ITSELF, BEFORE ANYTHING IS LOOKED UP IN IT. Membership -
+    # `token in vocab["quantifier"]` - raises TypeError when that axis is a
+    # scalar, so the three checks that police the binding tokens died on a
+    # malformed vocabulary
+    # - the guard crashing on the input it exists to examine, for the eleventh
+    # time on this branch, and I added the third instance of it here while fixing
+    # the tenth somewhere else. Asked once, of all three axes, naming the real
+    # defect instead of reporting that some token is "not carried" by a
+    # vocabulary that is not a vocabulary.
+    axes = {}
+    for axis in ("quantifier", "excluding", "coverage"):
+        check(isinstance(vocab.get(axis), dict) and bool(vocab[axis]),
+              f"`record_binding_vocabulary.{axis}` is {vocab.get(axis)!r}. Every "
+              "binding token is checked for membership in it, and membership in a "
+              "scalar is not a question with an answer.")
+        # A LOCAL READING, not a repair of the loaded contract. Writing the empty
+        # mapping back into `policy` would leave every later reader looking at a
+        # document this checker quietly fixed.
+        axes[axis] = mapping_or_empty(vocab.get(axis))
     for rid in sorted(rules):
         rule_ = rules[rid]
         check("requires_all_scope" not in rule_,
@@ -2116,6 +2135,23 @@ def main() -> int:
         check(len(structural) == 1,
               f"{rid} is a group rule requiring {structural!r} structural signals; "
               "the binding is about exactly one record")
+        # HOW THE ENTRIES COMBINE, declared rather than inherited from whichever
+        # rule the checker was written for. Required, and with no default: a fold
+        # is one record naming all its sources, a copy into N destinations is N
+        # records, and reading either as the other licenses a different policy.
+        #
+        # `axes`, NOT `vocab`, and the message is the reason. The predicate was
+        # guarded and this f-string was not, so `sorted(vocab['coverage'])` was
+        # evaluated eagerly and the check crashed while REPORTING the fault it had
+        # just detected correctly. Twelfth of these, and the first in a message
+        # rather than a predicate - a sub-form the previous eleven did not teach
+        # me to look for.
+        check(binding.get("coverage") in axes["coverage"],
+              f"{rid}.record_binding declares coverage {binding.get('coverage')!r}, "
+              f"which the vocabulary does not carry. It carries "
+              f"{sorted(axes['coverage'])}. A rule that omits it leaves the "
+              "quantifier to be read whichever way the checker happens to combine "
+              "entries - and on a 1:N copy the two readings are different policies.")
         for sig in structural:
             roles = {r for _, r, _ in signal_bindings(policy["structural_signals"][sig])}
             declared = {k for k in binding if k in SUBJECT_ROLES}
@@ -2130,11 +2166,11 @@ def main() -> int:
                 check(not bad, bad or "")
             if not isinstance(spec_r, dict) or not spec_r:
                 continue
-            check(spec_r.get("quantifier") in vocab["quantifier"],
+            check(spec_r.get("quantifier") in axes["quantifier"],
                   f"{rid}.record_binding.{role} uses quantifier "
                   f"{spec_r.get('quantifier')!r}, which the vocabulary does not carry")
             if "excluding" in spec_r:
-                check(spec_r["excluding"] in vocab["excluding"],
+                check(spec_r["excluding"] in axes["excluding"],
                       f"{rid}.record_binding.{role} excludes {spec_r['excluding']!r}, "
                       "which the vocabulary does not carry. Unknown tokens are "
                       "rejected, not ignored.")
@@ -2507,8 +2543,11 @@ def main() -> int:
                     # `every` and `at_least_one` are the SAME condition and the
                     # checker chooses no policy by applying it - see
                     # `record_binding_vocabulary.at_one_to_one`.
+                    # ...and `single_entry`, because at one occurrence per role
+                    # there is one pair to relate and no union to take.
                     binding = {"predecessor": {"quantifier": "every"},
-                               "successor": {"quantifier": "every"}}
+                               "successor": {"quantifier": "every"},
+                               "coverage": "single_entry"}
                 if not binding:
                     continue
                 for kind in list_or_empty(rule_r.get("requires_all")):
@@ -2536,9 +2575,8 @@ def main() -> int:
                                   "would then explain nothing this mapping needs.")
                         pools[role] = pool
 
-                    def carries(entry: dict) -> bool:
-                        rel = related_by(entry, pairs, pools["predecessor"],
-                                         pools["successor"], by_id)
+                    def satisfied(rel: set) -> bool:
+                        """The quantifiers, asked of a set of related pairs."""
                         for role in SUBJECT_ROLES:
                             quant = mapping_or_empty(binding.get(role)).get("quantifier")
                             reached = {p[0 if role == "predecessor" else 1] for p in rel}
@@ -2552,13 +2590,38 @@ def main() -> int:
                     def shown(ids_):
                         return [by_id.get(o, {}).get("enclosing_symbol")
                                 or by_id.get(o, {}).get("path") for o in ids_]
-                    check(any(carries(e) for e in entries),
-                          f"{where}: {rid} rests on {sig!r}, and no SINGLE entry of "
-                          f"{read_field} relates this mapping as its `record_binding` "
-                          f"requires. Predecessors {shown(pools['predecessor'])!r}, "
+                    rels = [related_by(e, pairs, pools["predecessor"],
+                                       pools["successor"], by_id) for e in entries]
+                    # HOW THE ENTRIES COMBINE. This used to be `any(...)` for every
+                    # rule, which is `single_entry` chosen by the checker and named
+                    # nowhere. It made `every` unsatisfiable on a 1:N copy - git
+                    # writes one record per destination - so the copy rule was left
+                    # at `at_least_one`, and `at_least_one` licensed a branch over a
+                    # successor no record named.
+                    coverage = mapping_or_empty(binding).get("coverage")
+                    if coverage == "union_of_entries":
+                        held, how = satisfied(set().union(*rels) if rels else set()), (
+                            f"and the records of {read_field} do not TOGETHER relate "
+                            "this mapping as its `record_binding` requires. Under "
+                            "`union_of_entries` every partner the quantifier ranges "
+                            "over has to be named by some record; one that is named "
+                            "by none of them is not part of this transformation.")
+                    elif coverage == "single_entry":
+                        held, how = any(satisfied(r) for r in rels), (
+                            f"and no SINGLE entry of {read_field} relates this mapping "
+                            "as its `record_binding` requires. Two records describing "
+                            "two transformations do not add up to one transformation.")
+                    else:
+                        held, how = False, (
+                            f"and its `record_binding` declares coverage "
+                            f"{coverage!r}, so there is no reading of {read_field} to "
+                            "apply. An unreadable binding checks nothing, which is "
+                            "worse than a wrong one.")
+                    check(held,
+                          f"{where}: {rid} rests on {sig!r}, {how} "
+                          f"Predecessors {shown(pools['predecessor'])!r}, "
                           f"successors {shown(pools['successor'])!r}; the records hold "
-                          f"{entries!r}. Two records describing two transformations do "
-                          "not add up to one transformation.")
+                          f"{entries!r}.")
 
             # A REFUSED CONFLICT LICENSES NOTHING, and the loop above therefore
             # skipped it entirely - so `copy-source-that-is-also-a-fold-refuses`

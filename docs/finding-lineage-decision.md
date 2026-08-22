@@ -121,6 +121,48 @@ and licenses `branched` over a perfectly good 1:1 match. In
 successor, explains a *move* — `R-BRANCH-COPY` is guarded out and `R-CONT-COPY`
 answers. One record, two readings; cardinality chooses.
 
+#### And every off-path successor needs a record of its own
+
+Cardinality says how many successors there may be. `record_binding` says which
+of them the record has to name, and it took two goes to say it correctly.
+
+The copy rule excludes partners at the predecessor's own path — those are where
+the occurrence already was, and a continued rule reaches them. Over what is
+left, the quantifier was `at_least_one`, which was right when every fixture had
+exactly one off-path successor and wrong the moment
+`a-copy-into-two-new-files-is-a-branch` arrived with two. Deleting one of that
+fixture's two copy records left the branch licensed over both successors: the
+unexplained one was absorbed on the strength of its partner profile alone —
+`same_rule_message` and `anchored_content`, which any unrelated occurrence of
+that defect anywhere in the tree also shows. The rule's own note says the copy
+record is what separates a branch from an ambiguity, and a successor with no
+record was separated from an ambiguity by nothing.
+
+So it is `every`, over the pool the exclusion leaves. That is not the reading
+the old justification rejected — what it rejected was demanding *every*
+successor including the one at the predecessor's own path, which the exclusion
+had already removed by the time the sentence was written. The exclusion arrived
+and the quantifier was never asked again.
+
+Making it satisfiable needed a second axis. Git writes **one copy record per
+destination**, so no single entry can name both successors; a fold is the
+opposite, one record naming all of its sources, and two records naming one each
+describe two folds. That difference used to be a property of whichever rule the
+checker was written for. It is now declared: `coverage: union_of_entries` on the
+copy, `coverage: single_entry` on the fold, required of every rule that binds a
+record and rejected if it is a word the vocabulary does not carry.
+
+The two values are not pinned equally, and the asymmetry is worth stating.
+`union_of_entries` on the copy is pinned by a valid preregistered case — remove
+a record and the case fails. `single_entry` on the fold is not, because the
+input that would distinguish it is a fold record naming only some of its
+sources, which is an invalid mapping and cannot be preregistered as a valid
+case. What pins it is that it is the *stronger* of the two readings — anything
+one entry relates, the union relates too — so the corpus satisfying it is real
+evidence, and the residual risk is a valid mapping wrongly rejected rather than
+an invented one accepted. Weakening it was probed directly, and the split fold
+that `single_entry` rejects does pass under `union_of_entries`.
+
 ### 4. What the suite refuses to compute
 
 `identity/tests/test_lineage_decision.py` never decides which rules a real

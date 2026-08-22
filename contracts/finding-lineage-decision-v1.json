@@ -207,12 +207,26 @@
           "quantifier": "every"
         },
         "successor": {
-          "quantifier": "at_least_one",
+          "quantifier": "every",
           "excluding": "partners_where_same_path_holds"
         },
         "why": [
-          "The copy record relates the predecessor's path to the path of a successor that is NOT at the predecessor's path - that successor is the one the record explains. The other successor is where the occurrence already was, and it is licensed by a continued rule, not by this record. Demanding EVERY successor appear in `copies[].to` would therefore reject the very shape `copy-record-dominates-the-single-match` was built to preregister."
-        ]
+          "EVERY successor the exclusion leaves, and the union of the copy records is what",
+          "has to cover them. `excluding` removes the partners at the predecessor's own",
+          "path - those are where the occurrence already was, and a continued rule reaches",
+          "them, which is why `copy-record-dominates-the-single-match` is not rejected by",
+          "the strong quantifier. What remains is exactly the set the records are supposed",
+          "to explain, and each of them has to be explained: a successor at a new path that",
+          "no copy record names is not a branch of this defect, it is an occurrence that",
+          "happens to look like it.",
+          "",
+          "This said `at_least_one` until `a-copy-into-two-new-files-is-a-branch` showed",
+          "what that licensed - see `record_binding_vocabulary.why`. The coverage axis is",
+          "what makes the strong quantifier satisfiable: git writes one copy record per",
+          "destination, so the branch is described by the records together and by no one of",
+          "them alone."
+        ],
+        "coverage": "union_of_entries"
       }
     },
     "R-MERGE-FOLD": {
@@ -241,8 +255,19 @@
           "quantifier": "every"
         },
         "why": [
-          "A fold names all of its sources: the record's `from` must carry every predecessor's enclosing symbol, and its `to` must be the successor's. A merge that named only some of the predecessors would be claiming a fold it cannot see, and the quantifier is what makes that different from the copy case rather than a matter of taste."
-        ]
+          "A fold names all of its sources: the record's `from` must carry every",
+          "predecessor's enclosing symbol, and its `to` must be the successor's. A merge",
+          "that named only some of the predecessors would be claiming a fold it cannot see,",
+          "and the quantifier is what makes that different from the copy case rather than a",
+          "matter of taste.",
+          "",
+          "`coverage: single_entry` is the other half, and it is NOT inherited from the",
+          "copy rule by symmetry - it was probed on its own. Two records naming one source",
+          "each describe two folds into the same successor, not the one transformation this",
+          "mapping claims; both that split and a record naming a single source are rejected",
+          "by `a-fold-across-files-is-still-a-merge`."
+        ],
+        "coverage": "single_entry"
       }
     }
   },
@@ -1050,29 +1075,38 @@
       "the roles the signal's own `matches` names, and the suite rejects a binding",
       "whose roles disagree with the catalog.",
       "",
-      "The quantifiers differ between the two group rules and the difference is a",
-      "POLICY CHOICE - see each rule's `why`. An earlier revision of this paragraph",
-      "claimed that swapping them 'makes both rules wrong in opposite directions, and",
-      "the suite fails on both'. That was false in both directions and is corrected",
-      "here rather than quietly deleted, because the reason it was false is worth",
-      "keeping:",
+      "THE QUANTIFIERS ARE NO LONGER UNPINNED, AND THE REASON THEY WERE IS NOW FALSE.",
+      "An earlier revision of this paragraph held that the copy rule's quantifier was",
+      "a policy choice this corpus could not decide, because `excluding` narrowed the",
+      "successor pool to exactly one occurrence and `every` over one element is",
+      "`at_least_one` over one element. That was true of the twelve fixtures then in",
+      "the corpus. It stopped being true in the same change that added",
+      "`a-copy-into-two-new-files-is-a-branch`, where NEITHER successor sits at the",
+      "predecessor's path, `excluding` removes nobody, and the pool holds two. The",
+      "paragraph was left standing across that change - a reasoned-for exemption",
+      "outliving its reason, which is the defect this document keeps describing.",
       "",
-      "  - On the copy rule, `excluding` narrows the successor pool to exactly the",
-      "    partner the record explains - one occurrence - and `every` over one element",
-      "    is `at_least_one` over one element. The two declarations are",
-      "    indistinguishable on this corpus by construction.",
-      "  - On the fold, `every` is strictly stronger than `at_least_one`, and every",
-      "    fixture satisfies the stronger one, so weakening it cannot fail. A fixture",
-      "    that WOULD detect the weakening is a fold record naming only some of its",
-      "    predecessors - which is an invalid mapping, and so cannot be preregistered",
-      "    as a valid case.",
+      "On that fixture the two values are distinguishable and the weaker one is",
+      "wrong: with `at_least_one`, deleting the `Broker/CopyB.cs` copy record leaves",
+      "the branch licensed over BOTH successors, so the second successor is absorbed",
+      "on the strength of its partner profile alone - the same rule, message and",
+      "anchored content that any unrelated occurrence of that defect anywhere in the",
+      "tree would also show. The rule's own `note` says the copy record is what",
+      "separates a branch from an ambiguity; under `at_least_one` a successor with no",
+      "record was separated from an ambiguity by nothing.",
       "",
-      "So these two values are declared and not pinned. The suite checks that each is",
-      "a member of the vocabulary and that the roles match the catalog; it does not,",
-      "and on this corpus cannot, check that the RIGHT member was chosen. Whether that",
-      "should be closed - and if so, by a fixture the matrix does not currently admit,",
-      "or by the checker asserting the value - is an open question for the owner, not",
-      "something to settle here."
+      "So the copy rule now says `every`, over the pool `excluding` leaves. That is",
+      "not the reading the old `why` rejected: what it rejected was demanding every",
+      "successor INCLUDING the one at the predecessor's own path, which `excluding`",
+      "had already removed by the time this was written. The exclusion arrived and the",
+      "quantifier was never asked again.",
+      "",
+      "WHICH FORCED THE SECOND AXIS. `every` over a two-successor pool is unsatisfiable",
+      "under the old single-entry reading, because git emits ONE COPY RECORD PER",
+      "DESTINATION: no single entry of `revision_b.copies` can name both. A fold is the",
+      "opposite - one record names all of its sources, and two records naming one each",
+      "describe two folds. `coverage` is where that difference is now declared instead",
+      "of being a property of whichever rule the checker happened to be written for."
     ],
     "quantifier": {
       "every": "the record must name EVERY occurrence in that role for this mapping",
@@ -1082,11 +1116,21 @@
       "partners_where_same_path_holds": "partners at the predecessor's own path are not what the copy record explains; `same_path` holds of them, so a continued rule reaches them and this record does not have to"
     },
     "rule": [
-      "A quantifier or exclusion not listed here is REJECTED rather than ignored.",
-      "A binding vocabulary that silently accepts unknown tokens is a binding that stops",
-      "binding the moment someone invents a word."
+      "A quantifier, exclusion or coverage not listed here is REJECTED rather than",
+      "ignored. A binding vocabulary that silently accepts unknown tokens is a binding",
+      "that stops binding the moment someone invents a word.",
+      "",
+      "`coverage` is REQUIRED of every rule that declares a `record_binding`. It was",
+      "added because the quantifier alone could not be satisfied honestly on a 1:N",
+      "copy, and a rule that omitted it would fall back to whichever reading the",
+      "checker was written for - which is exactly the unread declaration this",
+      "vocabulary exists to replace."
     ],
-    "at_one_to_one": "A 1:1 rule declares NO `record_binding`, because at one occurrence per role `every` and `at_least_one` are the same condition and there is nothing to choose. The record must still relate the pair: skipping the check there let R-CONT-COPY license a `continued` on a copy pointing at an unrelated path."
+    "at_one_to_one": "A 1:1 rule declares NO `record_binding`, because at one occurrence per role `every` and `at_least_one` are the same condition and there is nothing to choose. The record must still relate the pair: skipping the check there let R-CONT-COPY license a `continued` on a copy pointing at an unrelated path.",
+    "coverage": {
+      "single_entry": "ONE entry must satisfy the quantifiers for both roles on its own. Two entries describe two transformations and do not add up to one - a fold split into `WireA -> Wire` and `WireB -> Wire` is two folds, not the one this mapping claims.",
+      "union_of_entries": "the entries that relate this mapping are taken TOGETHER and their union must satisfy the quantifiers. A copy into N destinations is N records, one per destination, so requiring a single entry to name them all would require a record shape the producer never emits - and accepting one entry would leave the other destinations explained by nothing."
+    }
   },
   "evidence_kind_records": {
     "map": {
