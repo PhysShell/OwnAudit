@@ -140,7 +140,8 @@
       "requires_all": [
         "same_path",
         "structural_context",
-        "anchored_content"
+        "anchored_content",
+        "same_pattern_id"
       ],
       "means": "the occurrence is where it was, in the symbol it was in, saying what it said"
     },
@@ -166,7 +167,8 @@
       "requires_all": [
         "path_rename",
         "structural_context",
-        "anchored_content"
+        "anchored_content",
+        "same_rule_message"
       ],
       "means": "the file moved and the occurrence moved with it, unchanged inside",
       "note": "path_rename alone can never do this. A rename relates FILES; the other two are what relate the occurrence."
@@ -179,7 +181,8 @@
       "requires_all": [
         "copy_record",
         "structural_context",
-        "anchored_content"
+        "anchored_content",
+        "same_rule_message"
       ],
       "means": "the file was COPIED and this occurrence went with the copy, unchanged inside, in a symbol of the same name",
       "note": "the literal mirror of R-CONT-RENAME, differing only in where the path relation comes from: `copies` instead of `renames`. Its absence was a hole, not a simplification - finding-lineage/v1 freezes `deleted-source-survives-in-its-copy` as continued and forbids even unresolved there, and with no rule of this shape the only rule that fired on that edge was R-BRANCH-COPY, which names a different outcome. A policy whose single applicable rule contradicts a frozen case is not incomplete; it is wrong."
@@ -524,7 +527,10 @@
     "a-copy-into-two-new-files-is-a-branch",
     "a-fold-across-files-is-still-a-merge",
     "an-ambiguity-outranks-a-cardinality-rejection",
-    "a-different-defect-at-the-same-site-is-not-a-drift"
+    "a-different-defect-at-the-same-site-is-not-a-drift",
+    "a-reclassified-defect-at-an-unchanged-site-is-not-a-continuation",
+    "a-reclassified-defect-across-a-rename-is-not-a-continuation",
+    "a-reclassified-defect-across-a-copy-is-not-a-continuation"
   ],
   "preregistration_rule": [
     "Fixed before the mapper, same as slice 2 step 0. These are about the POLICY",
@@ -999,6 +1005,16 @@
       "a-fold-across-files-is-still-a-merge": [
         "rule_licensed_alone"
       ],
+      "a-reclassified-defect-across-a-copy-is-not-a-continuation": [
+        "required_kind_withheld_a_rule",
+        "cardinality_excluded_a_rule"
+      ],
+      "a-reclassified-defect-across-a-rename-is-not-a-continuation": [
+        "required_kind_withheld_a_rule"
+      ],
+      "a-reclassified-defect-at-an-unchanged-site-is-not-a-continuation": [
+        "required_kind_withheld_a_rule"
+      ],
       "a-recorded-rename-is-not-an-unresolved": [
         "rule_licensed_alone"
       ],
@@ -1243,6 +1259,7 @@
       "path_rename": "rename_record",
       "same_path": "no_structural_record",
       "same_pattern_id": "no_structural_record",
+      "same_rule_message": "no_structural_record",
       "structural_context": "no_structural_record"
     },
     "why": [
@@ -1416,6 +1433,18 @@
       "rule": "R-CONT-DRIFT",
       "kind": "same_pattern_id"
     },
+    "a-reclassified-defect-across-a-copy-is-not-a-continuation": {
+      "rule": "R-CONT-COPY",
+      "kind": "same_rule_message"
+    },
+    "a-reclassified-defect-across-a-rename-is-not-a-continuation": {
+      "rule": "R-CONT-RENAME",
+      "kind": "same_rule_message"
+    },
+    "a-reclassified-defect-at-an-unchanged-site-is-not-a-continuation": {
+      "rule": "R-CONT-SAME-SITE",
+      "kind": "same_pattern_id"
+    },
     "rule": [
       "WHICH RULE STOOD DOWN FOR WHICH KIND, NAMED BY THE CONTRACT RATHER THAN BY THE",
       "SUITE. A case carrying `required_kind_withheld_a_rule` declares its witness here,",
@@ -1432,7 +1461,53 @@
       "",
       "Hard-coding the pair in the checker was the other option and it is the one this",
       "project keeps refusing: the value that decides a case belongs in the frozen",
-      "document, where a reader can disagree with it."
+      "document, where a reader can disagree with it.",
+      "",
+      "Three more witnesses arrived with the same finding one rule over: review asked",
+      "why R-CONT-DRIFT had to prove the defect was the same defect while",
+      "R-CONT-SAME-SITE, R-CONT-RENAME and R-CONT-COPY did not. They had no answer.",
+      "`anchored_content` is source text - evidence the STATEMENT survived, never that",
+      "the finding is the same finding - so a reclassified diagnostic at an unchanged",
+      "site, across a rename, and across a copy each inherited a lineage it had not",
+      "earned. Each rule now names a kind and each has its own case: the copy did not",
+      "get the rename's result by symmetry, which is the assumption this branch keeps",
+      "having to unmake."
+    ]
+  },
+  "pair_property_kinds": {
+    "map": {
+      "same_pattern_id": [
+        "pattern_id"
+      ],
+      "same_rule_message": [
+        "rule",
+        "message"
+      ]
+    },
+    "why": [
+      "A WITNESS HAS TO BE FALSIFIABLE BY THE PAYLOAD IT SITS IN.",
+      "",
+      "`required_kind_witnesses` named the rule and the kind, and the obligation",
+      "checked that `not_applicable` said so and that the rule really requires the",
+      "kind. What nothing checked is whether the kind FAILS in the case's own",
+      "occurrences. So a witness could declare that R-CONT-SAME-SITE stood down for",
+      "`same_pattern_id` while both occurrences carried the same pattern id - the",
+      "claim the fixture exists to make, contradicted by the fixture, accepted.",
+      "Membership standing in for the correct member yet again, one level below",
+      "where it was last repaired.",
+      "",
+      "These kinds are properties of a PAIR of occurrences and nothing else: two",
+      "strings the producer already emitted, compared. Evaluating them needs no",
+      "applicability and no mapper, which is what makes them checkable here at all",
+      "and keeps this from becoming the second decision engine step 1 refuses to",
+      "grow.",
+      "",
+      "EVERY witness kind must appear in `map`. That is what stops this from being",
+      "emptied into a vacuum: drop an entry and the witnesses naming it fail",
+      "immediately, rather than passing unevaluated. A kind that genuinely cannot be",
+      "read from a pair - a structural record, a boundary - would need this rule",
+      "amended in the open before a witness could name it, and that is the intended",
+      "cost."
     ]
   }
 }

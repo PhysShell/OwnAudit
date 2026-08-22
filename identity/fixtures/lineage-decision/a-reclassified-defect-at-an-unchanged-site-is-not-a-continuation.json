@@ -1,0 +1,79 @@
+{
+  "case": "a-reclassified-defect-at-an-unchanged-site-is-not-a-continuation",
+  "title": "The statement did not move and did not change; the analyser changed its mind about it",
+  "why": "THE CASE R-CONT-SAME-SITE NEEDED BEFORE IT COULD REQUIRE A PATTERN, and the reason it is a separate fixture from `a-different-defect-at-the-same-site-is-not-a-drift`. That one escapes the rule because the CONTENT changed, so `anchored_content` fails and nothing has to be decided. Here nothing about the site changed at all: same file, same enclosing symbol, same line, byte-identical statement. What changed is what the analyser SAID about it - `DOTNET_RESOURCE_LEAK` / 'event handler subscribed and never removed' became `DOTNET_EVENT_LEAK` / 'event subscription is never unsubscribed'.\n\nUnder the old requirements `same_path`, `structural_context` and `anchored_content` all held, so the rule licensed `continued` and a new diagnostic inherited an old defect's lineage. `anchored_content` is source text; it is evidence that the STATEMENT survived, never that the finding is the same finding. R-CONT-DRIFT was given `same_pattern_id` for exactly this reason and R-CONT-SAME-SITE was never asked - a claim applied where it was named and not at the adjacent site.\n\n`same_pattern_id` is the right discriminator here and not `same_rule_message`, precisely because this is a SAME-PATH rule: `finding-pattern/v1` hashes path, rule and message together, so with the path held equal the pattern id differs exactly when the rule or the message differs. The two same-path continuation rules now ask the same question, which is what they always meant.",
+  "revision_a": {
+    "revision": "r1",
+    "occurrences": [
+      {
+        "occurrence_id": "occ-a1",
+        "path": "Broker/Doc.cs",
+        "rule": "DOTNET_RESOURCE_LEAK",
+        "message": "event handler subscribed and never removed",
+        "start_line": 42,
+        "start_column": null,
+        "pattern_id": "f964274604b5c187",
+        "enclosing_symbol": "DocView.Wire",
+        "anchored_content": "_store.Changed += OnChanged;"
+      }
+    ]
+  },
+  "revision_b": {
+    "revision": "r2",
+    "occurrences": [
+      {
+        "occurrence_id": "occ-b1",
+        "path": "Broker/Doc.cs",
+        "rule": "DOTNET_EVENT_LEAK",
+        "message": "event subscription is never unsubscribed",
+        "start_line": 42,
+        "start_column": null,
+        "pattern_id": "57a86149a33cc9e5",
+        "enclosing_symbol": "DocView.Wire",
+        "anchored_content": "_store.Changed += OnChanged;"
+      }
+    ]
+  },
+  "expect": [
+    {
+      "outcome": "unresolved",
+      "side": "a",
+      "frm": [
+        "occ-a1"
+      ],
+      "to": [],
+      "reason": "lineage-id-unavailable:no-mapping-evidence",
+      "applicable_rules": [],
+      "licensed_by": [],
+      "not_applicable": {
+        "R-CONT-SAME-SITE": "same_pattern_id does not hold: the path is unchanged, so the differing id is the rule and the message differing",
+        "R-CONT-DRIFT": "same_pattern_id does not hold either, and the line did not move",
+        "R-CONT-RENAME": "no rename record, and the path did not change",
+        "R-CONT-COPY": "no copy record",
+        "R-BRANCH-COPY": "no copy record, and the shape is 1:1",
+        "R-MERGE-FOLD": "no merge record, and the shape is 1:1"
+      },
+      "note": "same_path, structural_context and anchored_content all hold, and they say the STATEMENT survived. Three surviving kinds that describe a place are still not a rule, which is why combinations are named rather than counted."
+    },
+    {
+      "outcome": "unresolved",
+      "side": "b",
+      "frm": null,
+      "to": [
+        "occ-b1"
+      ],
+      "reason": "lineage-id-unavailable:no-mapping-evidence",
+      "applicable_rules": [],
+      "licensed_by": [],
+      "note": "the mirror side, and its reason comes from what is observable HERE: nothing links this occurrence back and nothing says it is new. No signal is reported as defeated, because a defeat is a statement about a relation and this record names no predecessor."
+    }
+  ],
+  "forbid": [
+    "continued from occ-a1 to occ-b1 - the statement survived and the diagnostic did not",
+    "anchored_content treated as evidence that the finding is the same finding",
+    "ended for occ-a1 or new for occ-b1 - neither carries boundary evidence",
+    "insufficient-evidence-kind or insufficient-evidence-combination - nothing was defeated here"
+  ],
+  "contract": "finding-lineage-decision/v1",
+  "status": "preregistered-unimplemented"
+}

@@ -301,12 +301,37 @@ Six, deliberately small and deliberately not exhaustive.
 
 | id | outcome | shape | requires |
 |---|---|---|---|
-| `R-CONT-SAME-SITE` | `continued` | 1:1 | `same_path`, `structural_context`, `anchored_content` |
+| `R-CONT-SAME-SITE` | `continued` | 1:1 | `same_path`, `structural_context`, `anchored_content`, `same_pattern_id` |
 | `R-CONT-DRIFT` | `continued` | 1:1 | `same_path`, `structural_context`, `line_drift`, `same_pattern_id` |
-| `R-CONT-RENAME` | `continued` | 1:1 | `path_rename`, `structural_context`, `anchored_content` |
-| `R-CONT-COPY` | `continued` | 1:1 | `copy_record`, `structural_context`, `anchored_content` |
+| `R-CONT-RENAME` | `continued` | 1:1 | `path_rename`, `structural_context`, `anchored_content`, `same_rule_message` |
+| `R-CONT-COPY` | `continued` | 1:1 | `copy_record`, `structural_context`, `anchored_content`, `same_rule_message` |
 | `R-BRANCH-COPY` | `branched` | 1:N, N>=2 | `copy_record` (group) + per successor: `same_rule_message`, `anchored_content` |
 | `R-MERGE-FOLD` | `merged` | N:1, N>=2 | `merge_record` (group) + per predecessor: `same_rule_message`, `anchored_content` |
+
+**Every continuation rule asks what the analyser SAID, not only where it was.**
+`same_path`, `structural_context`, `anchored_content`, `path_rename` and
+`copy_record` all describe a *place* and a *text*. None of them says the finding
+is the same finding, so a diagnostic reclassified or reworded at a site that did
+not otherwise change satisfied every one of them and inherited a lineage it had
+not earned. R-CONT-DRIFT was given `same_pattern_id` for exactly this reason and
+the three rules beside it were never asked — a claim applied where it was named
+and not at the adjacent site, which is this branch's signature defect.
+
+Which kind depends on whether the path moved, and the choice is forced rather
+than stylistic. The same-path rules take `same_pattern_id`: `finding-pattern/v1`
+hashes path, rule and message together, so with the path held equal the id
+differs exactly when the rule or the message differs. The rules that survive a
+move cannot: the path is *in* the hash, so a renamed or copied occurrence can
+never share a pattern id with its predecessor, and requiring one would make both
+rules unsatisfiable on real data. They take `same_rule_message`, the
+path-independent kind the sixth senior amendment added for the group profiles —
+one comparison over the rule and the message together, never two halves that
+would reach the evidence floor between them.
+
+Cases 17, 18 and 19 are where those requirements are either doing work or are
+decoration, and they are three cases rather than one on purpose: 18 holds the
+rule id fixed and moves the message, 19 does the opposite, and the copy does not
+get the rename's result by symmetry.
 
 **No rule licenses `ended` or `new`.** Those are earned by boundary evidence,
 which step 0 already governs; a rule for them here would create a second,
@@ -524,6 +549,9 @@ one not.
 | 14 | `a-fold-across-files-is-still-a-merge` | `merged` — the folded predecessor lives in another file |
 | 15 | `an-ambiguity-outranks-a-cardinality-rejection` | `unresolved` / `ambiguous-candidates` — both rejecting stages fire, and only one of them is an answer |
 | 16 | `a-different-defect-at-the-same-site-is-not-a-drift` | `unresolved` / `no-mapping-evidence` — the site is shared and the diagnostic is not |
+| 17 | `a-reclassified-defect-at-an-unchanged-site-is-not-a-continuation` | `unresolved` / `no-mapping-evidence` — nothing about the site changed, and the analyser changed its mind |
+| 18 | `a-reclassified-defect-across-a-rename-is-not-a-continuation` | `unresolved` / `no-mapping-evidence` — the file moved, the text came with it, and the message was reworded |
+| 19 | `a-reclassified-defect-across-a-copy-is-not-a-continuation` | `unresolved` / `no-mapping-evidence` — the copy's mirror, and the half where the rule id moves instead |
 
 Cases 1 and 2 carry an extra burden, because a fixture can be right for the
 wrong reason: move the losing rule out of `applicable_rules` and the answer is

@@ -3441,6 +3441,48 @@ def main() -> int:
                               f"{name}: the witness names {w_kind!r}, which "
                               f"{w_rule} does not require. A rule cannot stand down "
                               "over a requirement it does not have.")
+                        # AND THE KIND HAS TO FAIL IN THIS CASE'S OWN PAYLOAD.
+                        # Naming the rule and the kind pinned the DECLARATION and
+                        # nothing else, so the same-site witness could be rewritten
+                        # to carry one pattern id on both sides - `same_pattern_id`
+                        # holding - while still declaring that R-CONT-SAME-SITE
+                        # stood down because it did not. The claim the case exists
+                        # to make, contradicted by the case, accepted. The two
+                        # cross-path witnesses survived only because recomputing
+                        # `pattern_id` caught the edit, which is luck, not a check.
+                        # `pair_property_kinds` says which kinds are readable from
+                        # a pair of occurrences - two strings the producer emitted,
+                        # compared - and every witness kind must be one, so the
+                        # table cannot be emptied into a vacuum.
+                        fields_w = mapping_or_empty(mapping_or_empty(
+                            policy.get("pair_property_kinds")).get("map")).get(w_kind)
+                        check(isinstance(fields_w, list) and fields_w
+                              and all(isinstance(f, str) for f in fields_w),
+                              f"{name}: the witness names {w_kind!r}, and "
+                              "`pair_property_kinds.map` gives it "
+                              f"{fields_w!r}. A witness whose kind cannot be read "
+                              "off the pair is a claim this corpus cannot falsify.")
+                        if isinstance(fields_w, list) and all(
+                                isinstance(f, str) for f in fields_w) and fields_w:
+                            preds = exp.get("frm")
+                            preds = ([preds] if isinstance(preds, str)
+                                     else list(preds or []))
+                            held = sorted(
+                                (a_id, b_occ.get("occurrence_id"))
+                                for a_id in preds
+                                for b_occ in (case.get("revision_b") or {}).get(
+                                    "occurrences") or []
+                                if isinstance(b_occ, dict)
+                                and by_id.get(a_id) is not None
+                                and all(by_id[a_id].get(f) == b_occ.get(f)
+                                        for f in fields_w))
+                            check(not held,
+                                  f"{name}: the witness says {w_rule} stood down "
+                                  f"because {w_kind!r} did not hold, and it HOLDS for "
+                                  f"{held} - the pair agrees on {fields_w}. A case "
+                                  "that contradicts the claim it was preregistered to "
+                                  "make proves the opposite of what it was written "
+                                  "for.")
                         said = mapping_or_empty(exp.get("not_applicable")).get(w_rule)
                         if isinstance(said, str) and w_kind in said:
                             met = True

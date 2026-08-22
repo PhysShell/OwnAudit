@@ -1,0 +1,87 @@
+{
+  "case": "a-reclassified-defect-across-a-rename-is-not-a-continuation",
+  "title": "The same move as `a-recorded-rename-is-not-an-unresolved`, with the message reworded",
+  "why": "THE TWIN OF `a-recorded-rename-is-not-an-unresolved`, varying one thing. The physical move is identical - Broker/Old.cs to Broker/New.cs, same enclosing symbol, byte-identical statement, rename record present and readable - and the only difference is that the analyser now words its message differently. There the answer is `continued`; here it must not be.\n\nTHE RULE ID IS UNCHANGED ON PURPOSE. `same_rule_message` is ONE kind and not `same_rule` beside `same_message`, and a corpus in which every witness changes both halves at once cannot tell the difference: the definition could quietly shrink to the rule alone and every case would still pass. So this witness holds the rule fixed and moves the message, and `a-reclassified-defect-across-a-copy-is-not-a-continuation` does the opposite. Between them the two halves of the comparison are each load-bearing on real data rather than on an assertion.\n\nR-CONT-RENAME asked for `path_rename`, `structural_context` and `anchored_content`, every one of which holds across a rewording, so the rule licensed a `continued` on the strength of the FILE having moved and the TEXT having survived. Neither is a statement about the defect.\n\n`same_pattern_id` cannot be the discriminator here and this is the whole reason `same_rule_message` exists: `finding-pattern/v1` hashes the path into the id, so two occurrences of one defect at two paths have different pattern ids BY CONSTRUCTION - requiring it would make the rule unsatisfiable on every real rename. The sixth senior amendment added the path-independent kind for the group rules; this is the same question asked at 1:1.",
+  "revision_a": {
+    "revision": "r1",
+    "occurrences": [
+      {
+        "occurrence_id": "occ-a1",
+        "path": "Broker/Old.cs",
+        "rule": "DOTNET_RESOURCE_LEAK",
+        "message": "event handler subscribed and never removed",
+        "start_line": 42,
+        "start_column": null,
+        "pattern_id": "a50f4f69ffb5c777",
+        "enclosing_symbol": "DocView.Wire",
+        "anchored_content": "_store.Changed += OnChanged;"
+      }
+    ]
+  },
+  "revision_b": {
+    "revision": "r2",
+    "renames": [
+      {
+        "from": "Broker/Old.cs",
+        "to": "Broker/New.cs",
+        "similarity": 96
+      }
+    ],
+    "occurrences": [
+      {
+        "occurrence_id": "occ-b1",
+        "path": "Broker/New.cs",
+        "rule": "DOTNET_RESOURCE_LEAK",
+        "message": "event subscription is never unsubscribed",
+        "start_line": 42,
+        "start_column": null,
+        "pattern_id": "04ac7bffc28a23ce",
+        "enclosing_symbol": "DocView.Wire",
+        "anchored_content": "_store.Changed += OnChanged;"
+      }
+    ]
+  },
+  "expect": [
+    {
+      "outcome": "unresolved",
+      "side": "a",
+      "frm": [
+        "occ-a1"
+      ],
+      "to": [],
+      "reason": "lineage-id-unavailable:no-mapping-evidence",
+      "applicable_rules": [],
+      "licensed_by": [],
+      "not_applicable": {
+        "R-CONT-RENAME": "same_rule_message does not hold: the rule id is the same and the message is not, and the kind is one comparison over both",
+        "R-CONT-SAME-SITE": "the paths differ, so same_path did not fire",
+        "R-CONT-DRIFT": "the paths differ, so same_path did not fire",
+        "R-CONT-COPY": "no copy record",
+        "R-BRANCH-COPY": "no copy record",
+        "R-MERGE-FOLD": "no merge record"
+      },
+      "note": "path_rename, structural_context and anchored_content all hold. They say the file moved and the text came with it; the analyser is the only witness to what the finding IS, and it worded it differently."
+    },
+    {
+      "outcome": "unresolved",
+      "side": "b",
+      "frm": null,
+      "to": [
+        "occ-b1"
+      ],
+      "reason": "lineage-id-unavailable:no-mapping-evidence",
+      "applicable_rules": [],
+      "licensed_by": [],
+      "note": "the mirror side, reading what is observable HERE: a rename record says this file arrived from another, and nothing says this finding descends from one that was reported there."
+    }
+  ],
+  "forbid": [
+    "continued from occ-a1 to occ-b1 - the file moved and the message changed",
+    "same_rule_message treated as holding because the rule ids agree - the message is half of the comparison",
+    "same_pattern_id required of this rule - the path is hashed into the id, so a rename can never carry one",
+    "ended for occ-a1 - the file was renamed, not deleted",
+    "new for occ-b1 - no boundary evidence names its path as added"
+  ],
+  "contract": "finding-lineage-decision/v1",
+  "status": "preregistered-unimplemented"
+}

@@ -1,0 +1,99 @@
+{
+  "case": "a-reclassified-defect-across-a-copy-is-not-a-continuation",
+  "title": "The same move as `copy-at-one-to-one-is-not-a-branch`, with the finding reclassified",
+  "why": "THE THIRD WITNESS, AND IT IS A SEPARATE FIXTURE ON PURPOSE. R-CONT-COPY is the mirror of R-CONT-RENAME - a different record, the same shape of requirement - and fixing the rename and assuming the copy behaves the same way is how a claim gets applied where it was named and never asked one rule over. That is the defect this whole branch keeps finding, so the copy gets its own case rather than the benefit of the doubt.\n\nTHE MESSAGE IS UNCHANGED ON PURPOSE, and this is the half the rename witness cannot carry. There the rule id is held fixed and the message moves; here the message is held fixed and the analyser reports the statement under a different rule. `same_rule_message` is ONE comparison over both halves, and a corpus that always changes both at once would let that definition shrink to either half with nothing to object.\n\nThe move is `copy-at-one-to-one-is-not-a-branch` unchanged: Broker/Doc.cs is deleted, its contents live on at Broker/Moved.cs, the copy record explains the move, and it defeats the deletion boundary because one deletion appearing as a copy source is one story told twice. So `copy_record`, `structural_context` and `anchored_content` all hold and the rule used to license `continued`. As with the rename it must be `same_rule_message` and not `same_pattern_id`: the copy changes the path, and the path is hashed into the id.\n\nThe boundary half is what makes this case slower than a refusal. `ended` is still not available for occ-a1 - the copy record defeats the deletion exactly as it does in the twin - so the honest outcome is `unresolved` on both sides, not a death certificate issued because a rule stopped applying.",
+  "revision_a": {
+    "revision": "r1",
+    "occurrences": [
+      {
+        "occurrence_id": "occ-a1",
+        "path": "Broker/Doc.cs",
+        "rule": "DOTNET_RESOURCE_LEAK",
+        "message": "event handler subscribed and never removed",
+        "start_line": 42,
+        "start_column": null,
+        "pattern_id": "f964274604b5c187",
+        "enclosing_symbol": "DocView.Wire",
+        "anchored_content": "_store.Changed += OnChanged;"
+      }
+    ]
+  },
+  "revision_b": {
+    "revision": "r2",
+    "deleted_paths": [
+      "Broker/Doc.cs"
+    ],
+    "copies": [
+      {
+        "from": "Broker/Doc.cs",
+        "to": "Broker/Moved.cs",
+        "similarity": 100
+      }
+    ],
+    "occurrences": [
+      {
+        "occurrence_id": "occ-b1",
+        "path": "Broker/Moved.cs",
+        "rule": "DOTNET_EVENT_LEAK",
+        "message": "event handler subscribed and never removed",
+        "start_line": 42,
+        "start_column": null,
+        "pattern_id": "d526e5e428273013",
+        "enclosing_symbol": "DocView.Wire",
+        "anchored_content": "_store.Changed += OnChanged;"
+      }
+    ]
+  },
+  "expect": [
+    {
+      "outcome": "unresolved",
+      "side": "a",
+      "frm": [
+        "occ-a1"
+      ],
+      "to": [],
+      "reason": "lineage-id-unavailable:no-mapping-evidence",
+      "applicable_rules": [],
+      "licensed_by": [],
+      "decision_detail": {
+        "rules_excluded_by_cardinality": [
+          "R-BRANCH-COPY"
+        ]
+      },
+      "boundary_defeated": {
+        "boundary:containing-file-deleted": "revision_b.copies[].from"
+      },
+      "not_applicable": {
+        "R-CONT-COPY": "same_rule_message does not hold: the message is the same and the rule id is not, and the kind is one comparison over both",
+        "R-BRANCH-COPY": "cardinality 1:N with min_successors 2, and there is exactly one successor. This is a PRECONDITION, and it is why the rule is recorded as cardinality-excluded rather than out-argued.",
+        "R-CONT-SAME-SITE": "the path changed",
+        "R-CONT-DRIFT": "the path changed, so same_path did not fire",
+        "R-CONT-RENAME": "the record is a copy, not a rename; path_rename did not fire",
+        "R-MERGE-FOLD": "no merge record"
+      },
+      "note": "the copy record still defeats the deletion, so this is not an `ended`. A rule ceasing to apply removes a link; it does not manufacture a boundary."
+    },
+    {
+      "outcome": "unresolved",
+      "side": "b",
+      "frm": null,
+      "to": [
+        "occ-b1"
+      ],
+      "reason": "lineage-id-unavailable:no-mapping-evidence",
+      "applicable_rules": [],
+      "licensed_by": [],
+      "note": "the mirror side, reading what is observable HERE: the copy record says this file arrived from another, and nothing says this finding descends from one reported there."
+    }
+  ],
+  "forbid": [
+    "continued from occ-a1 to occ-b1 - the contents were copied and the finding was reclassified",
+    "same_rule_message treated as holding because the messages agree - the rule id is half of the comparison",
+    "ended for occ-a1 on the strength of deleted_paths - the copy record defeats it here exactly as in the twin",
+    "new for occ-b1 - Broker/Moved.cs is a copy target, not an added path",
+    "same_pattern_id required of this rule - the path is hashed into the id, so a copy can never carry one",
+    "R-BRANCH-COPY absent from decision_detail - a rule excluded by cardinality stays in the recall set"
+  ],
+  "contract": "finding-lineage-decision/v1",
+  "status": "preregistered-unimplemented"
+}
