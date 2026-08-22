@@ -430,6 +430,12 @@ def related_by(entry: dict, pairs: list, preds, succs, by_id: dict) -> set:
     return out
 
 
+def shown_ids(ids_, by_id: dict) -> list:
+    """Occurrences named the way a reader recognises them."""
+    return [by_id.get(o, {}).get("enclosing_symbol") or by_id.get(o, {}).get("path")
+            for o in ids_]
+
+
 def quantifiers_hold(binding: dict, pools: dict, rel: set) -> bool:
     """The quantifiers of one binding, asked of a set of related pairs."""
     for role in SUBJECT_ROLES:
@@ -2185,6 +2191,20 @@ def main() -> int:
                       f"{rid}.record_binding.{role} excludes {spec_r['excluding']!r}, "
                       "which the vocabulary does not carry. Unknown tokens are "
                       "rejected, not ignored.")
+                # AND WHAT THE TOKEN ASSUMES, DECLARED. Its `means` promised that a
+                # continued rule reaches the partners it drops; the promise is now a
+                # named outcome the mapping has to declare applicable.
+                excl_spec = mapping_or_empty(axes["excluding"].get(spec_r["excluding"]))
+                want_out = excl_spec.get("requires_applicable_outcome")
+                check(want_out in set(outcomes.values()),
+                      f"`record_binding_vocabulary.excluding.{spec_r['excluding']}` "
+                      f"requires applicable outcome {want_out!r}, and no rule here "
+                      f"concludes it - the rules conclude "
+                      f"{sorted(set(outcomes.values()))}. An exclusion rests on some "
+                      "OTHER rule reaching what it drops, so the outcome it names has "
+                      "to be one a rule can actually reach; it is named in the "
+                      "contract rather than spelled here so the checker does not pick "
+                      "which rule rescues an excluded partner.")
 
     senior_limitations_set = set(senior["limitations"].values())
     unavailable_from = str(policy["unavailable_inputs"].get("observable_from", ""))
@@ -2585,6 +2605,42 @@ def main() -> int:
                                   f"{where}: {rid} excludes partners at the "
                                   f"predecessor's path and no {role} is left. The record "
                                   "would then explain nothing this mapping needs.")
+                            # WHAT THE EXCLUSION ASSUMES, ASKED OF THE MAPPING.
+                            # The token's whole justification is that a partner at
+                            # the predecessor's own path "is where the occurrence
+                            # already was, so a continued rule reaches it and this
+                            # record does not have to". That is a CLAIM ABOUT THE
+                            # MAPPING, and nothing asked it: an occurrence at the
+                            # predecessor's path whose enclosing symbol changed is
+                            # reached by no continued rule at all, and the exclusion
+                            # still lifted the record requirement off it - leaving it
+                            # absorbed into the branch by `same_rule_message` and
+                            # `anchored_content`, which any unrelated occurrence of
+                            # that defect anywhere in the tree also shows.
+                            #
+                            # Only when the exclusion REMOVED someone. Where no
+                            # partner sits at the predecessor's path it lifts nothing
+                            # and assumes nothing, and demanding a continued rule
+                            # there would reject `a-copy-into-two-new-files-is-a-branch`.
+                            dropped = [o for o in (frm if role == "predecessor" else to)
+                                       if o not in pool]
+                            excl_spec = mapping_or_empty(
+                                axes["excluding"].get(spec_r["excluding"]))
+                            want_out = excl_spec.get("requires_applicable_outcome")
+                            if dropped and want_out:
+                                reached = [r for r in app
+                                           if mapping_or_empty(rules.get(r)).get("outcome")
+                                           == want_out]
+                                check(bool(reached),
+                                      f"{where}: {rid} excludes {shown_ids(dropped, by_id)!r} "
+                                      "from the record's coverage because they sit at the "
+                                      "predecessor's path - and this mapping declares no "
+                                      f"applicable rule that concludes {want_out!r}, so "
+                                      "nothing reaches them. The exclusion lifts the "
+                                      "record requirement on the promise that another "
+                                      "rule carries it; where no such rule applies, the "
+                                      "promise is the only thing holding the partner in "
+                                      "and it holds nothing.")
                         pools[role] = pool
 
                     def shown(ids_):

@@ -144,6 +144,25 @@ successor including the one at the predecessor's own path, which the exclusion
 had already removed by the time the sentence was written. The exclusion arrived
 and the quantifier was never asked again.
 
+The exclusion carries a promise, and the promise is now a condition. Dropping
+the same-path partners is justified by the claim that *a continued rule reaches
+them* — and nothing asked whether one did. A successor at the predecessor's own
+path whose **enclosing symbol changed** satisfies `same_path`, so the exclusion
+lifts the record requirement off it, and fails `structural_context`, so no
+continued rule reaches it either. It was then absorbed into the branch by
+`same_rule_message` and `anchored_content` alone. Three successors, two explained
+by copy records and one explained by nothing, and the suite reported OK.
+
+So `excluding.partners_where_same_path_holds` now declares
+`requires_applicable_outcome: continued`, and where the exclusion actually
+removes a partner, the mapping must declare an applicable rule reaching that
+outcome. It binds only when something was removed — where no partner sits at the
+predecessor's path the exclusion lifts nothing and assumes nothing, which is why
+`a-copy-into-two-new-files-is-a-branch` is untouched by it and
+`copy-record-dominates-the-single-match`, whose `R-CONT-SAME-SITE` is exactly the
+rule the promise meant, satisfies it. The outcome is named in the contract rather
+than spelled in the checker, for the same reason the quantifiers are.
+
 Making it satisfiable needed a second axis. Git writes **one copy record per
 destination**, so no single entry can name both successors; a fold is the
 opposite, one record naming all of its sources, and two records naming one each

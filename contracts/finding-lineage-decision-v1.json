@@ -1143,7 +1143,33 @@
       "at_least_one": "the record must name at least one, because the remaining partners are explained by a different rule rather than by this record"
     },
     "excluding": {
-      "partners_where_same_path_holds": "partners at the predecessor's own path are not what the copy record explains; `same_path` holds of them, so a continued rule reaches them and this record does not have to"
+      "partners_where_same_path_holds": {
+        "means": "partners at the predecessor's own path are not what the copy record explains; `same_path` holds of them, so a continued rule reaches them and this record does not have to",
+        "requires_applicable_outcome": "continued",
+        "why": [
+          "THE SECOND CLAUSE OF `means` IS A CLAIM ABOUT THE MAPPING, AND IT USED TO BE",
+          "AN ASSUMPTION. `requires_applicable_outcome` is that clause made a condition:",
+          "where this exclusion actually removes a partner, the mapping has to declare",
+          "an applicable rule that concludes the named outcome - otherwise the record",
+          "requirement is lifted on a promise nobody keeps.",
+          "",
+          "The hole it closes: a successor at the predecessor's own path whose ENCLOSING",
+          "SYMBOL changed. `same_path` holds, so the exclusion drops it from the copy",
+          "record's coverage - and `structural_context` fails, so no continued rule",
+          "reaches it either. It was then absorbed into the branch by `same_rule_message`",
+          "and `anchored_content` alone, which any unrelated occurrence of that defect",
+          "anywhere in the tree also shows. Three successors, two explained by copy",
+          "records and one explained by nothing, and the suite reported OK.",
+          "",
+          "It binds ONLY when the exclusion removed someone. Where no partner sits at the",
+          "predecessor's path the exclusion lifts nothing and assumes nothing, which is",
+          "why `a-copy-into-two-new-files-is-a-branch` is untouched by it.",
+          "",
+          "The outcome is NAMED here rather than spelled in the checker, for the same",
+          "reason the quantifiers are: a checker that decided on its own which outcome",
+          "rescues an excluded partner would be holding the policy's opinion for it."
+        ]
+      }
     },
     "rule": [
       "A quantifier, exclusion or coverage not listed here is REJECTED rather than",
