@@ -418,6 +418,18 @@ def entry_shape_failures(where: str, cat_spec: dict, entries) -> list:
         if not isinstance(entry, dict):
             out.append(f"{where}[{index}] is {entry!r}, not an object")
             continue
+        # BOTH DIRECTIONS OF THE KEY SET. Only the declared keys were looked for,
+        # so a record could carry a field the schema does not mention and the
+        # schema stayed silent about it. `entry_shape` is the record's SCHEMA -
+        # `matches` says which fields bind a relation, which is a different
+        # question - and a schema that describes part of a record is the same
+        # half-reading as a check that covers part of what it declares. The
+        # corpus is what binds the key set, so it has to bind it exactly.
+        for stray in sorted(set(entry) - set(shape)):
+            out.append(f"{where}[{index}] carries {stray!r}, which `entry_shape` "
+                       f"declares nothing about. The catalog is the schema a mapper "
+                       "parses the record with; a field outside it is a field two "
+                       "readers will disagree over.")
         for key, declared in shape.items():
             # EVERY DECLARED KEY, and its TYPE. This skipped a missing key and
             # compared only list-versus-scalar, so deleting `similarity` or
@@ -2221,9 +2233,32 @@ def main() -> int:
     # AN EXACT VOCABULARY, not a substring. `want_word in said_n` accepted
     # `"path-x"`, so the field could say something meaningless and still name the
     # right attribute inside it. Half-checked is what this audit exists to remove.
-    SHAPE_TOKENS = {"path": {"path", "list of paths"},
-                    "enclosing_symbol": {"enclosing symbol",
-                                         "list of enclosing symbols"}}
+    #
+    # AND EVERY KEY, not only the ones `matches` names. This block ran over
+    # `matches` and read `entry_shape` through it, so a key `matches` does not
+    # name was read by nothing: `renamed_symbol_record.entry_shape.to` could be
+    # rewritten from `enclosing symbol` to `path` and the suite stayed green. That
+    # is the same defect one level up from the one this block closes - the keys of
+    # one object read THROUGH the keys of another, which covers the intersection
+    # and calls it the whole.
+    #
+    # THE FIX IS TO BIND THE UNMATCHED KEY, NOT TO STRIP IT. `entry_shape` is the
+    # record's schema; `matches` says which of its fields take part in relation
+    # binding. Reading the schema's domain off `matches` would make a binding
+    # declaration into a type definition, which it never was, so an unmatched key
+    # stays a full member of the record. What binds its class is what the record
+    # IS: these records relate two ends of one move and the two ends are the same
+    # kind of thing - a copy path to path, a fold symbols to symbol, a symbol
+    # rename name to name. Cardinality may differ across the pair; the class may
+    # not. `matches` binding either end therefore binds both.
+    # The key SET is bound to the corpus, in both directions, by
+    # `entry_shape_failures`: a declared key missing from a record and a record
+    # key the schema never declares are both reported there.
+    SHAPE_ATTRIBUTE = {"path": "path",
+                       "list of paths": "path",
+                       "enclosing symbol": "enclosing_symbol",
+                       "list of enclosing symbols": "enclosing_symbol",
+                       "int": None}
     for sig_n in sorted(policy["structural_signals"]):
         spec_n = mapping_or_empty(policy["structural_signals"][sig_n])
         raw_shape = spec_n.get("entry_shape")
@@ -2231,17 +2266,51 @@ def main() -> int:
         # entry rather than a shape per key - `reformatted_paths` is a list of
         # paths. Both forms describe the same thing and both are checked.
         shape_n = mapping_or_empty(raw_shape)
-        for key_n, subject in sorted(mapping_or_empty(spec_n.get("matches")).items()):
+        matches_n = mapping_or_empty(spec_n.get("matches"))
+
+        # EVERY TOKEN IS A TOKEN, matched or not: `entry_shape_failures` reads
+        # `list of` and `int` off these words, so one outside the vocabulary is
+        # read as neither a list nor a number.
+        for key_n, said_n in ([(None, raw_shape)] if not isinstance(raw_shape, dict)
+                              else sorted(shape_n.items())):
+            token = said_n if isinstance(said_n, str) else None
+            where_n = (f"`structural_signals.{sig_n}.entry_shape`" if key_n is None
+                       else f"`structural_signals.{sig_n}.entry_shape.{key_n}`")
+            check(token in SHAPE_ATTRIBUTE,
+                  f"{where_n} is {said_n!r}, which is not one of "
+                  f"{sorted(SHAPE_ATTRIBUTE)}. `entry_shape` is read for whether a "
+                  "field holds one value or many and whether it is text or a "
+                  "number; a word outside the vocabulary is read as neither.")
+
+        # A MATCHED KEY'S CLASS IS THE ATTRIBUTE IT IS MATCHED ON.
+        for key_n, subject in sorted(matches_n.items()):
             attr = str(subject).partition(".")[2]
-            legal = SHAPE_TOKENS.get(attr, set())
-            said_n = raw_shape if isinstance(raw_shape, str) else shape_n.get(key_n)
-            check(said_n in legal,
+            said_n = raw_shape if not isinstance(raw_shape, dict) else shape_n.get(key_n)
+            token = said_n if isinstance(said_n, str) else None
+            check(attr and SHAPE_ATTRIBUTE.get(token) == attr,
                   f"`structural_signals.{sig_n}.entry_shape.{key_n}` is {said_n!r} "
                   f"and `matches` binds that key to {subject!r}, so the shape has to "
-                  f"be one of {sorted(legal)}. `matches` is the normative half; a "
-                  "record whose declared shape contradicts what it is matched on "
-                  "tells a mapper to read the wrong field, and one that is not a "
-                  "shape at all tells it nothing.")
+                  f"name {attr!r}. `matches` is the normative half; a record whose "
+                  "declared shape contradicts what it is matched on tells a mapper "
+                  "to read the wrong field.")
+
+        # AND THE TWO ENDS OF ONE MOVE ARE THE SAME CLASS. This is what reaches
+        # the keys `matches` does not name. It is asked of `from`/`to` wherever
+        # both exist rather than of a list the contract declares, because a
+        # declaration this check depended on could be deleted to make it vacuous -
+        # and an unread key is exactly what is being repaired here.
+        if isinstance(raw_shape, dict) and {"from", "to"} <= set(shape_n):
+            classes = [SHAPE_ATTRIBUTE.get(shape_n[k]
+                                           if isinstance(shape_n[k], str) else None)
+                       for k in ("from", "to")]
+            check(classes[0] == classes[1] and classes[0] is not None,
+                  f"`structural_signals.{sig_n}.entry_shape` says `from` is "
+                  f"{shape_n['from']!r} and `to` is {shape_n['to']!r}. A record "
+                  "relates the two ends of one move, and the two ends are the same "
+                  "kind of thing - a copy goes path to path, a fold symbols to "
+                  "symbol, a rename name to name. Cardinality may differ across the "
+                  "pair; the class may not, and this is what binds the end no rule "
+                  "matches on.")
 
     # EVERY DECLARED OBLIGATION MEANING IS CARRIED BY SOME CASE. A meaning nothing
     # declares is a duty nobody owes - the same rule this contract already applies
@@ -4100,10 +4169,25 @@ def main() -> int:
               f"the doc's row for {rid_d} does not name its outcome "
               f"{rule_d.get('outcome')!r}. The outcome column is the same "
               "declaration as `rules.{rid}.outcome` and had no link to it.")
-        shape_d = mapping_or_empty(rule_d.get("cardinality")).get("shape")
-        check(isinstance(shape_d, str) and shape_d in row.group(0),
-              f"the doc's row for {rid_d} does not name its cardinality shape "
-              f"{shape_d!r}.")
+        # THE CARDINALITY CELL, EXACTLY, AND THE MINIMUM WITH IT. `shape_d in
+        # row` was a substring test over the whole row, so the column was free to
+        # say anything containing `1:N` - `1:N, N>=3` passed while the rule
+        # declares `min_successors: 2`, and `11:N` would have passed too. The
+        # minimum was the half nothing read: it is enforced against fixtures, and
+        # the table restating it was restating it unchecked. The doc's rendering
+        # is the shape plus `, N>=<min>` where a minimum is declared, and it is
+        # compared against that rendering rather than searched for inside a line.
+        card_d = mapping_or_empty(rule_d.get("cardinality"))
+        want_card = str(card_d.get("shape")) + "".join(
+            f", N>={card_d[k]}" for k in ("min_predecessors", "min_successors")
+            if k in card_d)
+        cells_d = [c.strip() for c in row.group(0).strip().strip("|").split("|")]
+        said_card = cells_d[2] if len(cells_d) > 2 else None
+        check(said_card == want_card,
+              f"the doc's row for {rid_d} gives cardinality {said_card!r} and the "
+              f"rule declares {want_card!r}. The column is a second statement of "
+              "`cardinality`, and a mapper built from a table that relaxes the "
+              "minimum would license a branch of one.")
 
     check("finding-lineage-decision/v1" in doc, "the doc must name the contract it freezes")
     check("implementation not started" in doc,
