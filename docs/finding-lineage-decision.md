@@ -319,6 +319,17 @@ No synthetic id, no ordinal, no hash of the physical anchor, and no `frm: null`
 standing in for a reference. Upstream refused to invent an identity; this layer
 does not restore one.
 
+Those four are `eligibility.forbids`, and they are **tokens, not sentences**.
+Each names a set of output fields — `occurrence_id`; `ordinal` / `index` /
+`position`; `anchor_hash` / `physical_anchor` / `anchor_id`; `frm` / `to` — that
+the integrity suite holds out of the eligibility expectation schema and out of
+every fixture's `expect`, and the declared set and the enforceable set must be
+equal in both directions. They were four sentences first, and nothing read them:
+replacing all four with `["anything", "else"]` left the corpus and the suite
+green. That is the defect this whole document keeps describing — a claim applied
+where it was named and never asked of the adjacent site — appearing inside the
+section written to close another instance of it.
+
 Its cases live in `identity/fixtures/lineage-eligibility/`, apart from the
 relation matrix, and cover both sides:
 `an-unidentified-finding-in-revision-a-is-unresolved` (a predecessor that cannot
@@ -326,6 +337,14 @@ be named) and `an-unidentified-finding-in-revision-b-is-unresolved` (a
 successor). The relation schema still requires a string occurrence id, and is
 not relaxed — that requirement is what stops an unanswerable edge being
 preregistered.
+
+Each case's null id has to come with a reason `identity/occurrence.py` actually
+emits, and a reason of the kind that produces a null id: the suite reads the
+vocabulary off that module's `LIMIT_*` constants rather than restating it, and
+requires at least one limitation under the `occurrence-id-unavailable:` prefix,
+since `physical-anchor-missing:start-column` alone does not block one. A fixture
+that paired a null id with reasons that would not have produced it would be
+triggering stage 0 with nothing.
 
 | # | case | expected |
 |---|---|---|

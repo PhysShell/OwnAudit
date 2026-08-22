@@ -78,12 +78,13 @@
     "precedence": "before_every_other_stage",
     "is_not_a_rule": true,
     "record_shape_rule": "The missing-occurrence-id refusal belongs to the INPUT FINDING ITSELF and is not a relation record. Lineage enrichment annotates the normalized finding, which is already the subject; it does not emit an edge. The exact output field name is frozen in a later schema step - the SEMANTICS are frozen here.",
-    "forbids": [
-      "a synthetic occurrence id minted to make the record referenceable",
-      "an ordinal or index standing in for identity",
-      "a hash of the physical anchor standing in for identity",
-      "`frm: null` or `to: null` used as a pseudo-reference to the subject"
-    ],
+    "forbids": {
+      "synthetic_occurrence_id": "a synthetic occurrence id minted to make the record referenceable",
+      "ordinal_standing_in_for_identity": "an ordinal or index standing in for identity",
+      "anchor_hash_standing_in_for_identity": "a hash of the physical anchor standing in for identity",
+      "null_endpoint_as_pseudo_reference": "`frm: null` or `to: null` used as a pseudo-reference to the subject"
+    },
+    "forbids_rule": "Each key is a PROHIBITION TOKEN the integrity suite carries a field vocabulary for, and each token's fields are held out of the eligibility expectation schema and out of every eligibility fixture's `expect`. The list this replaced was four sentences no check read: swapping them for `[\"anything\", \"else\"]` left the corpus and the suite green, which is the same defect - a claim applied where it was named and never asked of the adjacent site - written into the section added to fix another instance of it. The token set and the suite's enforceable set must be EQUAL: a token the suite cannot enforce is prose again, and a prohibition the suite enforces but the contract stopped declaring is an enforcement nobody agreed to.",
     "why": [
       "A NULL OCCURRENCE ID IS NORMAL OUTPUT, NOT MALFORMED INPUT. `identity/occurrence.py`",
       "returns `(occurrence_id | None, limitations)` and deliberately returns None when",

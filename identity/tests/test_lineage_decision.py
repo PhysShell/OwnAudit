@@ -88,6 +88,19 @@ sys.path.insert(0, ROOT)
 # function, and the whole reason this branch needed a sixth senior amendment is
 # that nobody was checking fixture ids against the first one.
 from identity import pattern as finding_pattern  # noqa: E402
+# ...and the ONE producer of identity limitations, for the same reason. The
+# eligibility corpus asserts that a null occurrence id came with a reason
+# `occurrence.py` actually emits; a hand-copied list of tokens here would be a
+# second vocabulary, and the fixture would then be checked against the copy.
+from identity import occurrence as finding_occurrence  # noqa: E402
+
+LIMITATION_VOCABULARY = frozenset(
+    v for k, v in vars(finding_occurrence).items()
+    if k.startswith("LIMIT_") and isinstance(v, str))
+# `resolve()` returns a null id for exactly the limitations under this prefix -
+# `physical-anchor-missing:start-column` does not block an id. The prefix is
+# taken from a named constant rather than spelled again here.
+BLOCKING_LIMITATION = finding_occurrence.LIMIT_NO_RUN_ID.split(":")[0] + ":"
 
 SENIOR = os.path.join(ROOT, "contracts", "finding-lineage-v1.json")
 POLICY = os.path.join(ROOT, "contracts", "finding-lineage-decision-v1.json")
@@ -605,6 +618,28 @@ ELIGIBILITY_FINDING_KINDS = {
 ELIGIBILITY_EXPECT_KINDS = {
     "outcome": "string", "reason": "string", "matched_rules": "list",
     "applicable_rules": "list", "licensed_by": "list",
+}
+# THE PROHIBITION VOCABULARY. `eligibility.forbids` names the ways a mapper
+# could mint the identity `occurrence.py` refused to mint. Each token maps to
+# the OUTPUT FIELDS that would embody it, and that mapping is what makes the
+# prohibition checkable: the fields are held out of the expectation schema
+# above and out of every eligibility fixture's `expect`.
+#
+# The declaration this replaced was four sentences of prose. Nothing read them:
+# swapping all four for `["anything", "else"]` left the eligibility corpus and
+# this suite green - a check covering part of what its declaration claims, which
+# is the defect shape this branch has now found more than a dozen times, sitting
+# inside the section that was added to close another instance of it.
+#
+# `occurrence_id` is forbidden in `expect` and REQUIRED in `finding`: the stage
+# refuses because the input has no identity, and the prohibition is on the
+# mapper answering with one it made up, not on the input stating its absence.
+ELIGIBILITY_FORBIDDEN_FIELDS = {
+    "synthetic_occurrence_id": ("occurrence_id",),
+    "ordinal_standing_in_for_identity": ("ordinal", "index", "position"),
+    "anchor_hash_standing_in_for_identity": ("anchor_hash", "physical_anchor",
+                                             "anchor_id"),
+    "null_endpoint_as_pseudo_reference": ("frm", "to"),
 }
 
 
@@ -3026,11 +3061,39 @@ def main() -> int:
           f"`decision_procedure` opens with {first.strip()[:40]!r}. "
           "`eligibility.precedence` says this stage runs before every other, and the "
           "procedure is where that is either true or prose.")
-    forbids = list_or_empty(elig.get("forbids"))
-    check(bool(forbids) and all(isinstance(x, str) and x.strip() for x in forbids),
-          f"`eligibility.forbids` is {elig.get('forbids')!r}. It is the list of ways a "
-          "mapper could invent the identity upstream refused to invent; an empty or "
-          "malformed one permits all of them by saying nothing.")
+    # `forbids`, BOUND TO FIELDS RATHER THAN READ AS PROSE. Each declared token
+    # is one the suite carries a field vocabulary for, and the two sets must be
+    # EQUAL in both directions: a token with no vocabulary is a sentence nothing
+    # reads, and a vocabulary the contract stopped declaring is an enforcement
+    # nobody agreed to.
+    forbids = mapping_or_empty(elig.get("forbids"))
+    check(isinstance(elig.get("forbids"), dict),
+          f"`eligibility.forbids` is {type(elig.get('forbids')).__name__}, not an "
+          "object of prohibition-token -> why. It was a list of sentences, and a "
+          "list of sentences is what let all four be replaced by `['anything', "
+          "'else']` with this suite still reporting OK.")
+    check(sorted(forbids) == sorted(ELIGIBILITY_FORBIDDEN_FIELDS),
+          f"`eligibility.forbids` declares {sorted(forbids)} and the suite can "
+          f"enforce {sorted(ELIGIBILITY_FORBIDDEN_FIELDS)}. Undeclared-but-enforced "
+          "is a rule nobody wrote down; declared-but-unenforceable is the prose this "
+          "check exists to stop being.")
+    check(isinstance(elig.get("forbids_rule"), str)
+          and len(elig.get("forbids_rule", "").strip()) > 80,
+          "`eligibility.forbids_rule` must state what the tokens are and why they "
+          "are tokens; without it the next reader sees four identifiers and no "
+          "reason they are not sentences again.")
+    for token in sorted(set(forbids) & set(ELIGIBILITY_FORBIDDEN_FIELDS)):
+        why = forbids[token]
+        check(isinstance(why, str) and len(why.strip()) > 20,
+              f"`eligibility.forbids.{token}` is {why!r}. The token is what the "
+              "suite enforces; the value is what a human is owed for it.")
+        for field in ELIGIBILITY_FORBIDDEN_FIELDS[token]:
+            check(field not in ELIGIBILITY_EXPECT_KINDS,
+                  f"`eligibility.forbids` declares {token!r}, and the eligibility "
+                  f"expectation schema declares {field!r}. The schema is what a "
+                  "fixture is allowed to say; a prohibition its own schema admits is "
+                  "not a prohibition.")
+    elig_forbidden = {f: t for t, fs in ELIGIBILITY_FORBIDDEN_FIELDS.items() for f in fs}
 
     elig_cases = list_or_empty(elig.get("preregistered_cases"))
     elig_on_disk = sorted(f[:-5] for f in os.listdir(ELIGDIR) if f.endswith(".json"))
@@ -3076,10 +3139,33 @@ def main() -> int:
                   f"`finding-pattern/v1` computes {want!r}. A finding with no "
                   "occurrence identity still has a PATTERN identity - that is the "
                   "distinction the two contracts exist to keep.")
-            check(bool(finding["identity_limitations"]),
+            limits = list_or_empty(finding["identity_limitations"])
+            check(bool(limits),
                   f"{where}: the finding records no `identity_limitations`. "
                   "`occurrence.py` never returns a null id without saying why, and a "
                   "fixture that omits the reason is not the record the mapper receives.")
+            # THE REASON, AND THE RIGHT KIND OF REASON. `bool()` on the list was
+            # the whole check, so `[{}]` and `[42]` passed it - a fixture saying
+            # "there is a reason" without one. Same shape as `forbids` before it
+            # became tokens, one field away.
+            for index, limit in enumerate(limits):
+                # `isinstance` FIRST. `limit in LIMITATION_VOCABULARY` raises
+                # TypeError on an unhashable element - so the check written to
+                # report a malformed limitation died on one, which is the tenth
+                # time on this branch that a guard has crashed on the input it
+                # exists to examine, and the second time in this one section.
+                check(isinstance(limit, str) and limit in LIMITATION_VOCABULARY,
+                      f"{where}: identity_limitations[{index}] is {limit!r}, which "
+                      "`occurrence.py` does not emit. The fixture stands in for a "
+                      "record that module produced; a token it never produces "
+                      "describes an input the mapper will not receive.")
+            check(any(isinstance(x, str) and x.startswith(BLOCKING_LIMITATION)
+                      for x in limits),
+                  f"{where}: identity_limitations is {limits!r} and none of them "
+                  f"starts with {BLOCKING_LIMITATION!r}. Those are the only ones for "
+                  "which `resolve()` returns a null id - so this fixture pairs a null "
+                  "id with reasons that would not have produced one, and stage 0 is "
+                  "then triggered by nothing.")
 
         exp = ecase["expect"]
         ebad = kind_table_failures(f"{where}.expect", exp, ELIGIBILITY_EXPECT_KINDS,
@@ -3108,8 +3194,28 @@ def main() -> int:
                   f"{where}: {field} is {exp[field]!r}. Stage 0 settles the answer "
                   "before any evidence is read, so every rule stage is empty - not "
                   "empty-because-nothing-fired, empty-because-nothing-ran.")
+        # THE SAME PROHIBITION, ASKED OF THE FIXTURE. The kind table above
+        # rejects undeclared keys, so this is a second reading of one fact - and
+        # deliberately: the table can grow a field, and if it ever does, the
+        # failure a reader gets should name the prohibition rather than report a
+        # key nobody declared.
+        for field in sorted(set(exp) & set(elig_forbidden)):
+            check(False,
+                  f"{where}.expect carries {field!r}, which `eligibility.forbids` "
+                  f"rules out as {elig_forbidden[field]!r}. Stage 0 refuses BECAUSE "
+                  "the identity is absent; an expectation that names one has answered "
+                  "with the invention upstream declined to make.")
         exercised_reasons.add(exp["reason"])
+        # THE SAME QUESTION THE RELATION CORPUS ASKS OF ITS OWN `forbid`, which
+        # `fixture_shape_failures` answers element by element. Here it was
+        # `bool()` alone: a list of five objects satisfied it, and `forbid`
+        # states in words what the case must not conclude.
         check(bool(ecase["forbid"]), f"{where}: nothing is forbidden")
+        for index, forbidden in enumerate(list_or_empty(ecase["forbid"])):
+            check(isinstance(forbidden, str) and forbidden.strip(),
+                  f"{where}.forbid[{index}] is {forbidden!r}. `forbid` states in "
+                  "words what the case must NOT conclude; a container states "
+                  "nothing.")
 
     check(elig_sides == {"a", "b"},
           f"the eligibility corpus covers sides {sorted(elig_sides)}. Both are needed: "
