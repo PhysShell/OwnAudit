@@ -3277,6 +3277,54 @@ def main() -> int:
         elif isinstance(value, str):
             yield ".".join(trail), value
 
+    # A PROSE LIST HOLDS PROSE. This walk SKIPS anything that is not a string, so
+    # a paragraph with a hole in it reads as a shorter paragraph - and one
+    # arrived: `case_obligations.why[3]` was an empty list in the commit before
+    # this, where a sentence carrying a `not_applicable` reference had been. My
+    # own contract census put it there when a timeout killed it mid-run, and I
+    # committed it because I read `git diff --stat` instead of the diff. The gate
+    # that walks this prose could not see the hole, because a hole is not a
+    # string. Reported by review, not by anything here.
+    #
+    # Every entry of a top-level list of strings must be a string: if the first
+    # entry is prose, they all are. That is narrow on purpose - `preregistered_cases`
+    # and `retired_names` are lists of names, and `deliberately_unresolved_conflicts`
+    # is a list of objects, and none of them should be dragged into a rule about
+    # paragraphs.
+    # AT ANY DEPTH. The first form of this ran over top-level sections only - and
+    # the hole it was written for is at `case_obligations.why`, one level down,
+    # so it would have shipped without catching the defect it cites. Sixteenth
+    # time on this branch that a check has covered part of what its own message
+    # claims, and the second time inside a check written about exactly that.
+    def prose_holes(value, trail=()):
+        out = []
+        if isinstance(value, dict):
+            for key, item in value.items():
+                out += prose_holes(item, trail + (str(key),))
+        elif isinstance(value, list):
+            # ANY string in the list, not the FIRST. Keying on `value[0]` meant a
+            # hole AT INDEX 0 stopped the list from looking like prose at all -
+            # the check blind to precisely the position it was least able to
+            # recover, found by probing index 0 after the other three positions
+            # passed.
+            if any(isinstance(entry, str) for entry in value):
+                for pos, entry in enumerate(value):
+                    if not isinstance(entry, str):
+                        out.append((".".join(trail), pos, entry))
+            for pos, item in enumerate(value):
+                out += prose_holes(item, trail + (str(pos),))
+        return out
+
+    for doc_name, doc in (("decision policy", policy), ("outcome contract", senior)):
+        for where_, pos, entry in prose_holes(doc):
+            check(False,
+                  f"the {doc_name}'s `{where_}[{pos}]` is {entry!r}, and other "
+                  "entries of that list are lines of prose. A container in the middle "
+                  "of a paragraph is a sentence that was deleted without anyone "
+                  "reading the paragraph afterwards - which is exactly how a "
+                  "`not_applicable` reference went missing from `case_obligations.why` "
+                  "and was committed.")
+
     defined = every_key(policy) | every_key(senior)
     defined |= set(senior["evidence_kinds"]) | set(senior["outcomes"])
     # ...and the FIXTURE vocabulary, which the contract legitimately cites and

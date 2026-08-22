@@ -940,7 +940,7 @@
       "What each case must MECHANICALLY exhibit, beyond reaching the right answer.",
       "Without this a case can be right for the wrong reason and stay green: drop",
       "R-CONT-SAME-SITE out of `copy-record-dominates-the-single-match` and into",
-      [],
+      "`not_applicable`, and the fixture still reports `branched` licensed by",
       "R-BRANCH-COPY - correct, and no longer showing dominance doing any work at",
       "all. The suite cannot catch that on its own, because deciding which rules",
       "really fired is applicability, and a checker doing applicability is a second",
