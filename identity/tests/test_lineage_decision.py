@@ -3325,8 +3325,22 @@ def main() -> int:
             for key, item in value.items():
                 here = ".".join(trail + (str(key),))
                 if prose_named(str(key)) and here not in STRUCTURED_PROSE_NAMED:
+                    # AND IT HAS TO SAY SOMETHING. Type and length were the whole
+                    # test, so `""` and `[""]` erased a section while keeping the
+                    # shape the rule accepts - the fourth way to empty a prose
+                    # field that this one check has now been shown to permit, and
+                    # the fourth found by review rather than here. A shape is
+                    # satisfiable vacuously; text is not.
+                    #
+                    # BLANK ENTRIES STAY LEGAL INSIDE A LIST: 53 of them across 16
+                    # lists are paragraph separators. What is required is that
+                    # SOME entry carries text.
                     if isinstance(item, str):
-                        pass
+                        if not item.strip():
+                            out.append((here, "is blank",
+                                        "a prose field is text, and an empty "
+                                        "string is the same erasure as a missing "
+                                        "one with nothing to notice it by"))
                     elif not isinstance(item, list) or not item:
                         out.append((here, f"is {item!r}", "a prose field is a "
                                     "sentence or a non-empty list of them"))
@@ -3335,6 +3349,10 @@ def main() -> int:
                             if not isinstance(entry, str):
                                 out.append((f"{here}[{pos}]", f"is {entry!r}",
                                             "every line of a paragraph is a line"))
+                        if not any(isinstance(e, str) and e.strip() for e in item):
+                            out.append((here, "holds no text",
+                                        "blank entries are paragraph separators "
+                                        "and some entry has to be a paragraph"))
                 out += prose_faults(item, trail + (str(key),))
         elif isinstance(value, list):
             # AND THE CONTENT RULE, KEPT ALONGSIDE THE NAME RULE. They catch
