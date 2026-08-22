@@ -236,6 +236,37 @@ also wrong, and in an instructive way: it required only that the readings be
 flipped — a law proving two options differ says nothing about which was taken.
 The verdict is the half that makes it bite.
 
+### And a smaller law: no cross-reference to nothing
+
+The contract's prose is full of backticked names — sections, rules, record
+fields, obligations, signals, evidence kinds, binding tokens. Every one of them
+must now be a name one of the two contracts actually defines, at any depth, or a
+fixture field, or a name declared in `retired_names`.
+
+The gate exists because I wrote `what_the_suite_refuses_to_compute` into a
+section whose entire subject is claims nothing checks. The key has never existed.
+
+Its own first two drafts are the more useful lesson. The first read only
+top-level list-valued sections and demanded two underscores, so `rules.*.why`,
+every object-valued section and any name like `missing_reference` went unread —
+a gate covering part of what its declaration claimed, written into the gate
+about claims nothing checks. The second matched the identifier pattern anywhere
+in a line and so found `excluded_by_cardinality` *inside* the correct reference
+`decision_detail.rules_excluded_by_cardinality`, inventing a dangling reference
+out of a sound one; whole backticked spans are now parsed segment by segment.
+
+`retired_names` carries the names the contract mentions *because they are gone* —
+`requires_all_scope`, replaced by `record_binding`; `defeated_signals`, a second
+spelling of `signals_defeated`; `excluded_by_cardinality`, a top-level twin of
+`decision_detail.rules_excluded_by_cardinality`. Listing a name there is a claim
+that the prose citing it is history, and a reader can check that claim against
+the sentence. It is not a way to silence the gate.
+
+Run against the corpus for the first time, it found exactly one real defect: a
+`why` contrasting two classifications named `at_or_above_the_floor` by a
+truncation of it, so the sentence pointed at no branch of the mapping it was
+describing.
+
 ### 4. What the suite refuses to compute
 
 `identity/tests/test_lineage_decision.py` never decides which rules a real

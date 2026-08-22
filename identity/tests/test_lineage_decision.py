@@ -2721,6 +2721,16 @@ def main() -> int:
             # silence, because the only reader of the field ran inside a branch
             # that case never entered.
             rescue_all = mapping_or_empty(exp.get("excluded_partners_reached_by"))
+            # ABSENT, not empty. The diagnostic below says the field "may not
+            # appear at all" where nothing was dropped, and `{}` satisfied the
+            # stray check because both sets were empty - the message claiming more
+            # than the code, one line above the code. Two conforming mappers would
+            # then disagree about whether to write the key.
+            check(not (not dropped_all and "excluded_partners_reached_by" in exp),
+                  f"{where}: no exclusion in this expectation dropped anybody, and it "
+                  "still carries `excluded_partners_reached_by`. An empty map and an "
+                  "absent one would be two spellings of the same fact, and a record "
+                  "field with two spellings is one a reader has to test twice.")
             stray = sorted(set(rescue_all) - set(dropped_all))
             check(not stray,
                   f"{where}: `excluded_partners_reached_by` names {stray}, which no "
@@ -3238,27 +3248,88 @@ def main() -> int:
     # and flagged `rule_licensed_alone`, which is a real case obligation: a
     # cross-reference gate that does not know the vocabulary it polices is worse
     # than none, because it teaches the next reader to silence it.
-    defined = set(policy) | set(rules) | set(policy["record_additions"])
-    defined |= set(mapping_or_empty(policy["case_obligations"]).get("meanings") or {})
-    defined |= set(policy["structural_signals"]) | set(senior["evidence_kinds"])
-    defined |= set(senior) | set(senior["outcomes"])
-    for axis in ("quantifier", "excluding", "coverage"):
-        defined |= set(mapping_or_empty(vocab.get(axis)))
-    defined |= set(EXPECTATION_KINDS) | set(OCCURRENCE_KINDS) | set(FIXTURE_KINDS)
-    for section in sorted(policy):
-        for line in list_or_empty(policy[section]):
-            if not isinstance(line, str):
-                continue
-            for cited in sorted(set(re.findall(r"`([a-z][a-z0-9]*(?:_[a-z0-9]+){2,})`",
-                                               line))):
-                check(cited in defined,
-                      f"`{section}` cites `{cited}`, which is not a name this contract "
-                      "defines anywhere - not a section, rule, record field, "
-                      "obligation, signal, evidence kind or binding token. A "
-                      "cross-reference to nothing reads as though something were "
-                      "checking it, which is how "
-                      "`what_the_suite_refuses_to_compute` got written into a section "
-                      "whose whole subject is a claim nothing checks.")
+    # EVERY KEY EITHER CONTRACT CARRIES, AT ANY DEPTH - not the top level. The
+    # first form of this gate read `set(policy)` and scanned only direct string
+    # entries of top-level LIST-valued sections, so `rules.*.why`,
+    # `record_binding_vocabulary.excluding.*.why` and every object-valued section
+    # went unread; and its regex demanded two underscores, so `missing_reference`
+    # walked through the part it did read. A gate covering part of what its own
+    # declaration claims - written, this time, into the gate whose entire subject
+    # is claims nothing checks. Both reviewers found it independently.
+    def every_key(value) -> set:
+        out: set = set()
+        if isinstance(value, dict):
+            for key, item in value.items():
+                out.add(key)
+                out |= every_key(item)
+        elif isinstance(value, list):
+            for item in value:
+                out |= every_key(item)
+        return out
+
+    def string_leaves(value, trail=()):
+        if isinstance(value, dict):
+            for key, item in value.items():
+                yield from string_leaves(item, trail + (str(key),))
+        elif isinstance(value, list):
+            for pos, item in enumerate(value):
+                yield from string_leaves(item, trail + (str(pos),))
+        elif isinstance(value, str):
+            yield ".".join(trail), value
+
+    defined = every_key(policy) | every_key(senior)
+    defined |= set(senior["evidence_kinds"]) | set(senior["outcomes"])
+    # ...and the FIXTURE vocabulary, which the contract legitimately cites and
+    # which lives in this suite's schema tables rather than in either document.
+    for table in (EXPECTATION_KINDS, OCCURRENCE_KINDS, FIXTURE_KINDS, REVISION_KINDS,
+                  DETAIL_KINDS, ELIGIBILITY_KINDS, ELIGIBILITY_FINDING_KINDS,
+                  ELIGIBILITY_EXPECT_KINDS):
+        defined |= set(table)
+    defined |= {f.split(".")[-1] for f in (UNAVAILABLE_FIELD,)}
+    # ...and the revision-B field names, which the contract defines through its
+    # own catalog rather than as keys: `revision_b.merged_symbols` is where
+    # `merged_symbols` is declared.
+    specs = list(policy["structural_signals"].values()) + [policy["unavailable_inputs"]]
+    specs += list(mapping_or_empty(senior.get("boundary_evidence_kinds")).values())
+    for spec in specs:
+        for read in (mapping_or_empty(spec).get("observable_from"),
+                     mapping_or_empty(spec).get("defeated_by")):
+            for one in str(read or "").replace("[]", "").split(","):
+                defined |= {seg.strip() for seg in one.split(".") if seg.strip()}
+    # STRINGS, CHECKED AND THEN USED. `set(list_or_empty(...))` raises on an
+    # unhashable element - the fifteenth guard on this branch to die on the input
+    # it exists to examine, added in the same change that closed the thirteenth
+    # and fourteenth, and caught by the census rather than by reading it. The
+    # census only sees it because it now sweeps scalar -> container, which is the
+    # direction it was blind to until this round.
+    for pos, name_ in enumerate(list_or_empty(policy.get("retired_names"))):
+        check(isinstance(name_, str) and name_.strip(),
+              f"`retired_names[{pos}]` is {name_!r}. Each entry is a name the "
+              "contract mentions because it no longer exists; a container names "
+              "nothing and cannot be compared against a citation.")
+    defined |= {n_ for n_ in list_or_empty(policy.get("retired_names"))
+                if isinstance(n_, str)}
+    # WHOLE BACKTICKED SPANS, then segment by segment. Matching the identifier
+    # pattern anywhere in the line found `excluded_by_cardinality` INSIDE
+    # `decision_detail.rules_excluded_by_cardinality` - the gate inventing a
+    # dangling reference out of a correct one, which would have been reported as
+    # a contract defect and "fixed" by editing prose that was already right.
+    for where_, line in string_leaves(policy):
+        cited_names = set()
+        for span in re.findall(r"`([a-z][A-Za-z0-9_.\[\]]*)`", line):
+            for seg in span.replace("[]", "").split("."):
+                if re.fullmatch(r"[a-z][a-z0-9]*(?:_[a-z0-9]+)+", seg):
+                    cited_names.add(seg)
+        for cited in sorted(cited_names):
+            check(cited in defined,
+                  f"`{where_}` cites `{cited}`, which is not a name either contract "
+                  "defines at any depth, nor a fixture field, nor a declared retired "
+                  "name. A cross-reference to nothing reads as though something were "
+                  "checking it - which is how `what_the_suite_refuses_to_compute` came "
+                  "to be cited in a section whose whole subject is claims nothing "
+                  "checks. A name the contract deliberately mentions because it NO "
+                  "LONGER exists belongs in `retired_names`, where it is recorded "
+                  "rather than merely tolerated.")
 
     for pair in sorted(({frozenset(c["between"]) for c in
                          policy["deliberately_unresolved_conflicts"]}), key=sorted):
