@@ -400,6 +400,34 @@ def boundary_hits(spec: dict, frm, to, by_id: dict, rev_b: dict) -> tuple:
     return role, [oid for oid in subjects if by_id.get(oid, {}).get(attr) in observed]
 
 
+def token_failures(where: str, declared, value) -> list:
+    """One `entry_shape` token against one value: list-or-scalar, then member type.
+
+    Shared by the two forms a declaration takes - a shape per key for records
+    like `copies`, and one shape for the whole entry where the entries are bare
+    values like `reformatted_paths`. It was written for the first form only, and
+    the second was therefore not read at all."""
+    out = []
+    wants_list = isinstance(declared, str) and declared.startswith("list of")
+    if wants_list != isinstance(value, list):
+        out.append(
+            f"{where} is {value!r}, and `entry_shape` declares it {declared!r}. A "
+            "scalar written as a one-element list reads the same to a lenient parser "
+            "and differently to a literal one, so the corpus would sanction a record "
+            "the contract does not.")
+        return out
+    want_type = int if declared == "int" else str
+    members = value if wants_list else [value]
+    wrong = [m for m in members if not isinstance(m, want_type)
+             or isinstance(m, bool)]
+    if wrong:
+        out.append(
+            f"{where} holds {wrong!r}, and `entry_shape` declares {declared!r}. A "
+            "record whose types differ from the catalog is one a mapper parses "
+            "differently than the contract describes.")
+    return out
+
+
 def entry_shape_failures(where: str, cat_spec: dict, entries) -> list:
     """The catalog's `entry_shape` says whether a field is a scalar or a list.
 
@@ -412,7 +440,21 @@ def entry_shape_failures(where: str, cat_spec: dict, entries) -> list:
     corpus, which is what `entry_shape` exists to prevent."""
     out = []
     shape = cat_spec.get("entry_shape")
-    if not isinstance(shape, dict) or not isinstance(entries, list):
+    if not isinstance(entries, list):
+        return out
+    # A WHOLE-ENTRY SHAPE IS A SHAPE. This returned immediately unless
+    # `entry_shape` was an object, so `reformatted_paths` - whose entries are
+    # bare paths rather than records - was read by nothing here, and rewriting
+    # its declaration from `path` to `list of paths` left the suite green while
+    # the corpus went on supplying scalars. The class check one section down
+    # cannot see it either: both tokens name the same class, which is exactly
+    # what makes the cardinality half a separate question.
+    # And it makes `entry_shape_rule` - "read of every key against the real
+    # records in the frozen corpus" - a claim wider than the check under it,
+    # which is the shape this file keeps having to repair.
+    if not isinstance(shape, dict):
+        for index, entry in enumerate(entries):
+            out.extend(token_failures(f"{where}[{index}]", shape, entry))
         return out
     for index, entry in enumerate(entries):
         if not isinstance(entry, dict):
@@ -441,24 +483,8 @@ def entry_shape_failures(where: str, cat_spec: dict, entries) -> list:
                            f"declares as {declared!r}. A mapper reading the catalog "
                            "expects the field to be there.")
                 continue
-            wants_list = isinstance(declared, str) and declared.startswith("list of")
-            if wants_list == isinstance(entry[key], list):
-                want_type = int if declared == "int" else str
-                members = entry[key] if wants_list else [entry[key]]
-                wrong = [m for m in members if not isinstance(m, want_type)
-                         or isinstance(m, bool)]
-                if wrong:
-                    out.append(
-                        f"{where}[{index}].{key} holds {wrong!r}, and `entry_shape` "
-                        f"declares {declared!r}. A record whose types differ from the "
-                        "catalog is one a mapper parses differently than the contract "
-                        "describes.")
-            if wants_list != isinstance(entry[key], list):
-                out.append(
-                    f"{where}[{index}].{key} is {entry[key]!r}, and `entry_shape` "
-                    f"declares it {declared!r}. A scalar written as a one-element list "
-                    "reads the same to a lenient parser and differently to a literal "
-                    "one, so the corpus would sanction a record the contract does not.")
+            out.extend(token_failures(f"{where}[{index}].{key}", declared,
+                                      entry[key]))
     return out
 
 
