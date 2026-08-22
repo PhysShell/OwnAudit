@@ -8,18 +8,22 @@
       {
         "occurrence_id": "occ-a1",
         "path": "Broker/Doc.cs",
+        "rule": "DOTNET_RESOURCE_LEAK",
+        "message": "event handler subscribed and never removed",
         "start_line": 42,
         "start_column": null,
-        "pattern_id": "pat-A",
+        "pattern_id": "f964274604b5c187",
         "enclosing_symbol": "DocView.WireA",
         "anchored_content": "_store.Changed += OnChanged;"
       },
       {
         "occurrence_id": "occ-a2",
         "path": "Broker/Doc.cs",
+        "rule": "DOTNET_RESOURCE_LEAK",
+        "message": "event handler subscribed and never removed",
         "start_line": 88,
         "start_column": null,
-        "pattern_id": "pat-A",
+        "pattern_id": "f964274604b5c187",
         "enclosing_symbol": "DocView.WireB",
         "anchored_content": "_store.Changed += OnChanged;"
       }
@@ -47,18 +51,22 @@
       {
         "occurrence_id": "occ-b1",
         "path": "Broker/Doc.cs",
+        "rule": "DOTNET_RESOURCE_LEAK",
+        "message": "event handler subscribed and never removed",
         "start_line": 40,
         "start_column": null,
-        "pattern_id": "pat-A",
+        "pattern_id": "f964274604b5c187",
         "enclosing_symbol": "DocView.Wire",
         "anchored_content": "_store.Changed += OnChanged;"
       },
       {
         "occurrence_id": "occ-b2",
         "path": "Broker/DocCopy.cs",
+        "rule": "DOTNET_RESOURCE_LEAK",
+        "message": "event handler subscribed and never removed",
         "start_line": 40,
         "start_column": null,
-        "pattern_id": "pat-A",
+        "pattern_id": "2f333e4872fe309f",
         "enclosing_symbol": "DocCopyView.Wire",
         "anchored_content": "_store.Changed += OnChanged;"
       }

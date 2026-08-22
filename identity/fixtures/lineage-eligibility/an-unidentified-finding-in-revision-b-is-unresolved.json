@@ -1,0 +1,36 @@
+{
+  "case": "an-unidentified-finding-in-revision-b-is-unresolved",
+  "contract": "finding-lineage-decision/v1",
+  "status": "preregistered-unimplemented",
+  "title": "A revision B finding whose physical anchor is ambiguous",
+  "why": "The mirror, and written separately rather than inferred: the a-side case is about a predecessor that cannot be named and this one is about a successor, and on this branch assuming that a fix for one side covers the other has already been wrong once. Here the id is null because two findings share a physical anchor, so `occurrence.py` refuses to choose between them. The refusal is the same and it is reached the same way - before any evidence is read - which is the point: stage 0 does not care WHY the identity is missing, only that it is.",
+  "revision": "b",
+  "finding": {
+    "occurrence_id": null,
+    "path": "Broker/Doc.cs",
+    "rule": "DOTNET_RESOURCE_LEAK",
+    "message": "event handler subscribed and never removed",
+    "start_line": 42,
+    "start_column": null,
+    "pattern_id": "f964274604b5c187",
+    "enclosing_symbol": "DocView.Wire",
+    "anchored_content": "_store.Changed += OnChanged;",
+    "identity_limitations": [
+      "occurrence-id-unavailable:ambiguous-physical-anchor"
+    ]
+  },
+  "expect": {
+    "outcome": "unresolved",
+    "reason": "lineage-id-unavailable:missing-occurrence-id",
+    "matched_rules": [],
+    "applicable_rules": [],
+    "licensed_by": []
+  },
+  "forbid": [
+    "new - a finding that cannot be identified is not thereby a newly introduced one",
+    "an ordinal or an anchor hash standing in for the missing identity",
+    "an edge with `to: null` standing in for the subject",
+    "any rule matched, applied or licensed before eligibility was settled",
+    "ambiguous-candidates - no candidates were ever constructed"
+  ]
+}

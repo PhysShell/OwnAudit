@@ -1,16 +1,18 @@
 {
   "case": "a-defeat-can-leave-too-few-kinds",
   "title": "A defeat below the floor, where the shortage really is of kinds",
-  "why": "The other half of the distinction the senior contract was amended to carry, and the half no case exercised. `defeated-signal-drops-below-the-floor` leaves THREE kinds standing and is therefore about the combination; here the reformat defeats anchored_content and only same_pattern_id survives - one kind against a floor of two. That is `insufficient-evidence-kind` in its literal sense, and without this case the below-floor branch of `reason_mapping` was selected by nothing, so changing which limitation it names left the suite green. A coverage gate over outcomes cannot see this: both cases are `unresolved`.",
+  "why": "The other half of the distinction the senior contract was amended to carry, and the half no case exercised. `defeated-signal-drops-below-the-floor` leaves THREE kinds standing and is therefore about the combination; here the reformat defeats anchored_content and only same_rule_message survives - one kind against a floor of two. That is `insufficient-evidence-kind` in its literal sense, and without this case the below-floor branch of `reason_mapping` was selected by nothing, so changing which limitation it names left the suite green. A coverage gate over outcomes cannot see this: both cases are `unresolved`. The surviving kind was `same_pattern_id` until the sixth senior amendment, which is exactly the claim review falsified: these two occurrences are at different paths, so `finding-pattern/v1` gives them different ids and the old fixture asserted a collision its own identity function cannot produce.",
   "revision_a": {
     "revision": "r1",
     "occurrences": [
       {
         "occurrence_id": "occ-a1",
         "path": "Broker/Doc.cs",
+        "rule": "DOTNET_RESOURCE_LEAK",
+        "message": "event handler subscribed and never removed",
         "start_line": 42,
         "start_column": null,
-        "pattern_id": "pat-A",
+        "pattern_id": "f964274604b5c187",
         "enclosing_symbol": "DocView.Wire",
         "anchored_content": "_store.Changed += OnChanged;"
       }
@@ -25,9 +27,11 @@
       {
         "occurrence_id": "occ-b1",
         "path": "Broker/Other.cs",
+        "rule": "DOTNET_RESOURCE_LEAK",
+        "message": "event handler subscribed and never removed",
         "start_line": 10,
         "start_column": null,
-        "pattern_id": "pat-A",
+        "pattern_id": "0b34b0c7f1c60c08",
         "enclosing_symbol": "Helper.Init",
         "anchored_content": "_store.Changed += OnChanged;"
       }
@@ -46,7 +50,7 @@
         "anchored_content": "reformatted_paths"
       },
       "evidence_surviving": [
-        "same_pattern_id"
+        "same_rule_message"
       ],
       "not_applicable": {
         "R-CONT-SAME-SITE": "the path differs, and anchored_content was defeated anyway",
@@ -71,13 +75,13 @@
         "anchored_content": "reformatted_paths"
       },
       "evidence_surviving": [
-        "same_pattern_id"
+        "same_rule_message"
       ]
     }
   ],
   "forbid": [
     "insufficient-evidence-combination as the reason - one surviving kind is below the floor, not a combination nobody declared",
-    "continued on same_pattern_id alone - one kind, and no kind is sufficient alone",
+    "continued on same_rule_message alone - one kind, and no kind is sufficient alone",
     "ended for occ-a1 or new for occ-b1 - neither carries boundary evidence",
     "anchored_content counted after the reformat defeated it"
   ],

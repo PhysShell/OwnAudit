@@ -159,8 +159,8 @@ Six, deliberately small and deliberately not exhaustive.
 | `R-CONT-DRIFT` | `continued` | 1:1 | `same_path`, `structural_context`, `line_drift` |
 | `R-CONT-RENAME` | `continued` | 1:1 | `path_rename`, `structural_context`, `anchored_content` |
 | `R-CONT-COPY` | `continued` | 1:1 | `copy_record`, `structural_context`, `anchored_content` |
-| `R-BRANCH-COPY` | `branched` | 1:N, N>=2 | `copy_record` (group) + per successor: `same_pattern_id`, `anchored_content` |
-| `R-MERGE-FOLD` | `merged` | N:1, N>=2 | `merge_record` (group) + per predecessor: `same_pattern_id`, `anchored_content` |
+| `R-BRANCH-COPY` | `branched` | 1:N, N>=2 | `copy_record` (group) + per successor: `same_rule_message`, `anchored_content` |
+| `R-MERGE-FOLD` | `merged` | N:1, N>=2 | `merge_record` (group) + per predecessor: `same_rule_message`, `anchored_content` |
 
 **No rule licenses `ended` or `new`.** Those are earned by boundary evidence,
 which step 0 already governs; a rule for them here would create a second,
@@ -238,6 +238,7 @@ remembered it unprompted.
 | `insufficient-evidence-combination` | a defeat left the floor cleared, and no declared combination survives |
 | `ambiguous-candidates` | several partners, and nothing prefers one — a choice with no grounds |
 | `conflicting-evidence` | one observed structure supporting incompatible conclusions — grounds that argue with each other |
+| `missing-occurrence-id` | the finding has no occurrence identity, so there is no subject to relate — settled at stage 0, before any evidence is read |
 
 The last two are neighbours and opposites, and the distinction is worth keeping
 sharp. A draft of this file reported a rule conflict as `ambiguous-candidates`,
@@ -292,6 +293,40 @@ third time on this branch that a count restated in prose has drifted from the
 list beside it. Each is a shape where two
 answers are available and the policy has to say which, or say neither.
 
+### Stage 0: eligibility, and why it is not a rule
+
+`identity/occurrence.py` returns `None` for an occurrence id when the producer
+run id is missing or the physical anchor is ambiguous, and `aggregate/normalize.py`
+writes that `None` into the `normalized-findings/v2` record. It is ordinary
+output of a run without producer provenance — not malformed input — and
+`finding-lineage/v1` has frozen `missing-occurrence-id` for it since step 0.
+
+The decision policy had no path to it. The procedure began at COLLECT, no
+`reason_mapping` branch emitted it, and the relation matrix could not express it
+at all, because a relation record has to name its subject and the name is
+exactly what is absent. So the procedure now opens at stage 0:
+
+> **0. ELIGIBILITY.** A finding whose `occurrence_id` is null is `unresolved` /
+> `missing-occurrence-id`. No signals are collected, no candidates are
+> constructed, no rule is matched, and nothing is arbitrated.
+
+Two things are deliberate. It **absorbs**: no later combination of `same_path`,
+`anchored_content`, a rename record or boundary evidence rescues the decision,
+which keeps an identity limitation on `unresolved` rather than letting it drift
+to `ended` or `new`. And the refusal is **input-local** — it annotates the
+normalized finding, which is already the subject, instead of emitting an edge.
+No synthetic id, no ordinal, no hash of the physical anchor, and no `frm: null`
+standing in for a reference. Upstream refused to invent an identity; this layer
+does not restore one.
+
+Its cases live in `identity/fixtures/lineage-eligibility/`, apart from the
+relation matrix, and cover both sides:
+`an-unidentified-finding-in-revision-a-is-unresolved` (a predecessor that cannot
+be named) and `an-unidentified-finding-in-revision-b-is-unresolved` (a
+successor). The relation schema still requires a string occurrence id, and is
+not relaxed — that requirement is what stops an unanswerable edge being
+preregistered.
+
 | # | case | expected |
 |---|---|---|
 | 1 | `copy-record-dominates-the-single-match` | `branched` — over a real, applicable 1:1 match |
@@ -306,6 +341,8 @@ answers are available and the policy has to say which, or say neither.
 | 10 | `a-defeat-can-leave-too-few-kinds` | `unresolved` / `insufficient-evidence-kind` — one kind survives against a floor of two |
 | 11 | `a-recorded-rename-is-not-an-unresolved` | `continued` — the twin of case 6, with the record readable |
 | 12 | `an-edit-elsewhere-is-still-the-same-defect` | `continued` — the line moved and the text changed |
+| 13 | `a-copy-into-two-new-files-is-a-branch` | `branched` — and no successor shares the predecessor's `pattern_id` |
+| 14 | `a-fold-across-files-is-still-a-merge` | `merged` — the folded predecessor lives in another file |
 
 Cases 1 and 2 carry an extra burden, because a fixture can be right for the
 wrong reason: move the losing rule out of `applicable_rules` and the answer is

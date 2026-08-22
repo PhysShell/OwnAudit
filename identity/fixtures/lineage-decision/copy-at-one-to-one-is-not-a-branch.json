@@ -8,9 +8,11 @@
       {
         "occurrence_id": "occ-a1",
         "path": "Broker/Doc.cs",
+        "rule": "DOTNET_RESOURCE_LEAK",
+        "message": "event handler subscribed and never removed",
         "start_line": 42,
         "start_column": null,
-        "pattern_id": "pat-A",
+        "pattern_id": "f964274604b5c187",
         "enclosing_symbol": "DocView.Wire",
         "anchored_content": "_store.Changed += OnChanged;"
       }
@@ -32,9 +34,11 @@
       {
         "occurrence_id": "occ-b1",
         "path": "Broker/Moved.cs",
+        "rule": "DOTNET_RESOURCE_LEAK",
+        "message": "event handler subscribed and never removed",
         "start_line": 42,
         "start_column": null,
-        "pattern_id": "pat-A",
+        "pattern_id": "c55059814baef619",
         "enclosing_symbol": "DocView.Wire",
         "anchored_content": "_store.Changed += OnChanged;"
       }

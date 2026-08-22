@@ -60,7 +60,21 @@
     "kinds that no record witnesses, and any such escape hatch can be pointed at a",
     "kind that a record DOES witness. Which kinds those are is a fact about this",
     "vocabulary rather than about any rule, so it is settled here and the junior map",
-    "is checked against it."
+    "is checked against it.",
+    "",
+    "Amended a SIXTH time by slice 2 step 1, which added 'same_rule_message'. Review",
+    "found that both group rules were unsatisfiable on real data: they require",
+    "`same_pattern_id` of every profiled partner, and `finding-pattern/v1` hashes the",
+    "PATH into that id, so a copy's successor and a cross-file fold's predecessor can",
+    "never share one. R-BRANCH-COPY's own `excluding` clause makes it worse rather",
+    "than better - it aims the profile precisely at the partners whose path differs.",
+    "Twelve fixtures hid the contradiction by writing an opaque `pat-A` at two paths,",
+    "a value this contract's own identity function cannot produce.",
+    "The repair is a kind that says what those rules meant - the analyser said the",
+    "same thing about both occurrences - rather than weakening `pattern_id`, which is",
+    "deliberately path-bearing and stays exactly as it was. `same_pattern_id` remains",
+    "in the vocabulary and remains the stronger signal where the path did not change;",
+    "it has simply stopped being asked to prove something it cannot."
   ],
   "outcomes": {
     "continued": {
@@ -143,6 +157,10 @@
     "line_drift": {
       "sufficient_alone": false,
       "why": "proximity is not identity; case 8 is proximity without anything else"
+    },
+    "same_rule_message": {
+      "sufficient_alone": false,
+      "why": "the rule and the message are what the analyser SAID, and they survive a file moving. `same_pattern_id` cannot: `finding-pattern/v1` hashes the path together with the rule and the message, so two occurrences of one defect at two paths have different pattern ids BY CONSTRUCTION. Both group rules required `same_pattern_id` of a partner across exactly such a move, which made them unsatisfiable on real data - a copy changes the path, and a cross-file fold changes it for every predecessor that came from another file. This kind is what those rules meant. It is ONE kind and not `same_rule` beside `same_message`: two halves of one comparison would reach the floor of two between them, and the floor would silently become the algorithm again. Not identity, not a hash, no normalisation - equality of two strings the producer already emitted."
     }
   },
   "minimum_evidence_kinds_for_continued": 2,
@@ -383,6 +401,7 @@
     "structural_context": "pair_property",
     "anchored_content": "pair_property",
     "line_drift": "pair_property",
+    "same_rule_message": "pair_property",
     "why": [
       "HOW EACH KIND IS OBSERVED, which decides whether anything in revision B has",
       "to be produced to support a claim about it.",

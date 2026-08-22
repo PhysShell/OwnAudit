@@ -36,6 +36,14 @@
     "never instead of them."
   ],
   "decision_procedure": [
+    "0. ELIGIBILITY. A finding whose `occurrence_id` is null is not a subject a",
+    "   relation can be stated about, and the answer is settled before any evidence",
+    "   is read:",
+    "     outcome = unresolved",
+    "     reason  = lineage-id-unavailable:missing-occurrence-id",
+    "   No signals are collected, no candidates are constructed, no rule is matched",
+    "   and nothing is arbitrated. See `eligibility`.",
+    "",
     "1. COLLECT the signals that were actually evaluated. A signal that could not",
     "   be evaluated is not absent - see `unavailable_inputs`.",
     "2. DEFEAT: remove every signal an explaining record accounts for. A defeated",
@@ -61,6 +69,54 @@
     "7. RECORD every stage's output, the evidence, `decision_detail`, and the",
     "   provenance."
   ],
+  "eligibility": {
+    "observable_from": "the finding's own `occurrence_id`",
+    "condition": "occurrence_id is null",
+    "outcome": "unresolved",
+    "reason": "lineage-id-unavailable:missing-occurrence-id",
+    "record_shape": "input_local",
+    "precedence": "before_every_other_stage",
+    "is_not_a_rule": true,
+    "record_shape_rule": "The missing-occurrence-id refusal belongs to the INPUT FINDING ITSELF and is not a relation record. Lineage enrichment annotates the normalized finding, which is already the subject; it does not emit an edge. The exact output field name is frozen in a later schema step - the SEMANTICS are frozen here.",
+    "forbids": [
+      "a synthetic occurrence id minted to make the record referenceable",
+      "an ordinal or index standing in for identity",
+      "a hash of the physical anchor standing in for identity",
+      "`frm: null` or `to: null` used as a pseudo-reference to the subject"
+    ],
+    "why": [
+      "A NULL OCCURRENCE ID IS NORMAL OUTPUT, NOT MALFORMED INPUT. `identity/occurrence.py`",
+      "returns `(occurrence_id | None, limitations)` and deliberately returns None when",
+      "provenance is absent or the physical anchor is ambiguous; `aggregate/normalize.py`",
+      "writes that None straight into the `normalized-findings/v2` record. A run without",
+      "producer provenance produces them routinely.",
+      "",
+      "`finding-lineage/v1` has frozen the refusal for exactly this since step 0, and",
+      "this policy had no path to it: the procedure began at COLLECT, no reason_mapping",
+      "branch emitted it, and no case in either corpus reached it. A mapper receiving",
+      "such a finding had no defined result at all - the one situation the whole",
+      "absence-of-record doctrine exists to make impossible.",
+      "",
+      "WHY A STAGE AND NOT A SEVENTH RULE. Rules relate a predecessor to a successor.",
+      "Here there is no subject to relate: the identity the relation would have to name",
+      "is the thing that is missing. This is a precondition of the relation problem",
+      "existing, so it is answered before the problem is posed - and it ABSORBS. No",
+      "later combination of same_path, anchored_content, a rename record or boundary",
+      "evidence rescues the decision, which is what keeps an identity limitation on",
+      "`unresolved` where the senior contract put it, rather than letting it drift to",
+      "`ended` or `new`.",
+      "",
+      "WHY THE REFUSAL IS INPUT-LOCAL. A relation record has to reference its subject,",
+      "and the reference it would use is precisely the id that is absent. Upstream",
+      "refused to invent an identity; this layer may not restore one with sticky tape.",
+      "Everything under `forbids` is a way of doing that, and each would silently turn",
+      "an honest 'we do not know which occurrence this is' into a confident edge."
+    ],
+    "preregistered_cases": [
+      "an-unidentified-finding-in-revision-a-is-unresolved",
+      "an-unidentified-finding-in-revision-b-is-unresolved"
+    ]
+  },
   "order_independence": [
     "Nothing in the procedure depends on the order anything was written in.",
     "Steps 3 and 4 evaluate SETS - of rules, and of the candidate bindings each",
@@ -138,10 +194,10 @@
       "partner_profile": {
         "per": "successor",
         "requires_all": [
-          "same_pattern_id",
+          "same_rule_message",
           "anchored_content"
         ],
-        "why": "what every successor must show ON ITS OWN, across a transformation that changed the path and may have changed the enclosing symbol too"
+        "why": "what every successor must show ON ITS OWN, across a transformation that changed the path and may have changed the enclosing symbol too - and it may NOT be `same_pattern_id`: `finding-pattern/v1` hashes the path into that id, so the partner this profile is aimed at can never share one with its counterpart. The rule was unsatisfiable on real data until this said `same_rule_message` instead - the analyser saying the same thing about both occurrences, which is what 'the same defect' meant here all along. `record_binding.successor.excluding` makes the point sharpest: it aims this profile at exactly the successors NOT at the predecessor's path."
       },
       "means": "one predecessor, several successors, and a RECORD explaining why there are several",
       "note": "the copy record is what separates a branch from an ambiguity. Without it, several equally-supported candidates are `unresolved` - see `arbitration.multiplicity`.",
@@ -170,10 +226,10 @@
       "partner_profile": {
         "per": "predecessor",
         "requires_all": [
-          "same_pattern_id",
+          "same_rule_message",
           "anchored_content"
         ],
-        "why": "the merge record relates the old structural sites to the new one; what each predecessor must show on its own is that it is the same defect, not that it is in a symbol the fold has just renamed out of existence"
+        "why": "the merge record relates the old structural sites to the new one; what each predecessor must show on its own is that it is the same defect, not that it is in a symbol the fold has just renamed out of existence - and it may NOT be `same_pattern_id`: `finding-pattern/v1` hashes the path into that id, so the partner this profile is aimed at can never share one with its counterpart. The rule was unsatisfiable on real data until this said `same_rule_message` instead - the analyser saying the same thing about both occurrences, which is what 'the same defect' meant here all along. A fold is not confined to one file: `merge_record` matches on enclosing symbols and imposes no same-path restriction, so a predecessor folded in from another file is an ordinary case this rule has to license."
       },
       "means": "several predecessors, one successor, and a RECORD explaining the fold",
       "record_binding": {
@@ -422,7 +478,9 @@
     "every-candidate-blunted-is-an-ambiguity",
     "a-defeat-can-leave-too-few-kinds",
     "a-recorded-rename-is-not-an-unresolved",
-    "an-edit-elsewhere-is-still-the-same-defect"
+    "an-edit-elsewhere-is-still-the-same-defect",
+    "a-copy-into-two-new-files-is-a-branch",
+    "a-fold-across-files-is-still-a-merge"
   ],
   "preregistration_rule": [
     "Fixed before the mapper, same as slice 2 step 0. These are about the POLICY",
@@ -791,9 +849,16 @@
     "cardinal number would be handing the job back.",
     "",
     "So each structural rule declares its partner profile EXPLICITLY, by naming the",
-    "kinds. `same_pattern_id` and `anchored_content`: the partner must be an",
-    "occurrence of the same pattern saying the same thing, which is what survives a",
-    "transformation that moved the file, the symbol, or both. The integrity suite",
+    "kinds. `same_rule_message` and `anchored_content`: the partner must be an",
+    "occurrence the analyser said the same thing about, showing the same content.",
+    "",
+    "It read `same_pattern_id` here until the sixth senior amendment, and the",
+    "sentence that followed it - `which is what survives a transformation that moved",
+    "the file` - was the defect itself, written down. It does not survive one:",
+    "`finding-pattern/v1` hashes the PATH into that id, so a partner reached across",
+    "a move never shares it. Both group rules were therefore unsatisfiable on real",
+    "data, and the corpus hid it by writing one opaque id at two paths. The kinds",
+    "named here now are the ones that actually survive the move. The integrity suite",
     "checks the profile clears the senior floor and that no kind in it is",
     "`sufficient_alone` - it does NOT derive the profile, because a derived profile",
     "would be the cardinal number again with extra steps.",
@@ -876,6 +941,12 @@
         "rule_licensed_alone"
       ],
       "an-edit-elsewhere-is-still-the-same-defect": [
+        "rule_licensed_alone"
+      ],
+      "a-copy-into-two-new-files-is-a-branch": [
+        "rule_licensed_alone"
+      ],
+      "a-fold-across-files-is-still-a-merge": [
         "rule_licensed_alone"
       ]
     },

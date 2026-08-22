@@ -83,6 +83,12 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(os.path.dirname(HERE))
 sys.path.insert(0, ROOT)
 
+# The ONE implementation of `finding-pattern/v1`, imported rather than restated.
+# A second copy of `sha1(path + rule + message)` here would be a second identity
+# function, and the whole reason this branch needed a sixth senior amendment is
+# that nobody was checking fixture ids against the first one.
+from identity import pattern as finding_pattern  # noqa: E402
+
 SENIOR = os.path.join(ROOT, "contracts", "finding-lineage-v1.json")
 POLICY = os.path.join(ROOT, "contracts", "finding-lineage-decision-v1.json")
 
@@ -115,6 +121,12 @@ def _recorded_as() -> str:
 
 UNAVAILABLE_FIELD = _recorded_as()
 FIXDIR = os.path.join(ROOT, "identity", "fixtures", "lineage-decision")
+# The eligibility corpus is SEPARATE on purpose. Its cases are not relations -
+# they have no predecessor and no successor, because the identity an edge would
+# have to name is the thing that is missing. Keeping them out of the relation
+# corpus is what stops the relation schema being relaxed to admit a null id,
+# which would let someone preregister an edge the policy cannot answer.
+ELIGDIR = os.path.join(ROOT, "identity", "fixtures", "lineage-eligibility")
 DOC = os.path.join(ROOT, "docs", "finding-lineage-decision.md")
 
 # Reviewed cost ceiling for the theorem falsifier, in arbitrations. It bounds a
@@ -536,6 +548,13 @@ REVISION_KINDS = {"revision": "string", "occurrences": "list"}
 OCCURRENCE_KINDS = {
     "occurrence_id": "string", "path": "string", "enclosing_symbol": "string",
     "anchored_content": "string", "pattern_id": "string",
+    # THE INPUTS TO `pattern_id`, without which it cannot be checked. Their
+    # absence is what let twelve fixtures write `pat-A` at two different paths -
+    # a value `finding-pattern/v1` cannot produce - and so hid the fact that both
+    # group rules were unsatisfiable on real data. `pattern_id` is a pure
+    # function of these three fields; withholding two of them left the one
+    # contract that could falsify the corpus with nothing to read.
+    "rule": "string", "message": "string",
     "start_line": "integer", "start_column": "integer-or-null",
 }
 # EVERY attribute the policy reads off an occurrence, because a MISSING one is
@@ -564,6 +583,29 @@ DETAIL_KINDS = {
 # signal or rule id -> a sentence. The KEYS are checked against their
 # vocabularies elsewhere; this table is only about the VALUES.
 NAMED_REASON_FIELDS = ("not_applicable", "signals_defeated", "boundary_defeated")
+
+
+# The eligibility corpus's own vocabulary. Same discipline as the relation
+# schema: declared keys only, each of its kind, and an undeclared key is a
+# failure rather than a field nobody reads.
+ELIGIBILITY_KINDS = {
+    "case": "string", "contract": "string", "status": "string", "title": "string",
+    "why": "string", "revision": "string", "finding": "object", "expect": "object",
+    "forbid": "list",
+}
+ELIGIBILITY_FINDING_KINDS = {
+    "occurrence_id": "string-or-list-or-null", "path": "string", "rule": "string",
+    "message": "string", "pattern_id": "string", "enclosing_symbol": "string",
+    "anchored_content": "string", "start_line": "integer",
+    "start_column": "integer-or-null", "identity_limitations": "list",
+}
+# NO `frm` AND NO `to`, and their absence is enforced by this table rather than
+# assumed: an undeclared key fails, so a fixture cannot quietly grow the edge
+# fields that `eligibility.forbids` rules out.
+ELIGIBILITY_EXPECT_KINDS = {
+    "outcome": "string", "reason": "string", "matched_rules": "list",
+    "applicable_rules": "list", "licensed_by": "list",
+}
 
 
 def kind_table_failures(where: str, obj, kinds: dict, required=frozenset()) -> list:
@@ -1254,7 +1296,7 @@ POLICY_SECTIONS = {
     "signal_defeaters": "objects", "arbitration": "object", "dominance": "object",
     "record_additions": "object", "record_binding_vocabulary": "object",
     "case_obligations": "object", "unavailable_inputs": "object",
-    "evidence_kind_records": "object",
+    "evidence_kind_records": "object", "eligibility": "object",
     "deliberately_unresolved_conflicts": "list", "preregistered_cases": "list",
 }
 # Fields INSIDE an entry that the suite reads attribute by attribute. One level
@@ -1422,6 +1464,12 @@ def main() -> int:
     emitted.add(policy["arbitration"]["conflict"]["reason"])
     emitted.add(policy["arbitration"]["multiplicity"]["several_candidates_without_one"]["reason"])
     emitted |= {c["reason"] for c in policy["deliberately_unresolved_conflicts"]}
+    # STAGE 0 EMITS A REASON TOO. It is not in `reason_mapping` because it is not
+    # reached by mapping evidence to a refusal - it is settled before any evidence
+    # is read - but a reason the policy can emit has to be pinned by a case like
+    # any other, and leaving it out of this set is how `missing-occurrence-id` sat
+    # frozen in the senior contract with no junior path for the whole of step 1.
+    emitted.add(mapping_or_empty(policy.get("eligibility")).get("reason"))
     for reason in sorted(emitted):
         check(reason in senior_limitations,
               f"the policy emits {reason!r}, which finding-lineage/v1 does not define. "
@@ -2144,6 +2192,29 @@ def main() -> int:
             for msg in entry_shape_failures(f"{name}: {_field}", _spec,
                                             rev_b.get(_field.partition(".")[2])):
                 check(False, msg)
+        # EVERY pattern_id RECOMPUTED, not trusted. `finding-pattern/v1` is
+        # `sha1(path + rule + message)`, so a fixture's id is checkable and was
+        # checked by nothing: twelve cases wrote the opaque `pat-A` at two
+        # different paths, and that single fiction concealed a contract defect
+        # both reviewers eventually found by reading `identity/pattern.py`
+        # instead - both group rules required `same_pattern_id` of a partner
+        # whose path had just changed, which no real corpus can satisfy.
+        #
+        # This is not applicability. It computes no evidence kind and decides no
+        # rule; it asks the corpus to be consistent with the identity function
+        # this repository already ships, which is the difference between reading
+        # a contract and having an opinion about one.
+        for side, rev in (("A", rev_a), ("B", rev_b)):
+            for occ in rev.get("occurrences", []):
+                want = finding_pattern.pattern_id(occ["path"], occ["rule"],
+                                                  occ["message"])
+                check(occ["pattern_id"] == want,
+                      f"{name}: revision {side} {occ['occurrence_id']} declares "
+                      f"pattern_id {occ['pattern_id']!r}, but `finding-pattern/v1` "
+                      f"computes {want!r} from its path, rule and message. An id the "
+                      "identity function cannot produce is a fixture asserting a hash "
+                      "collision to make a rule look satisfiable.")
+
         # BEFORE THE SETS. `{o["occurrence_id"] for o in ...}` silently collapses
         # a repeated id, and so does `by_id`; the raw LIST length then still
         # satisfied a 1:N minimum, so `to: ["occ-b1", "occ-b1"]` froze a branch
@@ -2927,6 +2998,124 @@ def main() -> int:
               f"the declared refusal {sorted(pair)} is exercised by no preregistered "
               "case. A conflict the contract deliberately refuses is a decision, and a "
               "decision with no case is frozen in name only.")
+
+    # ---- 3d. THE ELIGIBILITY CORPUS. ----------------------------------------
+    # Stage 0 is answered before the relation problem is posed, so its cases live
+    # in their own corpus and are shaped like the INPUT they refuse rather than
+    # like an edge. `record_shape: input_local` is the whole point: a relation
+    # record must reference its subject, and the reference it would use is the id
+    # that is missing.
+    elig = mapping_or_empty(policy.get("eligibility"))
+    # THE STAGE'S OWN DECLARATIONS, BOUND. `record_shape`, `precedence` and
+    # `forbids` were three tokens no check read - the shape this branch has found
+    # a dozen times, written into the section that was being added to fix another
+    # instance of it. Each is bound to the thing it describes rather than merely
+    # spelled correctly.
+    check(elig.get("record_shape") == "input_local",
+          f"`eligibility.record_shape` is {elig.get('record_shape')!r}. The corpus "
+          "encodes `input_local` mechanically - its expectation schema declares no "
+          "`frm` and no `to`, and an undeclared key fails - so a different token here "
+          "would describe a corpus that does not exist.")
+    check(elig.get("is_not_a_rule") is True,
+          "`eligibility.is_not_a_rule` must stay true: no rule id names this stage, "
+          "and `rules` is what arbitration ranges over.")
+    check(elig.get("precedence") == "before_every_other_stage",
+          f"`eligibility.precedence` is {elig.get('precedence')!r}")
+    first = (list_or_empty(policy.get("decision_procedure")) or [""])[0]
+    check(first.strip().startswith("0. ELIGIBILITY"),
+          f"`decision_procedure` opens with {first.strip()[:40]!r}. "
+          "`eligibility.precedence` says this stage runs before every other, and the "
+          "procedure is where that is either true or prose.")
+    forbids = list_or_empty(elig.get("forbids"))
+    check(bool(forbids) and all(isinstance(x, str) and x.strip() for x in forbids),
+          f"`eligibility.forbids` is {elig.get('forbids')!r}. It is the list of ways a "
+          "mapper could invent the identity upstream refused to invent; an empty or "
+          "malformed one permits all of them by saying nothing.")
+
+    elig_cases = list_or_empty(elig.get("preregistered_cases"))
+    elig_on_disk = sorted(f[:-5] for f in os.listdir(ELIGDIR) if f.endswith(".json"))
+    check(sorted(elig_cases) == elig_on_disk,
+          f"`eligibility.preregistered_cases` is {sorted(elig_cases)} and the corpus on "
+          f"disk is {elig_on_disk}. Same gate the relation matrix uses: a case nobody "
+          "declared is a case nobody reviewed.")
+    elig_sides = set()
+    for cname in sorted(set(elig_cases) & set(elig_on_disk)):
+        with open(os.path.join(ELIGDIR, f"{cname}.json"), encoding="utf-8") as fh:
+            ecase = json.load(fh)
+        where = f"eligibility/{cname}"
+        bad = kind_table_failures(where, ecase, ELIGIBILITY_KINDS,
+                                  frozenset(ELIGIBILITY_KINDS) - {"title"})
+        for msg in bad:
+            check(False, msg)
+        if bad:
+            continue
+        check(ecase["case"] == cname, f"{where}: case field is {ecase['case']!r}")
+        check(ecase["contract"] == "finding-lineage-decision/v1",
+              f"{where}: wrong contract {ecase['contract']!r}")
+        check(ecase["status"] == "preregistered-unimplemented",
+              f"{where}: stays preregistered until a mapper exists")
+        check(len(ecase["why"]) > 40, f"{where}: `why` must state what the case defends")
+        check(ecase["revision"] in ("a", "b"),
+              f"{where}: revision is {ecase['revision']!r}, not 'a' or 'b'")
+        elig_sides.add(ecase["revision"])
+
+        finding = ecase["finding"]
+        fbad = kind_table_failures(f"{where}.finding", finding, ELIGIBILITY_FINDING_KINDS,
+                                   frozenset(ELIGIBILITY_FINDING_KINDS))
+        for msg in fbad:
+            check(False, msg)
+        if not fbad:
+            check(finding["occurrence_id"] is None,
+                  f"{where}: the finding declares occurrence_id "
+                  f"{finding['occurrence_id']!r}. This corpus exists for the null case; "
+                  "a case with an identity belongs in the relation matrix.")
+            want = finding_pattern.pattern_id(finding["path"], finding["rule"],
+                                              finding["message"])
+            check(finding["pattern_id"] == want,
+                  f"{where}: pattern_id is {finding['pattern_id']!r}, and "
+                  f"`finding-pattern/v1` computes {want!r}. A finding with no "
+                  "occurrence identity still has a PATTERN identity - that is the "
+                  "distinction the two contracts exist to keep.")
+            check(bool(finding["identity_limitations"]),
+                  f"{where}: the finding records no `identity_limitations`. "
+                  "`occurrence.py` never returns a null id without saying why, and a "
+                  "fixture that omits the reason is not the record the mapper receives.")
+
+        exp = ecase["expect"]
+        ebad = kind_table_failures(f"{where}.expect", exp, ELIGIBILITY_EXPECT_KINDS,
+                                   frozenset(ELIGIBILITY_EXPECT_KINDS))
+        for msg in ebad:
+            check(False, msg)
+        if ebad:
+            continue
+        check(exp["outcome"] == elig.get("outcome"),
+              f"{where}: concludes {exp['outcome']!r}; `eligibility.outcome` is "
+              f"{elig.get('outcome')!r}. The stage declares one answer and the corpus "
+              "does not get a second opinion about it.")
+        check(exp["reason"] == elig.get("reason"),
+              f"{where}: names reason {exp['reason']!r}; `eligibility.reason` is "
+              f"{elig.get('reason')!r}")
+        check(exp["reason"] in senior_limitations,
+              f"{where}: {exp['reason']!r} is not a limitation `finding-lineage/v1` "
+              "declares. The junior layer may not invent one from below.")
+        # ZERO RULES, ALL THREE STAGES. "No rule applied" is not the claim - the
+        # claim is that no rule was ever MATCHED, because stage 0 absorbs before
+        # matching happens. Checking only `licensed_by` would accept a fixture
+        # that ran the whole procedure and then found nothing, which is a
+        # different decision reached for a different reason.
+        for field in ("matched_rules", "applicable_rules", "licensed_by"):
+            check(exp[field] == [],
+                  f"{where}: {field} is {exp[field]!r}. Stage 0 settles the answer "
+                  "before any evidence is read, so every rule stage is empty - not "
+                  "empty-because-nothing-fired, empty-because-nothing-ran.")
+        exercised_reasons.add(exp["reason"])
+        check(bool(ecase["forbid"]), f"{where}: nothing is forbidden")
+
+    check(elig_sides == {"a", "b"},
+          f"the eligibility corpus covers sides {sorted(elig_sides)}. Both are needed: "
+          "the a-side case is a predecessor that cannot be named and the b-side is a "
+          "successor, and assuming one side covers the other has already been wrong "
+          "once on this branch.")
 
     # EVERY EMITTED REASON, not merely every outcome. The outcome gate read
     # `unresolved` as covered while two of its five reasons - `ambiguous-candidates`

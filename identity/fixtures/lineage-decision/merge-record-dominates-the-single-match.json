@@ -8,18 +8,22 @@
       {
         "occurrence_id": "occ-a1",
         "path": "Broker/Doc.cs",
+        "rule": "DOTNET_RESOURCE_LEAK",
+        "message": "event handler subscribed and never removed",
         "start_line": 42,
         "start_column": null,
-        "pattern_id": "pat-A",
+        "pattern_id": "f964274604b5c187",
         "enclosing_symbol": "DocView.WireA",
         "anchored_content": "_store.Changed += OnChanged;"
       },
       {
         "occurrence_id": "occ-a2",
         "path": "Broker/Doc.cs",
+        "rule": "DOTNET_RESOURCE_LEAK",
+        "message": "event handler subscribed and never removed",
         "start_line": 88,
         "start_column": null,
-        "pattern_id": "pat-A",
+        "pattern_id": "f964274604b5c187",
         "enclosing_symbol": "DocView.WireB",
         "anchored_content": "_store.Changed += OnChanged;"
       }
@@ -43,9 +47,11 @@
       {
         "occurrence_id": "occ-b1",
         "path": "Broker/Doc.cs",
+        "rule": "DOTNET_RESOURCE_LEAK",
+        "message": "event handler subscribed and never removed",
         "start_line": 42,
         "start_column": null,
-        "pattern_id": "pat-A",
+        "pattern_id": "f964274604b5c187",
         "enclosing_symbol": "DocView.WireA",
         "anchored_content": "_store.Changed += OnChanged;"
       }
@@ -74,7 +80,7 @@
         "R-CONT-COPY": "no copy record",
         "R-BRANCH-COPY": "no copy record, and the shape is N:1"
       },
-      "note": "the partner profile is what makes R-MERGE-FOLD reach occ-a2 at all: same_pattern_id and anchored_content hold across the fold, while structural_context does not and must not be faked into holding. occ-a2 is a predecessor of the merge, NOT an `ended` - removed_symbols says its site is gone and merged_symbols says where it went, and the boundary contract already ranks the second above the first.",
+      "note": "the partner profile is what makes R-MERGE-FOLD reach occ-a2 at all: same_rule_message and anchored_content hold across the fold, while structural_context does not and must not be faked into holding. occ-a2 is a predecessor of the merge, NOT an `ended` - removed_symbols says its site is gone and merged_symbols says where it went, and the boundary contract already ranks the second above the first.",
       "boundary_defeated": {
         "boundary:enclosing-site-removed": "revision_b.merged_symbols[].from"
       }
