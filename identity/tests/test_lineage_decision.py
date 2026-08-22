@@ -2145,6 +2145,39 @@ def main() -> int:
               "ends of it: with one end unnamed, every occurrence on that side counts "
               "as reached and the record licenses a mapping it does not describe.")
 
+    # THE SELECTOR'S OWN REASONS, BOUND TO THE BRANCH THEY LABEL. `mandated_reason`
+    # enforces the ORDER and takes each reason from `reason_mapping`; the `reason`
+    # written beside every step was read by nothing. Setting all four to
+    # `no-mapping-evidence` left the suite green, so the contract could declare
+    # that an ambiguity yields one reason while the checker applied another - a
+    # declared claim nothing checks, inside the section added to close exactly
+    # that. Found by review.
+    SELECTOR_SOURCE = {
+        "conflicting_rules_present": "conflicting_rules",
+        "ambiguous_candidates_present": "several_candidates",
+        "a_defeat_left_no_surviving_rule": "no_rule_applied_after_a_defeat",
+        "otherwise": "no_rule_applied",
+    }
+    for step in list_or_empty(mapping_or_empty(policy.get("reason_selector")).get("order")):
+        when_ = mapping_or_empty(step).get("when")
+        said_ = mapping_or_empty(step).get("reason")
+        if not isinstance(when_, str):
+            continue          # `mandated_reason` reports the malformed token itself
+        if when_ == "eligibility_refused":
+            want_ = mapping_or_empty(policy.get("eligibility")).get("reason")
+        elif when_ in SELECTOR_SOURCE:
+            node_ = mapping_or_empty(policy["reason_mapping"].get(SELECTOR_SOURCE[when_]))
+            want_ = node_.get("reason") or (
+                f"reason_mapping.{SELECTOR_SOURCE[when_]}.reason_by_surviving_kinds"
+                if "reason_by_surviving_kinds" in node_ else None)
+        else:
+            continue          # unknown token: `mandated_reason` refuses it already
+        check(said_ == want_,
+              f"`reason_selector` step {when_!r} declares reason {said_!r}, and the "
+              f"branch it labels yields {want_!r}. The order is enforced and the "
+              "reasons beside it were not, so this section could say one thing while "
+              "the policy did another - which is the shape it was written to close.")
+
     vocab = mapping_or_empty(policy.get("record_binding_vocabulary"))
     # THE VOCABULARY ITSELF, BEFORE ANYTHING IS LOOKED UP IN IT. Membership -
     # `token in vocab["quantifier"]` - raises TypeError when that axis is a
