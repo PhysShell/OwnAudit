@@ -3296,34 +3296,89 @@ def main() -> int:
     # so it would have shipped without catching the defect it cites. Sixteenth
     # time on this branch that a check has covered part of what its own message
     # claims, and the second time inside a check written about exactly that.
-    def prose_holes(value, trail=()):
+    # PROSE IS IDENTIFIED BY THE FIELD'S NAME, NEVER BY WHAT IS CURRENTLY IN IT.
+    # Two earlier drafts asked the contents: the first whether `value[0]` was a
+    # string, the second whether ANY entry was. Both are defeated by emptying the
+    # field - `case_obligations.why = []` or `notes = [[]]` erases a whole section
+    # and stops it looking like prose at all, so the guard written for exactly that
+    # field reported nothing. Both reviewers found it, independently, and both
+    # named the same remedy: classify the field, do not interrogate its contents.
+    #
+    # A prose-named key must be a string, or a NON-EMPTY list of strings. Nothing
+    # else, and emptiness is a failure rather than a way out.
+    def prose_named(key: str) -> bool:
+        return key in ("why", "notes", "note") or bool(
+            re.search(r"_(why|note|notes|rule)$", key)) or key == "rule"
+
+    # `*_rule` is the one ambiguous suffix: this contract uses it for prose AND
+    # for two machine-readable declarations. They are named here rather than
+    # inferred, and the naming is itself checked below - an exception list that
+    # could quietly cover a prose field would be the hole one level up.
+    STRUCTURED_PROSE_NAMED = {
+        "eligibility.is_not_a_rule": bool,
+        "arbitration.licensed_by_rule": dict,
+    }
+
+    def prose_faults(value, trail=()):
         out = []
         if isinstance(value, dict):
             for key, item in value.items():
-                out += prose_holes(item, trail + (str(key),))
+                here = ".".join(trail + (str(key),))
+                if prose_named(str(key)) and here not in STRUCTURED_PROSE_NAMED:
+                    if isinstance(item, str):
+                        pass
+                    elif not isinstance(item, list) or not item:
+                        out.append((here, f"is {item!r}", "a prose field is a "
+                                    "sentence or a non-empty list of them"))
+                    else:
+                        for pos, entry in enumerate(item):
+                            if not isinstance(entry, str):
+                                out.append((f"{here}[{pos}]", f"is {entry!r}",
+                                            "every line of a paragraph is a line"))
+                out += prose_faults(item, trail + (str(key),))
         elif isinstance(value, list):
-            # ANY string in the list, not the FIRST. Keying on `value[0]` meant a
-            # hole AT INDEX 0 stopped the list from looking like prose at all -
-            # the check blind to precisely the position it was least able to
-            # recover, found by probing index 0 after the other three positions
-            # passed.
+            # AND THE CONTENT RULE, KEPT ALONGSIDE THE NAME RULE. They catch
+            # different things and neither subsumes the other: the name rule sees
+            # a prose field EMPTIED, which the content rule cannot; the content
+            # rule sees a hole in any list of strings whatever its field is
+            # called - `preregistered_cases`, `requires_all`, `forbids` - which
+            # the name rule does not reach.
+            #
+            # Replacing the content rule with the name rule alone moved 335
+            # mutations from clean failure to silent pass. The contract census
+            # reported it BEFORE this was committed, which is the only reason it
+            # is not the next round's finding.
             if any(isinstance(entry, str) for entry in value):
                 for pos, entry in enumerate(value):
                     if not isinstance(entry, str):
-                        out.append((".".join(trail), pos, entry))
+                        out.append((f"{'.'.join(trail)}[{pos}]", f"is {entry!r}",
+                                    "the other entries of that list are strings"))
             for pos, item in enumerate(value):
-                out += prose_holes(item, trail + (str(pos),))
+                out += prose_faults(item, trail + (str(pos),))
         return out
 
     for doc_name, doc in (("decision policy", policy), ("outcome contract", senior)):
-        for where_, pos, entry in prose_holes(doc):
+        for where_, saw, why_ in prose_faults(doc):
             check(False,
-                  f"the {doc_name}'s `{where_}[{pos}]` is {entry!r}, and other "
-                  "entries of that list are lines of prose. A container in the middle "
-                  "of a paragraph is a sentence that was deleted without anyone "
-                  "reading the paragraph afterwards - which is exactly how a "
-                  "`not_applicable` reference went missing from `case_obligations.why` "
-                  "and was committed.")
+                  f"the {doc_name}'s `{where_}` {saw}, and {why_}. A container where "
+                  "a sentence belongs is a sentence deleted without anyone reading "
+                  "the paragraph afterwards - which is how a `not_applicable` "
+                  "reference went missing from `case_obligations.why` and was "
+                  "committed. An EMPTY prose list is the same erasure with no "
+                  "survivor to notice it by.")
+    # THE EXCEPTION LIST, CHECKED. Each entry must exist and must really be the
+    # structured kind claimed - otherwise a prose field could be exempted by
+    # adding its path here, which is the hole this list would otherwise open.
+    for path_, kind_ in sorted(STRUCTURED_PROSE_NAMED.items(), key=lambda kv: kv[0]):
+        node = policy
+        for seg in path_.split("."):
+            node = mapping_or_empty(node).get(seg)
+        check(isinstance(node, kind_),
+              f"`{path_}` is exempt from the prose rule as a {kind_.__name__}, and it "
+              f"is {type(node).__name__}. The exemption exists because two "
+              "`*_rule` fields are machine-readable declarations, not paragraphs; an "
+              "exemption that no longer describes its field is a prose field nobody "
+              "is checking.")
 
     defined = every_key(policy) | every_key(senior)
     defined |= set(senior["evidence_kinds"]) | set(senior["outcomes"])
