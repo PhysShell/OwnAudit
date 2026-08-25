@@ -441,6 +441,288 @@
         "enclosing_symbol"
       ]
     },
+    "vectors": {
+      "anchored_content": [
+        {
+          "differs_in": [
+            "anchored_content"
+          ],
+          "holds": false
+        },
+        {
+          "differs_in": [
+            "enclosing_symbol"
+          ],
+          "holds": true
+        },
+        {
+          "differs_in": [
+            "message"
+          ],
+          "holds": true
+        },
+        {
+          "differs_in": [
+            "occurrence_id"
+          ],
+          "holds": true
+        },
+        {
+          "differs_in": [
+            "path"
+          ],
+          "holds": true
+        },
+        {
+          "differs_in": [
+            "pattern_id"
+          ],
+          "holds": true
+        },
+        {
+          "differs_in": [
+            "rule"
+          ],
+          "holds": true
+        },
+        {
+          "differs_in": [
+            "start_column"
+          ],
+          "holds": true
+        },
+        {
+          "differs_in": [
+            "start_line"
+          ],
+          "holds": true
+        }
+      ],
+      "same_path": [
+        {
+          "differs_in": [
+            "anchored_content"
+          ],
+          "holds": true
+        },
+        {
+          "differs_in": [
+            "enclosing_symbol"
+          ],
+          "holds": true
+        },
+        {
+          "differs_in": [
+            "message"
+          ],
+          "holds": true
+        },
+        {
+          "differs_in": [
+            "occurrence_id"
+          ],
+          "holds": true
+        },
+        {
+          "differs_in": [
+            "path"
+          ],
+          "holds": false
+        },
+        {
+          "differs_in": [
+            "pattern_id"
+          ],
+          "holds": true
+        },
+        {
+          "differs_in": [
+            "rule"
+          ],
+          "holds": true
+        },
+        {
+          "differs_in": [
+            "start_column"
+          ],
+          "holds": true
+        },
+        {
+          "differs_in": [
+            "start_line"
+          ],
+          "holds": true
+        }
+      ],
+      "same_pattern_id": [
+        {
+          "differs_in": [
+            "anchored_content"
+          ],
+          "holds": true
+        },
+        {
+          "differs_in": [
+            "enclosing_symbol"
+          ],
+          "holds": true
+        },
+        {
+          "differs_in": [
+            "message"
+          ],
+          "holds": true
+        },
+        {
+          "differs_in": [
+            "occurrence_id"
+          ],
+          "holds": true
+        },
+        {
+          "differs_in": [
+            "path"
+          ],
+          "holds": true
+        },
+        {
+          "differs_in": [
+            "pattern_id"
+          ],
+          "holds": false
+        },
+        {
+          "differs_in": [
+            "rule"
+          ],
+          "holds": true
+        },
+        {
+          "differs_in": [
+            "start_column"
+          ],
+          "holds": true
+        },
+        {
+          "differs_in": [
+            "start_line"
+          ],
+          "holds": true
+        }
+      ],
+      "same_rule_message": [
+        {
+          "differs_in": [
+            "anchored_content"
+          ],
+          "holds": true
+        },
+        {
+          "differs_in": [
+            "enclosing_symbol"
+          ],
+          "holds": true
+        },
+        {
+          "differs_in": [
+            "message"
+          ],
+          "holds": false
+        },
+        {
+          "differs_in": [
+            "occurrence_id"
+          ],
+          "holds": true
+        },
+        {
+          "differs_in": [
+            "path"
+          ],
+          "holds": true
+        },
+        {
+          "differs_in": [
+            "pattern_id"
+          ],
+          "holds": true
+        },
+        {
+          "differs_in": [
+            "rule"
+          ],
+          "holds": false
+        },
+        {
+          "differs_in": [
+            "start_column"
+          ],
+          "holds": true
+        },
+        {
+          "differs_in": [
+            "start_line"
+          ],
+          "holds": true
+        }
+      ],
+      "structural_context": [
+        {
+          "differs_in": [
+            "anchored_content"
+          ],
+          "holds": true
+        },
+        {
+          "differs_in": [
+            "enclosing_symbol"
+          ],
+          "holds": false
+        },
+        {
+          "differs_in": [
+            "message"
+          ],
+          "holds": true
+        },
+        {
+          "differs_in": [
+            "occurrence_id"
+          ],
+          "holds": true
+        },
+        {
+          "differs_in": [
+            "path"
+          ],
+          "holds": true
+        },
+        {
+          "differs_in": [
+            "pattern_id"
+          ],
+          "holds": true
+        },
+        {
+          "differs_in": [
+            "rule"
+          ],
+          "holds": true
+        },
+        {
+          "differs_in": [
+            "start_column"
+          ],
+          "holds": true
+        },
+        {
+          "differs_in": [
+            "start_line"
+          ],
+          "holds": true
+        }
+      ]
+    },
     "not_an_equality": {
       "line_drift": "the line MOVED. It is a pair property and it is not an equality of any field - comparing `start_line` for equality would assert the opposite of what the kind means - so it has no entry above and says so here instead of being missing."
     },
@@ -481,7 +763,54 @@
       "rather than `same_rule` beside `same_message`. Widening with `path` is caught",
       "by the exclusivity law above; widening `same_rule_message` with",
       "`anchored_content`, or `same_pattern_id` with `path`, is caught only here, and",
-      "both were green until this said so."
+      "both were green until this said so.",
+      "",
+      "AND THE FIELD SET IS PINNED BY VECTORS, not by properties of the list.",
+      "Membership in the occurrence vocabulary, totality, and independence between",
+      "kinds are all properties a WRONG set can have. Review demonstrated two:",
+      "`same_rule_message` extended with `start_line`, which is an occurrence field and",
+      "contains no other kind's set, and `anchored_content` REPLACED by `start_line`,",
+      "which is a different comparison entirely. Both were green. The corpus could not",
+      "object because every negative witness already differs on rule or message, and",
+      "the positive rename and copy cases happen to sit at line 42 on both sides.",
+      "",
+      "A vector says: two occurrences that differ in exactly these fields and agree on",
+      "every other one - does the kind hold? That is the definition itself, written",
+      "down in the form that can be checked. One vector per occurrence field per kind,",
+      "and the set of subsets consistent with them must contain EXACTLY ONE member,",
+      "which must be the declared list. So the vectors cannot be thinned into ambiguity",
+      "and the list cannot drift from them: change either and they disagree.",
+      "",
+      "This is the same instrument `finding-occurrence/v1` and `finding-pattern/v1`",
+      "already use, arriving here for the same reason - a definition stated only as",
+      "prose beside a list is a definition nothing reads.",
+      "",
+      "WHAT THE CORPUS CAN AND CANNOT SEPARATE, measured rather than assumed. A",
+      "coordinated edit - the list AND its vectors changed together - is an amendment",
+      "made in the open, and the frozen cases are the second reader of it: a rule the",
+      "case says licensed a relation must have every equality kind it requires actually",
+      "HOLD between the occurrences named. Sweeping every one-field redefinition of",
+      "every kind, 82 in all, the cases reject 65 and accept 17.",
+      "",
+      "The 17 are of two shapes and neither is a missing fixture.",
+      "",
+      "`start_column` is null in all 79 occurrences of the corpus, by the design",
+      "`finding-occurrence/v1` states: the column is the one anchor field allowed to be",
+      "absent. A kind extended with it compares a field nothing carries, so nothing can",
+      "differ on it.",
+      "",
+      "`rule` and `message` agree across all 12 licensed relations, and NECESSARILY:",
+      "every continuation rule now requires `same_rule_message` or `same_pattern_id`,",
+      "so a case where they differed and a relation was still licensed is a case this",
+      "policy forbids. The same holds for redefining `same_path` as `pattern_id` - a",
+      "same-path rule already requires the id to agree. No valid corpus can separate a",
+      "kind from a strictly stronger one when every case exercising the kind satisfies",
+      "the stronger condition too.",
+      "",
+      "So the vectors are what pin those 17, and they pin them the only way a",
+      "definition can be pinned when no example distinguishes it: by being written",
+      "down where a reader can disagree with it. That is a real limit and it is stated",
+      "here rather than left to be discovered."
     ]
   }
 }

@@ -1,7 +1,7 @@
 {
   "case": "copy-at-one-to-one-is-not-a-branch",
   "title": "The same copy record, at one successor",
-  "why": "One record, two readings, and cardinality is what chooses between them. Here Broker/Doc.cs is deleted and its contents live on at Broker/Moved.cs: the copy record explains a MOVE, not a multiplicity, so R-BRANCH-COPY does not apply at all rather than applying and being overturned later. The second half is the boundary: deleted_paths would earn `ended` for occ-a1 on its own, and the copy record defeats it, because the same deletion appearing as a copy source is one story told twice. finding-lineage/v1 freezes this scenario as continued and forbids even unresolved.",
+  "why": "One record, two readings, and cardinality is what chooses between them. Here Broker/Doc.cs is deleted and its contents live on at Broker/Moved.cs: the copy record explains a MOVE, not a multiplicity, so R-BRANCH-COPY does not apply at all rather than applying and being overturned later. The second half is the boundary: deleted_paths would earn `ended` for occ-a1 on its own, and the copy record defeats it, because the same deletion appearing as a copy source is one story told twice. finding-lineage/v1 freezes this scenario as continued and forbids even unresolved.\n\nTHE SUCCESSOR SITS AT A DIFFERENT LINE ON PURPOSE. R-CONT-COPY requires `same_rule_message`, which `finding-lineage/v1` compares on the rule and the message and nothing else - it is the path-independent kind, and it is location-independent for the same reason. Every case that made the kind FAIL already differed on the rule or the message, so the definition could be extended with `start_line` and nothing objected; a positive continuation whose line moved is what objects. The copy did not move the defect down the file; the copy target simply has its own line numbering, which is the ordinary case a mapper meets.",
   "revision_a": {
     "revision": "r1",
     "occurrences": [
@@ -36,7 +36,7 @@
         "path": "Broker/Moved.cs",
         "rule": "DOTNET_RESOURCE_LEAK",
         "message": "event handler subscribed and never removed",
-        "start_line": 42,
+        "start_line": 47,
         "start_column": null,
         "pattern_id": "c55059814baef619",
         "enclosing_symbol": "DocView.Wire",
@@ -72,7 +72,7 @@
         "R-CONT-RENAME": "the record is a copy, not a rename; path_rename did not fire",
         "R-MERGE-FOLD": "no merge record"
       },
-      "note": "R-CONT-COPY is the rule whose absence made this scenario a contradiction rather than a gap: before it existed the only rule that fired here was R-BRANCH-COPY, naming an outcome the senior contract had already ruled out."
+      "note": "R-CONT-COPY is the rule whose absence made this scenario a contradiction rather than a gap: before it existed the only rule that fired here was R-BRANCH-COPY, naming an outcome the senior contract had already ruled out. The successor sits at line 47 rather than 42: a copy target has its own line numbering, and `same_rule_message` compares what the analyser said, not where it said it."
     }
   ],
   "forbid": [

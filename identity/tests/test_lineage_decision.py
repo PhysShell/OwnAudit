@@ -2217,11 +2217,74 @@ def main() -> int:
                   "which is why the sixth senior amendment made `same_rule_message` "
                   "one kind instead of two halves.")
 
+    # AND THE FIELD SET IS PINNED BY VECTORS. Membership in the occurrence
+    # vocabulary, totality and independence are all properties a WRONG set can
+    # have, and review demonstrated two of them: `same_rule_message` extended
+    # with `start_line` - an occurrence field containing no other kind's set -
+    # and `anchored_content` REPLACED by `start_line`, a different comparison
+    # entirely. Both green. The corpus cannot object: every negative witness
+    # already differs on rule or message, and the positive rename and copy cases
+    # happen to sit at line 42 on both sides.
+    #
+    # A vector says what the definition says: two occurrences differing in
+    # exactly these fields and agreeing on every other one - does the kind hold?
+    # The subsets consistent with a kind's vectors must number EXACTLY ONE, and
+    # be the declared list. Thinning the vectors leaves several consistent and
+    # fails; editing the list makes it disagree with them and fails. Neither the
+    # list nor its evidence can move alone.
+    eq_vectors = mapping_or_empty(eq_decl.get("vectors"))
+    check(set(eq_vectors) == set(eq_map),
+          "`pair_property_equality_fields.vectors` must pin every equality kind and "
+          f"only those. Missing {sorted(set(eq_map) - set(eq_vectors))}, unexpected "
+          f"{sorted(set(eq_vectors) - set(eq_map))}. A kind whose fields no vector "
+          "constrains is a definition nothing reads, which is what these replace.")
+    universe = sorted(OCCURRENCE_KINDS)
+    for kind_v in sorted(set(eq_vectors) & set(eq_map)):
+        rows = eq_vectors[kind_v]
+        rows = rows if isinstance(rows, list) else []
+        ok_rows = []
+        for index_v, row in enumerate(rows):
+            row = mapping_or_empty(row)
+            differs, holds = row.get("differs_in"), row.get("holds")
+            good = (isinstance(differs, list) and differs
+                    and all(isinstance(f, str) and f in OCCURRENCE_KINDS
+                            for f in differs)
+                    and isinstance(holds, bool))
+            check(good,
+                  f"`pair_property_equality_fields.vectors[{kind_v!r}][{index_v}]` is "
+                  f"{row or None!r}. A vector names a non-empty set of occurrence "
+                  "fields the two occurrences differ in, and says whether the kind "
+                  "holds - anything else constrains nothing.")
+            if good:
+                ok_rows.append((set(differs), holds))
+        consistent = [frozenset(c) for n in range(len(universe) + 1)
+                      for c in itertools.combinations(universe, n)
+                      if all((not (set(c) & d)) == h for d, h in ok_rows)]
+        declared_v = eq_map.get(kind_v)
+        declared_v = (frozenset(declared_v) if isinstance(declared_v, list)
+                      and all(isinstance(f, str) for f in declared_v) else None)
+        check(consistent == [declared_v],
+              f"`pair_property_equality_fields` declares {kind_v!r} as "
+              f"{sorted(declared_v) if declared_v else declared_v!r}, and its vectors "
+              f"admit {[sorted(c) for c in consistent[:4]]}"
+              f"{' and more' if len(consistent) > 4 else ''}. The vectors have to "
+              "leave exactly one field set standing, and it has to be the one "
+              "declared: several means they were thinned until they constrain "
+              "nothing, and a different one means the list drifted from the "
+              "definition beside it.")
+
     for kind_e in sorted(eq_not):
         check(isinstance(eq_not[kind_e], str) and eq_not[kind_e].strip(),
               f"`pair_property_equality_fields.not_an_equality[{kind_e!r}]` is "
               f"{eq_not[kind_e]!r}. Excusing a kind from having a comparison is exactly "
               "where a reason is owed.")
+
+    # The validated map, under the name the case loop reads it by. Bound after
+    # the checks above so a malformed declaration is reported there rather than
+    # silently shaping what a fixture is measured against.
+    eq_fields_map = {k: list(v) for k, v in eq_map.items()
+                     if isinstance(v, list) and v
+                     and all(isinstance(f, str) and f in OCCURRENCE_KINDS for f in v)}
 
     direct = {k for r in rules.values() for k in (r.get("requires_all") or [])}
     want_domain = {k for k in direct if k in senior_kinds}
@@ -2717,6 +2780,40 @@ def main() -> int:
                 check(not bad, bad or "")
             claimed_a.update(frm)
             claimed_b.update(to)
+            # A LICENSED RULE'S PAIR PROPERTIES MUST ACTUALLY HOLD. The negative
+            # witnesses pin a kind by making it FAIL; nothing made one hold, so
+            # the senior definition could be rewritten in ways no case objected
+            # to - `same_rule_message` extended with `start_line`, or
+            # `anchored_content` replaced by it outright. Both were reported and
+            # both were green, because every negative witness already differs on
+            # rule or message and the positive cross-path cases happened to sit
+            # at the same line on both sides.
+            #
+            # This reads the other direction: for a rule the case says licensed
+            # the relation, every equality kind it requires - directly or through
+            # its partner profile - has to hold between each predecessor and each
+            # successor named. It decides no applicability; it takes the case's
+            # own word for which rules applied and asks whether the payload
+            # agrees, which is what the negative half already does.
+            for rid_p in sorted(set(exp.get("licensed_by") or [])):
+                if rid_p not in rules:
+                    continue
+                for kind_p in sorted(rule_needs(mapping_or_empty(rules[rid_p]))
+                                     & set(eq_fields_map)):
+                    for a_p in frm:
+                        for b_p in to:
+                            oa_p = mapping_or_empty(by_id.get(a_p))
+                            ob_p = mapping_or_empty(by_id.get(b_p))
+                            differ = sorted(f for f in eq_fields_map[kind_p]
+                                            if oa_p.get(f) != ob_p.get(f))
+                            check(not differ,
+                                  f"{where}: {rid_p} licensed this relation and "
+                                  f"requires {kind_p!r}, which `finding-lineage/v1` "
+                                  f"compares on {sorted(eq_fields_map[kind_p])} - and "
+                                  f"{a_p} and {b_p} differ on {differ}. Either the "
+                                  "case licenses a rule its own occurrences do not "
+                                  "satisfy, or the kind has been redefined into "
+                                  "something this relation was never meant to carry.")
             for o in frm:
                 check(o in occ_a, f"{where}: predecessor {o!r} is not in revision A")
             for o in to:
