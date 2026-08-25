@@ -2157,60 +2157,65 @@ def main() -> int:
                   "`partner_profile` is outside that map by design, so classifying one "
                   "this way demands evidence the contract gives no way to read.")
 
-    # EVERY PAIR PROPERTY SAYS WHAT IT COMPARES, or says it is not a comparison.
-    # `pair_property_equality_fields` is what the witness obligation reads to
-    # decide whether a kind really failed in a case, and it decides entailment
-    # between kinds. It lives in the senior contract because a junior defining
-    # what a senior kind compares has redefined the kind - the junior copy this
-    # replaces could be widened with `path`, and then a witness whose rule and
-    # message AGREED still read as `same_rule_message` failing.
+    # EVERY PAIR PROPERTY SAYS WHAT IT COMPARES, in one of two tables, and both
+    # are READ. `pair_property_fields` is what the witness obligation reads to
+    # decide whether a kind really failed in a case, what the positive reader
+    # checks of a licensed relation, and what decides entailment between kinds.
+    # It lives in the senior contract because a junior defining what a senior
+    # kind compares has redefined the kind - the junior copy this replaces could
+    # be widened with `path`, and then a witness whose rule and message AGREED
+    # still read as `same_rule_message` failing.
     #
-    # TOTAL over the pair properties and PARTITIONED: a kind in neither table is
-    # a comparison nobody wrote down, and one in both says two things at once.
-    # `line_drift` is the reason the second table exists - the line MOVED, which
-    # is a pair property and not an equality of any field.
-    eq_decl = mapping_or_empty(senior.get("pair_property_equality_fields"))
-    eq_map = mapping_or_empty(eq_decl.get("map"))
-    eq_not = mapping_or_empty(eq_decl.get("not_an_equality"))
+    # TWO TABLES, because not every pair property is an equality. `line_drift`
+    # holds when `start_line` DIFFERS. It used to be a one-line note saying so,
+    # and every reader here intersected with the equality map - so the note was a
+    # BLIND SPOT: a case could license R-CONT-DRIFT with the successor sitting on
+    # the predecessor's own line, drift required and absent, and nothing
+    # objected. An exclusion list read as a filter and never as a thing needing
+    # its own reader is this branch's defect wearing a different hat.
+    #
+    # TOTAL and PARTITIONED: a kind in neither table is a comparison nobody wrote
+    # down, and one in both says two things at once.
+    eq_decl = mapping_or_empty(senior.get("pair_property_fields"))
+    eq_map = mapping_or_empty(eq_decl.get("equality"))
+    df_map = mapping_or_empty(eq_decl.get("difference"))
     pair_kinds = {k for k, how in observation.items() if how == "pair_property"}
-    check(pair_kinds == set(eq_map) | set(eq_not),
-          "`finding-lineage/v1.pair_property_equality_fields` must cover every kind "
+    check(pair_kinds == set(eq_map) | set(df_map),
+          "`finding-lineage/v1.pair_property_fields` must cover every kind "
           f"`evidence_kind_observation` calls a pair property. Missing "
-          f"{sorted(pair_kinds - set(eq_map) - set(eq_not))}, unexpected "
-          f"{sorted((set(eq_map) | set(eq_not)) - pair_kinds)}. A kind in neither "
-          "table is a comparison nobody has written down, and the witness obligation "
-          "reads this to decide whether a kind really failed.")
-    check(not (set(eq_map) & set(eq_not)),
-          f"`pair_property_equality_fields` puts {sorted(set(eq_map) & set(eq_not))} "
-          "in both tables. A kind is an equality of some fields or it is not one.")
-    for kind_e in sorted(eq_map):
-        fields_e = eq_map[kind_e]
-        check(isinstance(fields_e, list) and fields_e
-              and all(isinstance(f, str) and f in OCCURRENCE_KINDS for f in fields_e),
-              f"`pair_property_equality_fields.map[{kind_e!r}]` is {fields_e!r}. It has "
-              f"to name occurrence fields out of {sorted(OCCURRENCE_KINDS)} - a kind "
-              "compared on a field the occurrences do not carry is compared on nothing.")
+          f"{sorted(pair_kinds - set(eq_map) - set(df_map))}, unexpected "
+          f"{sorted((set(eq_map) | set(df_map)) - pair_kinds)}. A kind in neither "
+          "table is a comparison nobody has written down, and both tables are read "
+          "to decide whether a kind held in a case.")
+    check(not (set(eq_map) & set(df_map)),
+          f"`pair_property_fields` puts {sorted(set(eq_map) & set(df_map))} in both "
+          "tables. A kind is satisfied by fields AGREEING or by their DIFFERING, "
+          "and it cannot be both.")
+    for table_n, kinds_n in (("equality", eq_map), ("difference", df_map)):
+        for kind_e in sorted(kinds_n):
+            fields_e = kinds_n[kind_e]
+            check(isinstance(fields_e, list) and fields_e
+                  and all(isinstance(f, str) and f in OCCURRENCE_KINDS
+                          for f in fields_e),
+                  f"`pair_property_fields.{table_n}[{kind_e!r}]` is {fields_e!r}. It "
+                  f"has to name occurrence fields out of {sorted(OCCURRENCE_KINDS)} - "
+                  "a kind compared on a field the occurrences do not carry is "
+                  "compared on nothing.")
+
     # AND NO KIND IS ANOTHER KIND AND MORE. The floor counts KINDS: two are
-    # required for a `continued`. If one kind's fields contained another's, a
+    # required for a `continued`. If one equality's fields contained another's, a
     # single observation would satisfy both and meet the floor by itself - which
     # is the argument the sixth senior amendment already made for making
     # `same_rule_message` ONE kind rather than `same_rule` beside `same_message`.
-    # Containment is also what the entailment above turns into a contradiction,
+    # Containment is also what the entailment below turns into a contradiction,
     # so requiring the sets to be independent says the same thing at the source.
-    #
-    # This is the half review's report left open. Widening `same_rule_message`
-    # with `path` is caught by the exclusivity law; widening it with
-    # `anchored_content`, or `same_pattern_id` with `path`, was not - both are
-    # inert on the present rules and neither lets a witness lie, and both are
-    # still a kind quietly becoming a stronger kind than the one the senior
-    # contract defines.
     for kind_a in sorted(eq_map):
         for kind_b in sorted(eq_map):
             fa, fb = eq_map.get(kind_a), eq_map.get(kind_b)
             if kind_a == kind_b or not isinstance(fa, list) or not isinstance(fb, list):
                 continue
             check(not (fb and set(fb) < set(fa)),
-                  f"`pair_property_equality_fields.map` gives {kind_a!r} {fa!r} and "
+                  f"`pair_property_fields.equality` gives {kind_a!r} {fa!r} and "
                   f"{kind_b!r} {fb!r}, so anything satisfying {kind_a!r} satisfies "
                   f"{kind_b!r}. The floor for a `continued` counts KINDS, and two "
                   "kinds one observation cannot separate meet it by themselves - "
@@ -2219,29 +2224,29 @@ def main() -> int:
 
     # AND THE FIELD SET IS PINNED BY VECTORS. Membership in the occurrence
     # vocabulary, totality and independence are all properties a WRONG set can
-    # have, and review demonstrated two of them: `same_rule_message` extended
-    # with `start_line` - an occurrence field containing no other kind's set -
-    # and `anchored_content` REPLACED by `start_line`, a different comparison
-    # entirely. Both green. The corpus cannot object: every negative witness
-    # already differs on rule or message, and the positive rename and copy cases
-    # happen to sit at line 42 on both sides.
+    # have, and review demonstrated several: `same_rule_message` extended with
+    # `start_line`, `anchored_content` REPLACED by `start_column`. A vector says
+    # what the definition says - two occurrences differing in exactly these
+    # fields and agreeing on every other one, does the kind hold? - and the
+    # subsets consistent with a kind's vectors must number EXACTLY ONE and be the
+    # declared list. Thinning them leaves several consistent; editing the list
+    # makes it disagree with them. Neither half moves alone.
     #
-    # A vector says what the definition says: two occurrences differing in
-    # exactly these fields and agreeing on every other one - does the kind hold?
-    # The subsets consistent with a kind's vectors must number EXACTLY ONE, and
-    # be the declared list. Thinning the vectors leaves several consistent and
-    # fails; editing the list makes it disagree with them and fails. Neither the
-    # list nor its evidence can move alone.
+    # The consistency test differs by table and that is the whole distinction: an
+    # equality holds when NONE of its fields is among the ones that differ, a
+    # difference holds when ALL of them are.
     eq_vectors = mapping_or_empty(eq_decl.get("vectors"))
-    check(set(eq_vectors) == set(eq_map),
-          "`pair_property_equality_fields.vectors` must pin every equality kind and "
-          f"only those. Missing {sorted(set(eq_map) - set(eq_vectors))}, unexpected "
-          f"{sorted(set(eq_vectors) - set(eq_map))}. A kind whose fields no vector "
-          "constrains is a definition nothing reads, which is what these replace.")
+    check(set(eq_vectors) == set(eq_map) | set(df_map),
+          "`pair_property_fields.vectors` must pin every pair property and only "
+          f"those. Missing {sorted((set(eq_map) | set(df_map)) - set(eq_vectors))}, "
+          f"unexpected {sorted(set(eq_vectors) - set(eq_map) - set(df_map))}. A kind "
+          "whose fields no vector constrains is a definition nothing reads, which is "
+          "what these replace.")
     universe = sorted(OCCURRENCE_KINDS)
-    for kind_v in sorted(set(eq_vectors) & set(eq_map)):
+    for kind_v in sorted(set(eq_vectors) & (set(eq_map) | set(df_map))):
         rows = eq_vectors[kind_v]
         rows = rows if isinstance(rows, list) else []
+        is_diff = kind_v in df_map
         ok_rows = []
         for index_v, row in enumerate(rows):
             row = mapping_or_empty(row)
@@ -2251,7 +2256,7 @@ def main() -> int:
                             for f in differs)
                     and isinstance(holds, bool))
             check(good,
-                  f"`pair_property_equality_fields.vectors[{kind_v!r}][{index_v}]` is "
+                  f"`pair_property_fields.vectors[{kind_v!r}][{index_v}]` is "
                   f"{row or None!r}. A vector names a non-empty set of occurrence "
                   "fields the two occurrences differ in, and says whether the kind "
                   "holds - anything else constrains nothing.")
@@ -2259,12 +2264,13 @@ def main() -> int:
                 ok_rows.append((set(differs), holds))
         consistent = [frozenset(c) for n in range(len(universe) + 1)
                       for c in itertools.combinations(universe, n)
-                      if all((not (set(c) & d)) == h for d, h in ok_rows)]
-        declared_v = eq_map.get(kind_v)
+                      if c and all((set(c) <= d if is_diff else not (set(c) & d)) == h
+                                   for d, h in ok_rows)]
+        declared_v = (df_map if is_diff else eq_map).get(kind_v)
         declared_v = (frozenset(declared_v) if isinstance(declared_v, list)
                       and all(isinstance(f, str) for f in declared_v) else None)
         check(consistent == [declared_v],
-              f"`pair_property_equality_fields` declares {kind_v!r} as "
+              f"`pair_property_fields` declares {kind_v!r} as "
               f"{sorted(declared_v) if declared_v else declared_v!r}, and its vectors "
               f"admit {[sorted(c) for c in consistent[:4]]}"
               f"{' and more' if len(consistent) > 4 else ''}. The vectors have to "
@@ -2273,39 +2279,33 @@ def main() -> int:
               "nothing, and a different one means the list drifted from the "
               "definition beside it.")
 
-    for kind_e in sorted(eq_not):
-        check(isinstance(eq_not[kind_e], str) and eq_not[kind_e].strip(),
-              f"`pair_property_equality_fields.not_an_equality[{kind_e!r}]` is "
-              f"{eq_not[kind_e]!r}. Excusing a kind from having a comparison is exactly "
-              "where a reason is owed.")
-
-    # AND EVERY EQUALITY KIND HAS A CASE THAT MAKES IT FAIL. This is the gap
-    # review found: the vectors and the field list agree with each other, and
-    # agreement between two declarations is not either of them being bound to
-    # data. Three kinds had no witness, so `anchored_content` could be amended
-    # to compare `start_column` - vectors edited to match, every licensed
-    # relation still passing, because the column is null on both sides
-    # everywhere in the corpus. A kind nothing can falsify is a definition
-    # nothing reads, which is the rule this file applies to every other
-    # declaration.
+    # AND EVERY PAIR PROPERTY HAS A CASE THAT MAKES IT FAIL. Vectors and the
+    # field list agree with each other, and agreement between two declarations is
+    # not either of them being bound to data. Three kinds had no failing case, so
+    # `anchored_content` could be amended to compare `start_column` - vectors
+    # edited to match, every licensed relation still passing, because the column
+    # was null on both sides everywhere. A kind nothing can falsify is a
+    # definition nothing reads.
     witnessed = {mapping_or_empty(v).get("kind")
                  for k, v in mapping_or_empty(
                      policy.get("required_kind_witnesses")).items()
                  if k != "rule"}
-    unwitnessed = sorted(set(eq_map) - witnessed)
+    unwitnessed = sorted((set(eq_map) | set(df_map)) - witnessed)
     check(not unwitnessed,
           f"no case makes {unwitnessed} fail: `required_kind_witnesses` names no "
           "witness for them, so nothing in the corpus is compared on the fields "
-          "`pair_property_equality_fields` gives them. The vectors would then agree "
-          "with the list and both could move together - which is how a kind gets "
-          "redefined into a field that never differs anywhere.")
+          "`pair_property_fields` gives them. The vectors would then agree with the "
+          "list and both could move together - which is how a kind gets redefined "
+          "into a field that never differs anywhere.")
 
-    # The validated map, under the name the case loop reads it by. Bound after
-    # the checks above so a malformed declaration is reported there rather than
-    # silently shaping what a fixture is measured against.
-    eq_fields_map = {k: list(v) for k, v in eq_map.items()
-                     if isinstance(v, list) and v
-                     and all(isinstance(f, str) and f in OCCURRENCE_KINDS for f in v)}
+    # The validated tables, under the names the case loop reads them by. Bound
+    # after the checks above so a malformed declaration is reported there rather
+    # than silently shaping what a fixture is measured against.
+    def _clean(table):
+        return {k: list(v) for k, v in table.items()
+                if isinstance(v, list) and v
+                and all(isinstance(f, str) and f in OCCURRENCE_KINDS for f in v)}
+    eq_fields_map, df_fields_map = _clean(eq_map), _clean(df_map)
 
     direct = {k for r in rules.values() for k in (r.get("requires_all") or [])}
     want_domain = {k for k in direct if k in senior_kinds}
@@ -2819,19 +2819,27 @@ def main() -> int:
             for rid_p in sorted(set(exp.get("licensed_by") or [])):
                 if rid_p not in rules:
                     continue
+                # BOTH TABLES. Intersecting with the equality map alone let
+                # `line_drift` out: R-CONT-DRIFT could be licensed with the
+                # successor on the predecessor's own line, the drift it requires
+                # simply absent, and nothing here objected. An exclusion list
+                # read as a filter and never as a thing needing its own reader.
                 for kind_p in sorted(rule_needs(mapping_or_empty(rules[rid_p]))
-                                     & set(eq_fields_map)):
+                                     & (set(eq_fields_map) | set(df_fields_map))):
+                    want_diff = kind_p in df_fields_map
+                    fields_p = (df_fields_map if want_diff else eq_fields_map)[kind_p]
                     for a_p in frm:
                         for b_p in to:
                             oa_p = mapping_or_empty(by_id.get(a_p))
                             ob_p = mapping_or_empty(by_id.get(b_p))
-                            differ = sorted(f for f in eq_fields_map[kind_p]
-                                            if oa_p.get(f) != ob_p.get(f))
-                            check(not differ,
+                            wrong = sorted(f for f in fields_p
+                                           if (oa_p.get(f) != ob_p.get(f)) != want_diff)
+                            check(not wrong,
                                   f"{where}: {rid_p} licensed this relation and "
                                   f"requires {kind_p!r}, which `finding-lineage/v1` "
-                                  f"compares on {sorted(eq_fields_map[kind_p])} - and "
-                                  f"{a_p} and {b_p} differ on {differ}. Either the "
+                                  f"says holds when {sorted(fields_p)} "
+                                  f"{'differ' if want_diff else 'agree'} - and "
+                                  f"{a_p} and {b_p} do not, on {wrong}. Either the "
                                   "case licenses a rule its own occurrences do not "
                                   "satisfy, or the kind has been redefined into "
                                   "something this relation was never meant to carry.")
@@ -3667,13 +3675,12 @@ def main() -> int:
                         # junior copy could be widened with `path` until a witness
                         # whose rule and message AGREED still read as the kind
                         # failing.
-                        fields_w = mapping_or_empty(mapping_or_empty(
-                            senior.get("pair_property_equality_fields")
-                        ).get("map")).get(w_kind)
+                        fields_w = (eq_fields_map.get(w_kind)
+                                    or df_fields_map.get(w_kind))
                         check(isinstance(fields_w, list) and fields_w
                               and all(isinstance(f, str) for f in fields_w),
                               f"{name}: the witness names {w_kind!r}, and "
-                              "`finding-lineage/v1.pair_property_equality_fields.map` gives it "
+                              "`finding-lineage/v1.pair_property_fields` gives it "
                               f"{fields_w!r}. A witness whose kind cannot be read "
                               "off the pair is a claim this corpus cannot falsify.")
                         if isinstance(fields_w, list) and all(
@@ -3681,6 +3688,10 @@ def main() -> int:
                             preds = exp.get("frm")
                             preds = ([preds] if isinstance(preds, str)
                                      else list(preds or []))
+                            # An equality holds when its fields AGREE; a
+                            # difference holds when they all DIFFER. Reading only
+                            # the first is what left `line_drift` unread.
+                            diff_w = w_kind in df_fields_map
                             held = sorted(
                                 (a_id, b_occ.get("occurrence_id"))
                                 for a_id in preds
@@ -3688,7 +3699,7 @@ def main() -> int:
                                     "occurrences") or []
                                 if isinstance(b_occ, dict)
                                 and by_id.get(a_id) is not None
-                                and all(by_id[a_id].get(f) == b_occ.get(f)
+                                and all((by_id[a_id].get(f) != b_occ.get(f)) == diff_w
                                         for f in fields_w))
                             check(not held,
                                   f"{name}: the witness says {w_rule} stood down "

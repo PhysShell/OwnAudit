@@ -1035,7 +1035,8 @@
         "cardinality_excluded_a_rule"
       ],
       "copy-record-dominates-the-single-match": [
-        "dominance_did_work"
+        "dominance_did_work",
+        "required_kind_withheld_a_rule"
       ],
       "copy-source-that-is-also-a-fold-refuses": [
         "refusal_was_recorded"
@@ -1460,6 +1461,10 @@
       "rule": "R-CONT-SAME-SITE",
       "kind": "anchored_content"
     },
+    "copy-record-dominates-the-single-match": {
+      "rule": "R-CONT-DRIFT",
+      "kind": "line_drift"
+    },
     "rule": [
       "WHICH RULE STOOD DOWN FOR WHICH KIND, NAMED BY THE CONTRACT RATHER THAN BY THE",
       "SUITE. A case carrying `required_kind_withheld_a_rule` declares its witness here,",
@@ -1495,7 +1500,7 @@
       "genuinely FAIL between the predecessor and every successor of the case.",
       "",
       "What it compares is read from `finding-lineage/v1`.",
-      "`pair_property_equality_fields` lives there and not here: this contract carrying",
+      "`pair_property_fields` lives there and not here: this contract carrying",
       "its own copy is a junior redefining a senior kind, and the first version of that",
       "table could be widened with `path` until a witness whose rule and message AGREED",
       "still read as the kind failing. Every witness kind must be one the senior map",
@@ -1514,7 +1519,14 @@
       "because the content changed, `a-fold-across-files-is-still-a-merge` because the",
       "fold replaced the enclosing symbols, and `a-recorded-rename-is-not-an-unresolved`",
       "because the paths differ. Each now says so, and each therefore pins the field",
-      "its kind is really compared on."
+      "its kind is really compared on.",
+      "",
+      "`line_drift` is the sixth, and it is a DIFFERENCE rather than an equality: it",
+      "holds when `start_line` differs. It had no witness because it was not in the",
+      "equality table at all, and every reader intersected with that table - so the",
+      "kind that says the line MOVED was checked by nothing, in either direction.",
+      "`copy-record-dominates-the-single-match` already recorded R-CONT-DRIFT standing",
+      "down because occ-b1 is at the same line; it now says so where that can be read."
     ]
   }
 }

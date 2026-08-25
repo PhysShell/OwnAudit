@@ -422,8 +422,8 @@
       "green until this section existed."
     ]
   },
-  "pair_property_equality_fields": {
-    "map": {
+  "pair_property_fields": {
+    "equality": {
       "anchored_content": [
         "anchored_content"
       ],
@@ -439,6 +439,11 @@
       ],
       "structural_context": [
         "enclosing_symbol"
+      ]
+    },
+    "difference": {
+      "line_drift": [
+        "start_line"
       ]
     },
     "vectors": {
@@ -498,6 +503,62 @@
           "holds": true
         }
       ],
+      "line_drift": [
+        {
+          "differs_in": [
+            "anchored_content"
+          ],
+          "holds": false
+        },
+        {
+          "differs_in": [
+            "enclosing_symbol"
+          ],
+          "holds": false
+        },
+        {
+          "differs_in": [
+            "message"
+          ],
+          "holds": false
+        },
+        {
+          "differs_in": [
+            "occurrence_id"
+          ],
+          "holds": false
+        },
+        {
+          "differs_in": [
+            "path"
+          ],
+          "holds": false
+        },
+        {
+          "differs_in": [
+            "pattern_id"
+          ],
+          "holds": false
+        },
+        {
+          "differs_in": [
+            "rule"
+          ],
+          "holds": false
+        },
+        {
+          "differs_in": [
+            "start_column"
+          ],
+          "holds": false
+        },
+        {
+          "differs_in": [
+            "start_line"
+          ],
+          "holds": true
+        }
+      ],
       "same_path": [
         {
           "differs_in": [
@@ -723,9 +784,6 @@
         }
       ]
     },
-    "not_an_equality": {
-      "line_drift": "the line MOVED. It is a pair property and it is not an equality of any field - comparing `start_line` for equality would assert the opposite of what the kind means - so it has no entry above and says so here instead of being missing."
-    },
     "why": [
       "WHICH OCCURRENCE FIELDS A PAIR PROPERTY COMPARES, frozen HERE for exactly",
       "the reason the section above it is frozen here: a junior contract that",
@@ -745,9 +803,21 @@
       "`finding-pattern/v1` hashes the path into `same_pattern_id` and no occurrence",
       "that moved can carry one.",
       "",
-      "TOTAL over the pair properties: every kind `evidence_kind_observation` calls",
-      "a `pair_property` appears in `map` or in `not_an_equality`, and nowhere else.",
-      "A kind missing from both is a kind whose comparison nobody has written down.",
+      "TOTAL over the pair properties and PARTITIONED. Every kind",
+      "`evidence_kind_observation` calls a `pair_property` is an `equality` or a",
+      "`difference`, never both and never neither. A kind in neither is a comparison",
+      "nobody has written down.",
+      "",
+      "`line_drift` is why `difference` exists, and why it is a TABLE rather than an",
+      "excuse. It was a one-line note saying the kind is not an equality, and the",
+      "positive reader intersected with the equality map - so the note became a",
+      "BLIND SPOT: a case could license R-CONT-DRIFT with the successor on the",
+      "predecessor's own line, drift required and absent, and nothing objected.",
+      "An exclusion list read as a filter and never as a thing needing its own",
+      "reader is the same defect as a claim checked where it was named and not at",
+      "the adjacent site. `line_drift` holds when `start_line` DIFFERS; that is now",
+      "written where it can be read, vectored like the others, and required to hold",
+      "of any relation a rule requiring it licenses.",
       "",
       "WIDENING IS A CONTRADICTION, NOT A PREFERENCE, and it is checkable without",
       "any of this being asserted: a kind whose fields CONTAIN another kind's",
@@ -789,32 +859,38 @@
       "coordinated edit - the list AND its vectors changed together - is an amendment",
       "made in the open, and the frozen cases are the second reader of it. Two",
       "obligations do that reading: a rule a case says LICENSED a relation must have",
-      "every equality kind it requires actually hold between the occurrences named, and",
-      "every equality kind must have a case where it FAILS, declared in",
-      "`required_kind_witnesses`. Sweeping every one-field redefinition of every kind,",
-      "82 in all, the cases reject 73 and accept 9.",
+      "every pair property it requires actually hold between the occurrences named -",
+      "fields agreeing for an equality, differing for a difference - and every pair",
+      "property must have a case where it FAILS, declared in `required_kind_witnesses`.",
+      "Sweeping every one-field redefinition of every kind in both tables, 98 in all,",
+      "the cases reject 88 and accept 10.",
       "",
-      "It was 17 when this section was first written, and the difference is worth",
-      "recording, because none of it was a new instrument. Three of the eight were kinds",
-      "with no failing witness at all - the corpus already held the cases, only the",
-      "declarations were missing. Five more were `start_column`, which was null in all",
-      "79 occurrences: `finding-occurrence/v1` allows the column to be absent and every",
-      "fixture took that option, so a field nothing anywhere differs on could be added",
-      "to any kind's definition unchallenged. Two pairs now carry real columns that",
-      "moved - a reindented statement and a copy target with its own numbering - and",
-      "that closed all five.",
+      "It was 17 of 82 when this section was first written, and the difference is worth",
+      "recording, because none of it was a new instrument. Three of the eight closed",
+      "were kinds with no failing witness at all - the corpus already held the cases,",
+      "only the declarations were missing. Five were `start_column`, null in all 79",
+      "occurrences because `finding-occurrence/v1` allows the column to be absent and",
+      "every fixture took that option; two pairs now carry real columns that moved, a",
+      "reindented statement and a copy target with its own numbering.",
       "",
-      "The 9 that remain are one shape. `rule` and `message` agree across every licensed",
-      "relation, and NECESSARILY: every continuation rule requires `same_rule_message`",
-      "or `same_pattern_id`, so a case where they differed and a relation was still",
-      "licensed is a case this policy forbids. Redefining `same_path` as `pattern_id` is",
-      "the same argument - a same-path rule already requires the id to agree.",
+      "The 10 that remain are one argument wearing three faces, and none is a missing",
+      "fixture. `rule` and `message` agree across every licensed relation NECESSARILY:",
+      "every continuation rule requires `same_rule_message` or `same_pattern_id`, so a",
+      "case where they differed and a relation was still licensed is a case this policy",
+      "forbids. Redefining `same_path` as `pattern_id` is the same - a same-path rule",
+      "already requires the id to agree. And redefining `line_drift` as 'the content",
+      "differs' survives for the same reason from the other side: wherever a drift is",
+      "licensed ALONE the content must have changed, or R-CONT-SAME-SITE would have",
+      "applied too, so the two conditions coincide everywhere the corpus can look.",
       "",
       "No valid corpus can separate a kind from a strictly stronger one when every case",
-      "exercising the kind satisfies the stronger condition too. The vectors are what",
-      "pin those 9, and they pin them the only way a definition can be pinned when no",
-      "example distinguishes it: by being written down where a reader can disagree with",
-      "it. That is a real limit and it is stated here rather than left to be discovered."
+      "exercising the kind satisfies the stronger condition too. Manufacturing a case",
+      "whose only purpose is to discriminate a hypothetical amendment would be building",
+      "corpus for the checker rather than for the policy, which is the one thing the",
+      "preregistration rule exists to prevent. The vectors are what pin those 10, and",
+      "they pin them the only way a definition can be pinned when no example",
+      "distinguishes it: by being written down where a reader can disagree with it.",
+      "That is a real limit and it is stated here rather than left to be discovered."
     ]
   }
 }
