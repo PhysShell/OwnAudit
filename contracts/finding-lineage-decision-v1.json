@@ -1003,7 +1003,8 @@
         "required_kind_withheld_a_rule"
       ],
       "a-fold-across-files-is-still-a-merge": [
-        "rule_licensed_alone"
+        "rule_licensed_alone",
+        "required_kind_withheld_a_rule"
       ],
       "a-reclassified-defect-across-a-copy-is-not-a-continuation": [
         "required_kind_withheld_a_rule",
@@ -1016,14 +1017,16 @@
         "required_kind_withheld_a_rule"
       ],
       "a-recorded-rename-is-not-an-unresolved": [
-        "rule_licensed_alone"
+        "rule_licensed_alone",
+        "required_kind_withheld_a_rule"
       ],
       "an-ambiguity-outranks-a-cardinality-rejection": [
         "blunt_rule_recorded",
         "cardinality_excluded_a_rule"
       ],
       "an-edit-elsewhere-is-still-the-same-defect": [
-        "rule_licensed_alone"
+        "rule_licensed_alone",
+        "required_kind_withheld_a_rule"
       ],
       "blunt-rule-loses-to-uniqueness": [
         "blunt_rule_recorded"
@@ -1433,6 +1436,10 @@
       "rule": "R-CONT-DRIFT",
       "kind": "same_pattern_id"
     },
+    "a-fold-across-files-is-still-a-merge": {
+      "rule": "R-CONT-SAME-SITE",
+      "kind": "structural_context"
+    },
     "a-reclassified-defect-across-a-copy-is-not-a-continuation": {
       "rule": "R-CONT-COPY",
       "kind": "same_rule_message"
@@ -1444,6 +1451,14 @@
     "a-reclassified-defect-at-an-unchanged-site-is-not-a-continuation": {
       "rule": "R-CONT-SAME-SITE",
       "kind": "same_pattern_id"
+    },
+    "a-recorded-rename-is-not-an-unresolved": {
+      "rule": "R-CONT-SAME-SITE",
+      "kind": "same_path"
+    },
+    "an-edit-elsewhere-is-still-the-same-defect": {
+      "rule": "R-CONT-SAME-SITE",
+      "kind": "anchored_content"
     },
     "rule": [
       "WHICH RULE STOOD DOWN FOR WHICH KIND, NAMED BY THE CONTRACT RATHER THAN BY THE",
@@ -1485,7 +1500,21 @@
       "table could be widened with `path` until a witness whose rule and message AGREED",
       "still read as the kind failing. Every witness kind must be one the senior map",
       "names, so the table cannot be emptied into a vacuum either - drop an entry and",
-      "the witnesses naming it fail at once rather than passing unevaluated."
+      "the witnesses naming it fail at once rather than passing unevaluated.",
+      "",
+      "EVERY EQUALITY KIND NEEDS ONE. Three did not have one, and review showed what",
+      "that costs: with nothing making `anchored_content` fail on real occurrences, the",
+      "senior contract could be amended to say the kind compares `start_column` - the",
+      "vectors edited to agree, and every licensed relation still passing, because the",
+      "column is null on both sides everywhere. Two declarations agreeing with each",
+      "other is not the same as either of them being bound to data.",
+      "",
+      "The corpus already held the witnesses; only the declarations were missing.",
+      "`an-edit-elsewhere-is-still-the-same-defect` has R-CONT-SAME-SITE standing down",
+      "because the content changed, `a-fold-across-files-is-still-a-merge` because the",
+      "fold replaced the enclosing symbols, and `a-recorded-rename-is-not-an-unresolved`",
+      "because the paths differ. Each now says so, and each therefore pins the field",
+      "its kind is really compared on."
     ]
   }
 }

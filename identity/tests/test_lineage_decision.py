@@ -2279,6 +2279,27 @@ def main() -> int:
               f"{eq_not[kind_e]!r}. Excusing a kind from having a comparison is exactly "
               "where a reason is owed.")
 
+    # AND EVERY EQUALITY KIND HAS A CASE THAT MAKES IT FAIL. This is the gap
+    # review found: the vectors and the field list agree with each other, and
+    # agreement between two declarations is not either of them being bound to
+    # data. Three kinds had no witness, so `anchored_content` could be amended
+    # to compare `start_column` - vectors edited to match, every licensed
+    # relation still passing, because the column is null on both sides
+    # everywhere in the corpus. A kind nothing can falsify is a definition
+    # nothing reads, which is the rule this file applies to every other
+    # declaration.
+    witnessed = {mapping_or_empty(v).get("kind")
+                 for k, v in mapping_or_empty(
+                     policy.get("required_kind_witnesses")).items()
+                 if k != "rule"}
+    unwitnessed = sorted(set(eq_map) - witnessed)
+    check(not unwitnessed,
+          f"no case makes {unwitnessed} fail: `required_kind_witnesses` names no "
+          "witness for them, so nothing in the corpus is compared on the fields "
+          "`pair_property_equality_fields` gives them. The vectors would then agree "
+          "with the list and both could move together - which is how a kind gets "
+          "redefined into a field that never differs anywhere.")
+
     # The validated map, under the name the case loop reads it by. Bound after
     # the checks above so a malformed declaration is reported there rather than
     # silently shaping what a fixture is measured against.

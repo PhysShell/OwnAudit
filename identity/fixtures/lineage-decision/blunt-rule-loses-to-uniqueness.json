@@ -1,7 +1,7 @@
 {
   "case": "blunt-rule-loses-to-uniqueness",
   "title": "Two candidates for a blunt rule, one for a discriminating one",
-  "why": "ADVERSARIAL about uniqueness being per RULE rather than per outcome. Both occurrences in revision B sit in the same file and the same symbol as the predecessor, so R-CONT-DRIFT - which does not ask about content - is satisfied by BOTH and singles out nobody. R-CONT-SAME-SITE does ask, and only occ-b1 answers. If uniqueness were checked per outcome the pair would collapse into ambiguity and a real continuation would be thrown away; checked per rule, the discriminating rule licenses and the blunt one is recorded as having failed to choose. That record is the point: a blunt rule that simply vanishes leaves the next reader unable to see that anything was in tension.",
+  "why": "ADVERSARIAL about uniqueness being per RULE rather than per outcome. Both occurrences in revision B sit in the same file and the same symbol as the predecessor, so R-CONT-DRIFT - which does not ask about content - is satisfied by BOTH and singles out nobody. R-CONT-SAME-SITE does ask, and only occ-b1 answers. If uniqueness were checked per outcome the pair would collapse into ambiguity and a real continuation would be thrown away; checked per rule, the discriminating rule licenses and the blunt one is recorded as having failed to choose. That record is the point: a blunt rule that simply vanishes leaves the next reader unable to see that anything was in tension.\n\nTHE COLUMNS ARE REAL HERE, and they differ across the continuation: the block was reindented, so the statement sits at column 13 where it sat at 9. `finding-occurrence/v1` lets the column be absent and the whole corpus took that option, which made `start_column` a field nothing anywhere differs on - and a field nothing differs on can be added to ANY evidence kind's definition without a single case objecting. One occurrence pair carrying a real, moved column is what stops that. Reindentation changes no evidence: `same_path`, `structural_context`, `anchored_content` and `same_pattern_id` all still hold, which is exactly why this is the pair to carry it.",
   "revision_a": {
     "revision": "r1",
     "occurrences": [
@@ -11,7 +11,7 @@
         "rule": "DOTNET_RESOURCE_LEAK",
         "message": "event handler subscribed and never removed",
         "start_line": 42,
-        "start_column": null,
+        "start_column": 9,
         "pattern_id": "f964274604b5c187",
         "enclosing_symbol": "DocView.Wire",
         "anchored_content": "_store.Changed += OnChanged;"
@@ -27,7 +27,7 @@
         "rule": "DOTNET_RESOURCE_LEAK",
         "message": "event handler subscribed and never removed",
         "start_line": 44,
-        "start_column": null,
+        "start_column": 13,
         "pattern_id": "f964274604b5c187",
         "enclosing_symbol": "DocView.Wire",
         "anchored_content": "_store.Changed += OnChanged;"
@@ -38,7 +38,7 @@
         "rule": "DOTNET_RESOURCE_LEAK",
         "message": "event handler subscribed and never removed",
         "start_line": 51,
-        "start_column": null,
+        "start_column": 13,
         "pattern_id": "f964274604b5c187",
         "enclosing_symbol": "DocView.Wire",
         "anchored_content": "_store.Changed += OnReset;"

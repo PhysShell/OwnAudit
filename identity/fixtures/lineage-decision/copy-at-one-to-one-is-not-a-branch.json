@@ -1,7 +1,7 @@
 {
   "case": "copy-at-one-to-one-is-not-a-branch",
   "title": "The same copy record, at one successor",
-  "why": "One record, two readings, and cardinality is what chooses between them. Here Broker/Doc.cs is deleted and its contents live on at Broker/Moved.cs: the copy record explains a MOVE, not a multiplicity, so R-BRANCH-COPY does not apply at all rather than applying and being overturned later. The second half is the boundary: deleted_paths would earn `ended` for occ-a1 on its own, and the copy record defeats it, because the same deletion appearing as a copy source is one story told twice. finding-lineage/v1 freezes this scenario as continued and forbids even unresolved.\n\nTHE SUCCESSOR SITS AT A DIFFERENT LINE ON PURPOSE. R-CONT-COPY requires `same_rule_message`, which `finding-lineage/v1` compares on the rule and the message and nothing else - it is the path-independent kind, and it is location-independent for the same reason. Every case that made the kind FAIL already differed on the rule or the message, so the definition could be extended with `start_line` and nothing objected; a positive continuation whose line moved is what objects. The copy did not move the defect down the file; the copy target simply has its own line numbering, which is the ordinary case a mapper meets.",
+  "why": "One record, two readings, and cardinality is what chooses between them. Here Broker/Doc.cs is deleted and its contents live on at Broker/Moved.cs: the copy record explains a MOVE, not a multiplicity, so R-BRANCH-COPY does not apply at all rather than applying and being overturned later. The second half is the boundary: deleted_paths would earn `ended` for occ-a1 on its own, and the copy record defeats it, because the same deletion appearing as a copy source is one story told twice. finding-lineage/v1 freezes this scenario as continued and forbids even unresolved.\n\nTHE SUCCESSOR SITS AT A DIFFERENT LINE ON PURPOSE. R-CONT-COPY requires `same_rule_message`, which `finding-lineage/v1` compares on the rule and the message and nothing else - it is the path-independent kind, and it is location-independent for the same reason. Every case that made the kind FAIL already differed on the rule or the message, so the definition could be extended with `start_line` and nothing objected; a positive continuation whose line moved is what objects. The copy did not move the defect down the file; the copy target simply has its own line numbering - and its own column numbering, which is why the columns differ here too. `same_rule_message` compares what the analyser said, not where it said it, and the physical anchor moving in both axes is what proves that of the kind rather than of one axis of it.",
   "revision_a": {
     "revision": "r1",
     "occurrences": [
@@ -11,7 +11,7 @@
         "rule": "DOTNET_RESOURCE_LEAK",
         "message": "event handler subscribed and never removed",
         "start_line": 42,
-        "start_column": null,
+        "start_column": 9,
         "pattern_id": "f964274604b5c187",
         "enclosing_symbol": "DocView.Wire",
         "anchored_content": "_store.Changed += OnChanged;"
@@ -37,7 +37,7 @@
         "rule": "DOTNET_RESOURCE_LEAK",
         "message": "event handler subscribed and never removed",
         "start_line": 47,
-        "start_column": null,
+        "start_column": 17,
         "pattern_id": "c55059814baef619",
         "enclosing_symbol": "DocView.Wire",
         "anchored_content": "_store.Changed += OnChanged;"
