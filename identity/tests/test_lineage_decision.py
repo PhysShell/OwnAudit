@@ -2286,10 +2286,34 @@ def main() -> int:
     # edited to match, every licensed relation still passing, because the column
     # was null on both sides everywhere. A kind nothing can falsify is a
     # definition nothing reads.
+    # A DECLARED WITNESS AND AN EXECUTED ONE ARE DIFFERENT THINGS. This counted
+    # every entry in `required_kind_witnesses` as a failing witness for its kind,
+    # while the payload comparison runs only for a case that carries
+    # `required_kind_withheld_a_rule`. Nothing tied the two sets together, so a
+    # witness could be moved onto a case with no such obligation: the kind still
+    # looked witnessed here and the comparison never ran. Membership standing in
+    # for the correct member again - the DECLARATION counted and the EXECUTION
+    # was not required.
+    #
+    # The two sets are the same set. An entry without the obligation is a claim
+    # nothing carries out; the obligation without an entry already fails one
+    # section down, and now says so from both ends.
+    witness_map = {k: v for k, v in mapping_or_empty(
+        policy.get("required_kind_witnesses")).items() if k != "rule"}
+    bearing = {c for c, duties_c in mapping_or_empty(mapping_or_empty(
+        policy.get("case_obligations")).get("obligations")).items()
+        if isinstance(duties_c, list)
+        and "required_kind_withheld_a_rule" in duties_c}
+    check(set(witness_map) == bearing,
+          "`required_kind_witnesses` names "
+          f"{sorted(set(witness_map) - bearing)} which do not carry "
+          "`required_kind_withheld_a_rule`, and "
+          f"{sorted(bearing - set(witness_map))} carry it with no witness named. "
+          "The payload comparison that makes a witness mean anything runs only for "
+          "a case with that obligation, so an entry outside the set is a kind "
+          "counted as witnessed by a check that never runs.")
     witnessed = {mapping_or_empty(v).get("kind")
-                 for k, v in mapping_or_empty(
-                     policy.get("required_kind_witnesses")).items()
-                 if k != "rule"}
+                 for k, v in witness_map.items() if k in bearing}
     unwitnessed = sorted((set(eq_map) | set(df_map)) - witnessed)
     check(not unwitnessed,
           f"no case makes {unwitnessed} fail: `required_kind_witnesses` names no "
