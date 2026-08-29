@@ -1,0 +1,1131 @@
+{
+ "artifact": "rh-m0-manifest",
+ "b3_executed": false,
+ "baselines": {
+  "B0": {
+   "rule": "always unresolved"
+  },
+  "B1": {
+   "candidates": "for the target endpoint, candidates on the opposite side with same_pattern_id",
+   "decision": "unique minimum abs(start_line_A - start_line_B) => continued",
+   "never_emits": [
+    "new",
+    "ended",
+    "branched",
+    "merged"
+   ],
+   "tie_or_no_candidate": "unresolved"
+  },
+  "B2": {
+   "candidates": "same_pattern_id AND same enclosing_symbol",
+   "decision": "exactly one candidate => continued",
+   "never_emits": [
+    "new",
+    "ended",
+    "branched",
+    "merged"
+   ],
+   "otherwise": "unresolved"
+  },
+  "B3": {
+   "at_canonical_merge": "011c1362861f6b8b20c45e8ebd5bcb912401c1c0",
+   "contracts": [
+    "finding-lineage/v1",
+    "finding-lineage-decision/v1"
+   ],
+   "reviewed_step1_head": "6dcc02f7d82bebeb5db9be83f77ab8c5455f5692",
+   "rule": "the exact canonical frozen Step-1 policy"
+  },
+  "observation_sources": {
+   "anchored_content": "RH-O1 adapter, exact physical line bytes, terminator excluded",
+   "enclosing_symbol": "RH-O1 adapter, Roslyn 4.9.2, canonical Git blob, spec-frozen display format",
+   "line_drift": "holds iff start_line_A != start_line_B; no threshold",
+   "path_rename / copy_record": "git diff -M50% -C50% --find-copies-harder",
+   "still_unavailable": [
+    "renamed_symbol_record",
+    "reformatted_paths",
+    "merged_symbols",
+    "boundary: enclosing-site-added",
+    "boundary: enclosing-site-removed"
+   ]
+  }
+ },
+ "branch_capability": {
+  "census_status": "the targetability census established STRUCTURAL POSSIBILITY only: 24 of 25 copy pairs carry a branch-capable source, but a finding actually sits on such a source in only 5 pairs, 16 candidate occurrences, 9 selected targets. This asserts nothing about branch truth.",
+  "if_three_or_more_and_any_endpoint_lost_or_invented": "FAIL/PIVOT",
+  "if_zero_to_two_genuine_branches": "BRANCH-INCONCLUSIVE regardless of B3 output",
+  "validated_requires": [
+   ">= 3 adjudicated truth groups whose truth label is 'branched'",
+   "those groups span >= 2 distinct revision pairs",
+   "exact successor endpoint-set accuracy = 100%",
+   "zero silent cardinality loss",
+   "zero invented branch endpoints"
+  ]
+ },
+ "contains_correctness_result": false,
+ "descriptive_strata": {
+  "affects_inclusion_or_thresholds_or_target_count_or_labelling": false,
+  "carried_correction": [
+   "Identical pattern_id multiset means only that (path, rule, message) multiplicities are unchanged.",
+   "It does NOT imply identical physical occurrences, anchors, enclosing symbols, anchored content, or trivial lineage."
+  ],
+  "computed_after": "M0 freeze only",
+  "full_observation_tuple": [
+   "pattern_id",
+   "start_line",
+   "start_column",
+   "enclosing_symbol_hash",
+   "anchored_content_hash"
+  ],
+  "strata": {
+   "S0": "full observation multiset identical",
+   "S1": "pattern_id multiset identical, full observation multiset differs",
+   "S2": "pattern_id multiset differs"
+  }
+ },
+ "digest_note": "the SHA-256 of this manifest lives in the sidecar rh-m0-manifest.sha256; a digest stored inside the file it describes cannot equal that file's digest",
+ "frozen_input_hashes": [
+  {
+   "bytes": 5855,
+   "exportable": true,
+   "file": "rh0-environment.json",
+   "sha256": "3fe4892175d678a2b95b1128be1db00f51cc8d470d226076fe26b5538ad639a0"
+  },
+  {
+   "bytes": 1125100,
+   "exportable": true,
+   "file": "rh0-frame-sts.jsonl",
+   "sha256": "1b5eaaa962fa0f692ce636e1dcc94761a7df4b18962b328679d810ae8e49f26a"
+  },
+  {
+   "bytes": 113197,
+   "exportable": true,
+   "file": "rh0-frame-ownnet.jsonl",
+   "sha256": "6590cedd99fd6078332f6f6ed3e1d5d20c66364d182acbe62f07937f40582e92"
+  },
+  {
+   "bytes": 42522,
+   "exportable": true,
+   "file": "rh0-selection-preview.json",
+   "sha256": "c8645a79e4ba6752d2627b6bf5159ffe06a222ed4ceffb3484a43254103e5587"
+  },
+  {
+   "bytes": 2497,
+   "exportable": true,
+   "file": "rh0-toolchain-sensitivity.json",
+   "sha256": "e50a36c2c789371db1401c1512a6134aeebede46e49b12ed3a1456449ac599e5"
+  },
+  {
+   "bytes": 11111,
+   "exportable": true,
+   "file": "rh0-signal-observability.json",
+   "sha256": "6188bd381045f3f3cdef72c7b1dfd0f37f2a1d05d192adbcfdc8e09322da6f6a"
+  },
+  {
+   "bytes": 2827,
+   "exportable": true,
+   "file": "rh0-bundle.sha256",
+   "sha256": "a6e30f693f36e760f1ebc42165963d206d0eb04abf7b77db815fe7e1084cc8a9"
+  },
+  {
+   "bytes": 10164,
+   "exportable": true,
+   "file": "rh0-o1-observation-spec.json",
+   "sha256": "9e82b78d55f7e120357d086523ba76a113e6a15de8be0d179fbbff72f2a488e0"
+  },
+  {
+   "bytes": 8403,
+   "exportable": true,
+   "file": "rh0-o1-observation-vectors.json",
+   "sha256": "00e8507db4b851dbc30acaf1796f5e5292ed1213d940868e6c46e705dfb5e54e"
+  },
+  {
+   "bytes": 6133,
+   "exportable": true,
+   "file": "rh0-o1-coverage.json",
+   "sha256": "c074bdc6e9dbaf588061f73c4d00f70aa61bb664131cfddbd86f670abf697872"
+  },
+  {
+   "bytes": 1971,
+   "exportable": true,
+   "file": "rh0-o1-bundle.sha256",
+   "sha256": "1b816e92619f2abbc80efe6cd7371cc9472dcb2e2799b4c447fb60ed47821e0f"
+  },
+  {
+   "bytes": 4768,
+   "exportable": true,
+   "file": "rh0-m0-pending-corrections.json",
+   "sha256": "aef9aef2bf1adbf13b4d238f1fefeaf180669dea4b22c71dfaa5951d22e54116"
+  },
+  {
+   "bytes": 41469,
+   "exportable": true,
+   "file": "rh0-m0-targetability.json",
+   "sha256": "1c25cd6ca15c8e66be8bcb86ded3357c6cf2b297825ce6e67d60ca81360faa4b"
+  },
+  {
+   "bytes": 93,
+   "exportable": true,
+   "file": "rh0-m0-targetability.sha256",
+   "sha256": "e8ed0af417cd504242af4ddde79c7840b352542cf8f1ba28ea6f56ef5713bac0"
+  },
+  {
+   "bytes": 15512,
+   "exportable": true,
+   "file": "obs-adapter/Program.cs",
+   "sha256": "77f72efcac7b44093fd86e225d3e56f138685bba25082889a3cd87f12408cf31"
+  },
+  {
+   "bytes": 582,
+   "exportable": true,
+   "file": "obs-adapter/ObsAdapter.csproj",
+   "sha256": "bff9cb29c17456f11c1910595f01b343081051077d895a14b0ff86b2e2aaec53"
+  },
+  {
+   "bytes": 2210,
+   "exportable": true,
+   "file": "vectors/setup.sh",
+   "sha256": "ea5db72931a94b8cb092972095dda00ebfb105534c1e17714b8a7cccc562cd12"
+  },
+  {
+   "bytes": 7547,
+   "exportable": true,
+   "file": "vectors/observed.jsonl",
+   "sha256": "081b63180adae18b647726b8a66ad0f91751fea73b53c29a8a00a0d4c880df45"
+  },
+  {
+   "bytes": 2567,
+   "exportable": true,
+   "file": "probe.sh",
+   "sha256": "59e0a566b84ed8ed1b1882108bb6e5b29b224ce52475c1caeaab2e26f4b5caf9"
+  },
+  {
+   "bytes": 2835,
+   "exportable": true,
+   "file": "make_requests.py",
+   "sha256": "e01ee9d61ead3731279deaa24854468d3eaed7543d86775d461ccfc2954ca1d2"
+  },
+  {
+   "bytes": 7540,
+   "exportable": true,
+   "file": "build_coverage.py",
+   "sha256": "4e1b8c1f0f3d797cdcfb66a002983f96d7b1c647dafe68e3eec1f7ba7d4e8c09"
+  },
+  {
+   "bytes": 9979,
+   "exportable": true,
+   "file": "build_vectors.py",
+   "sha256": "f4f5f48e0550112bfee7de418f800eb4230fd532a89f7ad83aff6d41bbf576bf"
+  },
+  {
+   "bytes": 14751,
+   "exportable": true,
+   "file": "build_census.py",
+   "sha256": "567062fa0a6dbde62773b09642be472e78caff23ed0d34c78b9fdc74d0b02801"
+  },
+  {
+   "bytes": 12741624,
+   "exportable": false,
+   "file": "probe/requests.jsonl",
+   "note": "STS paths",
+   "sha256": "234bdcc89e9e17f2e9cb6e5f9af848ed671ab50c1773baa59290a25554cc0c1c"
+  },
+  {
+   "bytes": 25733878,
+   "exportable": false,
+   "file": "probe/observed.jsonl",
+   "note": "keyed to STS paths",
+   "sha256": "65b4f13868aed0c19b8eb89d44510f5b57c7c33be3a77c2115dea597a0fd9eb3"
+  },
+  {
+   "bytes": 25373291,
+   "exportable": false,
+   "file": "probe/endpoints.jsonl",
+   "note": "carries pattern_id values",
+   "sha256": "2fb4ec62ca97a1916ea0081f810f6a71f2ff284b9547294a628d3819b9808506"
+  }
+ ],
+ "frozen_targets": {
+  "count": 63,
+  "export_policy": "target hashes only; STS raw path / rule / message never leave the machine",
+  "frozen_now": true,
+  "targets": [
+   {
+    "a_sha": "8fc3e85a91e6a3382e7943c30ffebb0e73bf7248",
+    "b_sha": "78a156675dbae402072e8d459b432adb4d95ebe7",
+    "class": "natural",
+    "side": "A",
+    "target_hash": "019c1917a561054077057d91eb836960755895bcba2b91cd31469c2bf2f0ffff"
+   },
+   {
+    "a_sha": "0976c490c3dc1d2d902ad56f018b697748d1846f",
+    "b_sha": "e75247c4aa5f2d1b9a9c4882d6aad4fd960d57b6",
+    "class": "natural",
+    "side": "B",
+    "target_hash": "00456dec6c0b12ddc1a9fbfe97f913d3eb453e064929047d40d36ec7f8598586"
+   },
+   {
+    "a_sha": "3dec1a7fea70fba8943aad4a8d830f8943ed08e3",
+    "b_sha": "77c2a1201925c053c0ccb32e99b164d91544bdf3",
+    "class": "natural",
+    "side": "B",
+    "target_hash": "01b4cba941583391be4d5d925a9f4ee6a731aaf995f40696dd2a12c5336b3d71"
+   },
+   {
+    "a_sha": "24b87dbe8b9b0a69d279d3958c69fbf6273ad140",
+    "b_sha": "65dd590f169d643cab8288ae061e97947a1b630c",
+    "class": "natural",
+    "side": "B",
+    "target_hash": "0031b354794d1f364c9a0039f8da092ef3121b28a69bbcdf626bf67d121b626f"
+   },
+   {
+    "a_sha": "84c043b5176ce7233a510870027bf66c151460c9",
+    "b_sha": "b616f1866c40bd3452929107a4b6b3a884bf3476",
+    "class": "natural",
+    "side": "A",
+    "target_hash": "0005e46875760299c4c69084934b4334bd23467bcd7e7d5edacbe663aaac91bf"
+   },
+   {
+    "a_sha": "926cafc5aeddf77741fbfc46dc65eae8d09e187b",
+    "b_sha": "35a05f2862db661f641740e9724e0fad79e3e1df",
+    "class": "natural",
+    "side": "B",
+    "target_hash": "0065288c60cd88ea40e604183d59dd9d6c9d2d7fb89564d80c8ce1e497dedbec"
+   },
+   {
+    "a_sha": "43b7b873cc2343483298f2455fafc9245d435d21",
+    "b_sha": "24c0616e7478b685c42e59c0471f1c8b7ee05cc5",
+    "class": "natural",
+    "side": "B",
+    "target_hash": "0003eea893224d287ebfe4f7e7bbf6ef4fcd1e86f293bd702cd10d72992b7010"
+   },
+   {
+    "a_sha": "44dc8219ea4891fa9a171b0e818e3e0bb4a7b402",
+    "b_sha": "23934dee4e5b765209dbf986276b2d23e2398725",
+    "class": "natural",
+    "side": "A",
+    "target_hash": "001877050d9d7798641f374cf298b71a36b4d310802645609fc3d95c767afef6"
+   },
+   {
+    "a_sha": "4985c3875c877494245f4de9530c3e2f1bd5b2f4",
+    "b_sha": "6dbe1fe1dd6b3f0a1e413a62aa34e01f275d9963",
+    "class": "natural",
+    "side": "B",
+    "target_hash": "0049ac5a22b93af6cf1e9153d03b27b1bb4bf87acf4dca2619c8cd501d908b96"
+   },
+   {
+    "a_sha": "23c1ffb619fbfed7583099174865861cc865e1cf",
+    "b_sha": "dcaa21029d62ba69185c6245cd81d2640f4f0b75",
+    "class": "natural",
+    "side": "A",
+    "target_hash": "013fcf3aa03053f4af146b2f3d0cf28f750b58e6ce64420484b7efe72dcfd358"
+   },
+   {
+    "a_sha": "7f456ee66a50d60ec266f338e285d63545d96bc4",
+    "b_sha": "32c0ee7223fa53165a9564c23105e9f18c08003d",
+    "class": "natural",
+    "side": "A",
+    "target_hash": "00275052e98fb1cf463bf3f349ea6867ffcef385a2d2c4a5d8a856be453d9fea"
+   },
+   {
+    "a_sha": "35af9e7e9f68a5a785be672597a866a54dd7f691",
+    "b_sha": "0b8926d23e5af365ae3985528216399454c4e32d",
+    "class": "natural",
+    "side": "A",
+    "target_hash": "009afeaaf18eecbc4af19cd05593f3820390d397a4bd3160503f1a73984e47de"
+   },
+   {
+    "a_sha": "94abf2c11eb293d79ad6a1ecca93823638d38a3e",
+    "b_sha": "4ce2c9d9bdb9ed80217aa1b6461007ba95df605e",
+    "class": "natural",
+    "side": "A",
+    "target_hash": "023bfe79660d09999a3cdfb7221a6d26c1f7d6e98f39a7b4dba0ab3aed322129"
+   },
+   {
+    "a_sha": "4b207123b8c80f3fa2c5552b9cedc879050842a0",
+    "b_sha": "d8b278181910858024ec6a8be539fd6be1eb31d1",
+    "class": "natural",
+    "side": "B",
+    "target_hash": "000baa05235e8a5786daf67ac3d62be77d38c5cbf28d53f33bf4b908f25b070a"
+   },
+   {
+    "a_sha": "cb1c5efb1081484e634583e9f40f99d50a9984e7",
+    "b_sha": "25307b509e3eb236724a703b7e29c55edad198f9",
+    "class": "natural",
+    "side": "B",
+    "target_hash": "000540ec2181e16dcc3f2b023d7a1be5826401e081f24553ed46a19a62d93e2c"
+   },
+   {
+    "a_sha": "670485e81c4c291281da91a48175958bdaaae5b9",
+    "b_sha": "b1524ccd9d578ceead7eb29d47dfce7a6a3e1559",
+    "class": "natural",
+    "side": "B",
+    "target_hash": "003ec0dd78fb7edc35072e9b9e89693be89e828a65ee6700465363d0cc968205"
+   },
+   {
+    "a_sha": "5338bb2f4b00b0d4a5e0144a11d6d4d9d65505fc",
+    "b_sha": "3b9a55b7768a8ca1b278dc6290883fd721e466a4",
+    "class": "natural",
+    "side": "A",
+    "target_hash": "017d2327c4155d8a6ce4ff264cffa723b37ac6a5bfa9d92d241b86e0bba9de10"
+   },
+   {
+    "a_sha": "d36efc2ec4871c188eb946c254a78bc02879e667",
+    "b_sha": "2e0d263bf779c5a8be31795377f52db14d6dc723",
+    "class": "natural",
+    "side": "A",
+    "target_hash": "0018ff9a1033667afa8e949653994f24c37457573bbe768a1475a924c08de32e"
+   },
+   {
+    "a_sha": "2f36bc3746c8ae5f9b25c1871b3b3b3e4aff599d",
+    "b_sha": "24ae36a2e0824800b3e88b7f02bc71f1c2a091d8",
+    "class": "natural",
+    "side": "B",
+    "target_hash": "002a7ecd549f356651affa8528804208e5cd24c0103828d1bd2ace79cad12c6b"
+   },
+   {
+    "a_sha": "b507027502b565d9ceb1ef35533da945800b35fa",
+    "b_sha": "af6f78adebd0c7bd0f7e14e6978f18bd3fa1b2d0",
+    "class": "natural",
+    "side": "B",
+    "target_hash": "01979a5ce47cfa11de6272a1f0e4438f14b74cb478c2642924fdf12feb50804f"
+   },
+   {
+    "a_sha": "474a064c28c3f8bdefac09ceac8d9fbced4d0e36",
+    "b_sha": "9d690194a0687c843f9df6bb3a8eba6ca0297d1b",
+    "class": "natural",
+    "side": "B",
+    "target_hash": "015d7586ae01889c1cd6b1923de9e45c947a50c859f00291ceb520b1892a5dbc"
+   },
+   {
+    "a_sha": "3be7d79e7737f92d79fc2f4eedae1c248eb96b14",
+    "b_sha": "7650c1c7d839a481f4cac516c6d76e7cb53cc176",
+    "class": "natural",
+    "side": "B",
+    "target_hash": "00435514a32de9b3dedd318940847a7b11136c029a7bd2f4333bab00a27293f0"
+   },
+   {
+    "a_sha": "9dd630b901e679c1e4b285b5da9636bc87a24c99",
+    "b_sha": "08efc9cf55e135067685fa7e1b43c761e38105f2",
+    "class": "natural",
+    "side": "B",
+    "target_hash": "007eb752462d00ac0af980f842606dcfa256b33b6c07e654132908fcf51393f1"
+   },
+   {
+    "a_sha": "39cf720e3576a3dff4cfbceb1eef0011b4862771",
+    "b_sha": "6990905d4b5f1f3dad8e4d46a4fd33212e6efa97",
+    "class": "natural",
+    "side": "B",
+    "target_hash": "0007140cf48a2d6974798ad19b1c54e5a813d94b31df84f730b72acc8632d2ea"
+   },
+   {
+    "a_sha": "1ca6808d21afe8c16c7d2999424361591bc73ece",
+    "b_sha": "9b104a46f4bdec3e50fc0f9f0c9a99aa3ae35c0f",
+    "class": "natural",
+    "side": "B",
+    "target_hash": "00cfaeb3504d25eb18e82c07e9864fca93ff31583cb635c87af6ee65b847560d"
+   },
+   {
+    "a_sha": "4ca10bdb5a66c503884251b2bbe2881881248c0f",
+    "b_sha": "a3fdc19a4065e179f7260f8add250e57eeef1437",
+    "class": "natural",
+    "side": "B",
+    "target_hash": "0003f30fb1589f434372aa670f84226e18e02d01864672ee9d36223c92d94fc5"
+   },
+   {
+    "a_sha": "bb4a027571b1da3ca20fc10f08480e346f7810bc",
+    "b_sha": "98ae2eb1d5dadce8bdfbf71177b974afa3cfe88d",
+    "class": "natural",
+    "side": "B",
+    "target_hash": "009d403c13b1e4410505c5c1e3e76f043744175b3dbc6f647b6e378321268b71"
+   },
+   {
+    "a_sha": "2e85fa39ea9f360998276e6108c2b7f847078600",
+    "b_sha": "d91e0531c0845380f1192efcc0f3abeefb7e7586",
+    "class": "natural",
+    "side": "B",
+    "target_hash": "00cc39ace264e87b363819dfb852e049e010ecb670296cbe95cc502b99f464ad"
+   },
+   {
+    "a_sha": "e138e5f7b9eaad81ae3304a8c88445c89d4de552",
+    "b_sha": "f2693d94fc990dd9aef0493b3730e7d4720ff460",
+    "class": "natural",
+    "side": "B",
+    "target_hash": "00743af11a8b0727d89c15427f708b28586055f057595ce4d8ca79029ff196c7"
+   },
+   {
+    "a_sha": "db41d27b875f00b1b7fe86bf428ba93df3f845bc",
+    "b_sha": "8bad2c5fb7170d309d292ddbf6490bfb1754df67",
+    "class": "natural",
+    "side": "B",
+    "target_hash": "004a5885c8e7fab7efd8e3c7cc92640dbddae359fc8741c3364e0031eec68b8e"
+   },
+   {
+    "a_sha": "1cc602f56bbcae60fb2f234806a2fb391f0361b5",
+    "b_sha": "c68b2ae6aa8774ffa3726d52d7acb15df1fb736a",
+    "class": "natural",
+    "side": "A",
+    "target_hash": "00536787a5e629329708c08cc54dabd4d291a2aea126f383e6df3fd6f05a5e3e"
+   },
+   {
+    "a_sha": "1c1b289992ac87ea222b45b878ba9616a8c59e45",
+    "b_sha": "21b5ec4f59a56b3bbcced67f04d0c98955a487ae",
+    "class": "natural",
+    "side": "A",
+    "target_hash": "0113d20f113df7cc941e5155a20ab1c93a358f09957670e1135a0a790dc983b4"
+   },
+   {
+    "a_sha": "68f0f0756a7b97dcb8be82d4ae963574320cf594",
+    "b_sha": "0966396986c6e8218c04e7141668ba0819bea01a",
+    "class": "natural",
+    "side": "A",
+    "target_hash": "008e87d4504821e93c6f6b9847824f33f69cfc5f14b9f88f989e50559ed1fd51"
+   },
+   {
+    "a_sha": "4bb8e379dff83c47bce3081449bafbf05040071c",
+    "b_sha": "836a0835c512354db26411ee8ee64b27ab61a2b0",
+    "class": "natural",
+    "side": "A",
+    "target_hash": "0073f9d195a1be495bbd15709ba4df7398edb93683ec57afdb49e3a4b4422a64"
+   },
+   {
+    "a_sha": "6f2d61e17cd0cc4a717d4689030c5c3df63b1cdb",
+    "b_sha": "7a1901e53c20c2a35d74d43a24c4961489d3bfbe",
+    "class": "natural",
+    "side": "B",
+    "target_hash": "016462dc819081df1e48d7c19e0b26e252aa77399776d321ea10cf573e73eeb9"
+   },
+   {
+    "a_sha": "1ea89e3cad197e341ec8a2fcfe58b21d12285c56",
+    "b_sha": "a7390ceafbefb2c0c1c50dc2ac6bbfb8705e3879",
+    "class": "natural",
+    "side": "A",
+    "target_hash": "003611ada3786179bf831cdc94ae188e28a5358aac52636a46f1720ac2911faa"
+   },
+   {
+    "a_sha": "de8ebce166416a5b96ba8183d581e7d580e488be",
+    "b_sha": "90a6a515d8cf0ee6e27862e616922da8f7cc20b5",
+    "class": "natural",
+    "side": "B",
+    "target_hash": "00d2ccff1fddfc486af0fcdb09aa74670e4fe3ecd93b3fcce1366c8e321a0a0a"
+   },
+   {
+    "a_sha": "763827c1cd58b26cd07fbcaa661de438fa382f03",
+    "b_sha": "0e05adb3645392005176066c742ed5f832157f6f",
+    "class": "natural",
+    "side": "B",
+    "target_hash": "004d1318d836d2ea2d91b471807b63fad497fc5556f87175882722fc7b4d9353"
+   },
+   {
+    "a_sha": "d99620c4a6d5faaa19b60049101d71b1aece4807",
+    "b_sha": "39ddadaf2a5afb5ed2d6d22bd8b1a05c2b162408",
+    "class": "natural",
+    "side": "A",
+    "target_hash": "012ae702ab92667178300e29213d7dcbca3d90e1af0f40e6f7f987c0425ae507"
+   },
+   {
+    "a_sha": "831c24e38d23e5f7fb6b533ad95f79679b9259dc",
+    "b_sha": "23fe9a5fdca24c1df38a670e84ae71fbf9715cfd",
+    "class": "natural",
+    "side": "B",
+    "target_hash": "00a94225e1d38887c62b7f1d4e8269979c3e9f9cdf64e7def533876f7650dc89"
+   },
+   {
+    "a_sha": "ee291896d0e4965afa4bbc966d5871b152dc64ff",
+    "b_sha": "df906d4231baa3692147357f8e015db535ba1899",
+    "class": "natural",
+    "side": "B",
+    "target_hash": "0154e12685dfbb3b64c5d5aeeed5f6c81dd348986eb4d92ea245428e5b6bcf83"
+   },
+   {
+    "a_sha": "61afc0f97bc294972be1f1998ec4557642d028a7",
+    "b_sha": "092ffb3e914f3300a706cbe744acac57c4adb5f4",
+    "class": "natural",
+    "side": "B",
+    "target_hash": "013f6d91bcd812455ee0f373d2e380852eae034dc94e44ee9fb103def8cedb08"
+   },
+   {
+    "a_sha": "38238bab8a358ca3dd0021b0db5239158a8d3aaa",
+    "b_sha": "fb9274afaf49d385599b08e7af4a2f50f63249b4",
+    "class": "natural",
+    "side": "B",
+    "target_hash": "014ad6b74e7a5817ef14e942d919f171df15f09abdbab42fe6aa545020e9f4b8"
+   },
+   {
+    "a_sha": "2ea25fa26bd14092d769c22f5e06eaee810aa764",
+    "b_sha": "17ab5013d58abffbff61bfff85aa35288631320b",
+    "class": "natural",
+    "side": "A",
+    "target_hash": "002de59aeda9403d1402503f882f783407893c7b9b768949acfe1790d8a8fe6e"
+   },
+   {
+    "a_sha": "34e395d72eb030dbf9e58428bb9e45f45ef38841",
+    "b_sha": "a0eef7e2507e57dff958e278a4ebeb0073fd833b",
+    "class": "natural",
+    "side": "A",
+    "target_hash": "00cb5749e99a06a3f1f3305dab00a2776184c0c8593e110f4025211d04da0d0c"
+   },
+   {
+    "a_sha": "188c08130fca39575e9865fe5970d551c5b883e4",
+    "b_sha": "43e13bce8cc84845085dc93630c72521b8bfc0f1",
+    "class": "natural",
+    "side": "A",
+    "target_hash": "000b0eec287d314b2212bd01a94138fd885e663132c7c8bebc47fe0b09a48ec0"
+   },
+   {
+    "a_sha": "98ae2eb1d5dadce8bdfbf71177b974afa3cfe88d",
+    "b_sha": "fe1d8f020cd6e5645e472b4962695ea1d9e83352",
+    "class": "natural",
+    "side": "A",
+    "target_hash": "0047992bd70a6a98a165b7bf16d80d5c42e96dca661c25e86c0cefc26493dfb0"
+   },
+   {
+    "a_sha": "91a968d769b3faf70075d6ba64338b2b8e279e0d",
+    "b_sha": "de93f04f8f5e541e6817d49d39ad5ea51d1ba69b",
+    "class": "natural",
+    "side": "B",
+    "target_hash": "00024fb3fca0cdaa5cb674e0687d62acc5e8bc66d78b6229a53762e405473716"
+   },
+   {
+    "a_sha": "40fedf3a94963e876f9e528647f90e4159fea575",
+    "b_sha": "cf540cfc1be063d8ee90eae8d4d94de329271cee",
+    "class": "natural",
+    "side": "B",
+    "target_hash": "01496bbd32a213c0975e8511d94173056d33fe343db16d00d6afc552e209f9bc"
+   },
+   {
+    "a_sha": "ced633eaab3c40ad76a7e598ad04ce4d747ad140",
+    "b_sha": "39a2b4209ae318740af9fe70012bb9ee2f41cbca",
+    "class": "natural",
+    "side": "B",
+    "target_hash": "0033bb86cf87f5d4557bbd7841a3bdf9d68635c1cfcf4671d6d035a6777ba65f"
+   },
+   {
+    "a_sha": "56082d530eed27cc951f49c5f1be87490a26c665",
+    "b_sha": "6566eaff07b5819abe1a10441c6b56bde0a489af",
+    "class": "rename",
+    "side": "A",
+    "target_hash": "b49985e047cafc1c27295577813f382674b0bc60423d57afb0fe6d40a87f9ed4"
+   },
+   {
+    "a_sha": "085887bef5635148ae68820f522f69ccb7fd4e60",
+    "b_sha": "151b6c7c95251e88a3532ac44bc2a37e4182dc32",
+    "class": "rename",
+    "side": "A",
+    "target_hash": "bd4fc6b36d94eede561328be9f222f5e57d7aa1e9e0558c2f61e53ffe55003e7"
+   },
+   {
+    "a_sha": "43e13bce8cc84845085dc93630c72521b8bfc0f1",
+    "b_sha": "45eca2c5d94c62845b559f3b77fbe2402ca4b2ae",
+    "class": "rename",
+    "side": "A",
+    "target_hash": "20d7910d844d8e59daa2980a277ab069d1b39ca766be1cd92ce7188d4754a6a1"
+   },
+   {
+    "a_sha": "487adaa5659830f0c86b0b7a114384f4b6d89742",
+    "b_sha": "013e0f53f0c1d543bb787958f7db0f3db39dc802",
+    "class": "rename",
+    "side": "A",
+    "target_hash": "1c25a988c9d752f505e2143a3a44e8ea541641c8c8f955ff50066ecfe7a2f220"
+   },
+   {
+    "a_sha": "24b87dbe8b9b0a69d279d3958c69fbf6273ad140",
+    "b_sha": "65dd590f169d643cab8288ae061e97947a1b630c",
+    "class": "copy",
+    "index_within_pair": 0,
+    "side": "A",
+    "target_hash": "215657260b1b2ae93307264209246d6ba33439be7b4d892db9f0d67cdc5c2919"
+   },
+   {
+    "a_sha": "24b87dbe8b9b0a69d279d3958c69fbf6273ad140",
+    "b_sha": "65dd590f169d643cab8288ae061e97947a1b630c",
+    "class": "copy",
+    "index_within_pair": 1,
+    "side": "A",
+    "target_hash": "271b65a6319bab9eddf88287d6e58ba6ff77f01d7e32f095248fa1274762ef97"
+   },
+   {
+    "a_sha": "382e47831ba349a1531af31c083f0698e7081a6d",
+    "b_sha": "a2a91589e4ec029db729f865a740f35e28615a9e",
+    "class": "copy",
+    "index_within_pair": 0,
+    "side": "A",
+    "target_hash": "2e8c01a1088b2297b02ebe58f6d32b1bd7768fd17c6192b56af965fe24941c46"
+   },
+   {
+    "a_sha": "382e47831ba349a1531af31c083f0698e7081a6d",
+    "b_sha": "a2a91589e4ec029db729f865a740f35e28615a9e",
+    "class": "copy",
+    "index_within_pair": 1,
+    "side": "A",
+    "target_hash": "6e086d75960ce45894c83f74595d923312b34cdcee8410e7c60d81afd014d1df"
+   },
+   {
+    "a_sha": "fe628c8648cfc26064aff82b9d4af45d77d4bb4c",
+    "b_sha": "6f95d2e891d009ea2ddf74d1de259c4b1556b5f4",
+    "class": "copy",
+    "index_within_pair": 0,
+    "side": "A",
+    "target_hash": "01f58d218af8331424c2353267a71f534dcae00bd4d9c4d8bc5c86972e92ad81"
+   },
+   {
+    "a_sha": "fe628c8648cfc26064aff82b9d4af45d77d4bb4c",
+    "b_sha": "6f95d2e891d009ea2ddf74d1de259c4b1556b5f4",
+    "class": "copy",
+    "index_within_pair": 1,
+    "side": "A",
+    "target_hash": "1e3f30e3b239796683cb6100d3316b29e990c0e15e5006f49e0ce9141bc4d2a0"
+   },
+   {
+    "a_sha": "45eca2c5d94c62845b559f3b77fbe2402ca4b2ae",
+    "b_sha": "70c244495e56a0190f2cac2b7f4aaf09859fd529",
+    "class": "copy",
+    "index_within_pair": 0,
+    "side": "A",
+    "target_hash": "4289effbf50a5fc362496f3411b5b0aa17a0178ad952c2c95487bf9f6f1e4ee4"
+   },
+   {
+    "a_sha": "45eca2c5d94c62845b559f3b77fbe2402ca4b2ae",
+    "b_sha": "70c244495e56a0190f2cac2b7f4aaf09859fd529",
+    "class": "copy",
+    "index_within_pair": 1,
+    "side": "A",
+    "target_hash": "ea092a34e98d3c228e420e17b329fc446b53bf6ce8fcab98b8e0cf5da1ae87f0"
+   },
+   {
+    "a_sha": "542e9b6aecc6e47ed09affdd16d97309c4378d69",
+    "b_sha": "9663baae7284d9e31d16f6ca401c97fe1f897701",
+    "class": "copy",
+    "index_within_pair": 0,
+    "side": "A",
+    "target_hash": "1d6ce244cfae6b14b079d3acf8ee36382f2c9f18e64f41b6248f0f5dd5551170"
+   }
+  ]
+ },
+ "further_pre_freeze_reconnaissance": "PROHIBITED from this point",
+ "hard_challenge": {
+  "frozen_hard_sample": {
+   "copy": {
+    "from_targetable_pairs": 5,
+    "no_target_pairs": 20,
+    "of_frozen_pairs": 25,
+    "targets": 9
+   },
+   "rename": {
+    "from_frozen_pairs": 21,
+    "no_target_pairs": 17,
+    "targets": 4
+   },
+   "total": 13
+  },
+  "hard_pass_criterion": {
+   "both_required": true,
+   "condition_1": "unsafe_relation_errors(B3) == 0 across all adjudicable hard groups",
+   "condition_2": "correct_resolved(B3) >= max(correct_resolved(B1), correct_resolved(B2)) + 3",
+   "if_safe_but_fewer_than_3_added": "HARD-INCONCLUSIVE, not FAIL"
+  },
+  "per_class_percentage_thresholds": "PROHIBITED at n=4 and n=9",
+  "pooled_into_primary_precision": false,
+  "reported_separately": true,
+  "superseded_criterion": {
+   "old_text": "B3 has fewer unsafe relation errors than B1/B2",
+   "why_impossible": "B1 and B2 both require same_pattern_id, and pattern_id includes the path. Across a rename or a copy the path changes, so the baselines return unresolved, which is not an unsafe error. Their unsafe-error count is therefore naturally 0, and requiring fewer than 0 is unsatisfiable."
+  },
+  "unsafe_relation_error_definition": [
+   "false continuation",
+   "fabricated branch",
+   "fabricated birth or death",
+   "invented endpoint",
+   "silent cardinality loss"
+  ]
+ },
+ "merge_capability": {
+  "ceiling": "MERGE-INCONCLUSIVE",
+  "merge_detector_may_be_added": false,
+  "merged_symbols": "UNAVAILABLE by preregistration",
+  "note": "fixed for this experiment; not a defect to be repaired before the benchmark"
+ },
+ "phase": "RH-M0",
+ "primary_holdout": {
+  "definition": "the primary external-validity sample is the 50 STS natural truth targets ONLY",
+  "explicit_clarification": "the 63 selected targets do NOT themselves satisfy the >= 40 criterion. The criterion counts ADJUDICABLE TRUTH GROUPS, which is not known until truth labelling is complete.",
+  "hard_targets_in_primary_denominator": false,
+  "requirements": [
+   ">= 40 adjudicable truth groups among the 50 natural targets, otherwise INCONCLUSIVE",
+   ">= 20 B3-resolved natural groups, otherwise INCONCLUSIVE",
+   "resolved precision >= 95%",
+   "zero fabricated new/ended where truth has a counterpart",
+   "B3 coverage > B0",
+   "report B3-vs-B2 coverage; an absolute loss greater than 10 percentage points requires explicit utility justification and cannot be an unconditional PASS"
+  ],
+  "why": "a deliberately oversampled hard slice must not be able to rescue a failing natural-history sample by arithmetic"
+ },
+ "producer_and_toolchain": {
+  "dotnet_sdk": "8.0.424",
+  "git": "2.55.0.windows.3",
+  "git_transform_detection": "git diff --name-status -M50% -C50% --find-copies-harder <A> <B>",
+  "normalize_strip_rule": "--strip is MANDATORY and the strip leaf must be identical for every revision; the producer is invoked from the parent of the checkout so paths come out repository-relative",
+  "ownaudit_commit_used_for_normalisation": "d0b0dbd3f96d2676fa795935b224b67d032b5447",
+  "producer": "own-check",
+  "producer_own_net_commit": "76324fe4ccf71702d4386e29462227747d4fa54e",
+  "python": "3.12.10",
+  "roslyn": "Microsoft.CodeAnalysis.CSharp 4.9.2"
+ },
+ "rename_capability": {
+  "all_four_targets_labelled": true,
+  "if_fewer_than_3_adjudicable": "RENAME-INCONCLUSIVE",
+  "no_percentage_metric": "3/4 and 4/4 are not statistics; raw counts only",
+  "pair_replacement": "PROHIBITED",
+  "validated_requires": [
+   ">= 3 adjudicable rename truth groups",
+   "zero unsafe relation errors on the adjudicable rename groups"
+  ]
+ },
+ "repositories": {
+  "ownnet": {
+   "adjacent_pairs": 238,
+   "first_parent_revisions": 239,
+   "natural_pairs_authoritative": 119,
+   "natural_pairs_preliminary_superseded": 120,
+   "ref": "main",
+   "role": "discovery / reference-evaluator development",
+   "tip": "76324fe4ccf71702d4386e29462227747d4fa54e"
+  },
+  "sts": {
+   "adjacent_pairs": 2326,
+   "audit_subdir": "SectorTS/",
+   "first_parent_revisions": 2327,
+   "frozen_tip": "3588e530f88844d93b1466bf1e1176c6cbe3450b",
+   "ref": "dsector_optimization",
+   "repo_root": "STS_new",
+   "role": "sealed holdout"
+  }
+ },
+ "sample": {
+  "no_target": {
+   "copy": [
+    {
+     "a_sha": "5338bb2f4b00b0d4a5e0144a11d6d4d9d65505fc",
+     "b_sha": "3b9a55b7768a8ca1b278dc6290883fd721e466a4"
+    },
+    {
+     "a_sha": "476377fc4042d2640f3216cc8b511747e7b30d8c",
+     "b_sha": "deaba36b1988cb3938911dd9603090113d54ede3"
+    },
+    {
+     "a_sha": "64273291f8af21d09b3627ba207859474eee4126",
+     "b_sha": "d2ec8b75979e8004c9fa387a4701e76f39015f22"
+    },
+    {
+     "a_sha": "3acf720c38423399655a17f26f0d8d9ed5cd1a9a",
+     "b_sha": "651143d81a165d8f3b32035f040c76487da083a0"
+    },
+    {
+     "a_sha": "90155829d7eba2dccd103fc0e1f07fc48e4b2bd7",
+     "b_sha": "db22cad2bb7538ee577ea7d0d1f2cdee8692525c"
+    },
+    {
+     "a_sha": "fa35e9e12f12d062169d56ff06575cee818f2851",
+     "b_sha": "f764bbaee0ea9edf53a269d691185209edfb6e10"
+    },
+    {
+     "a_sha": "795708716e69ee3ae1d240916780a2e0504cf7b7",
+     "b_sha": "99f2187b458a9e9f3b4ad265bb939c3311fee7fa"
+    },
+    {
+     "a_sha": "214fd169a5685ad9b9e5a0b966e620b5bb5fb8a1",
+     "b_sha": "65dd5e874c1789f697196cfe65500be63ddc043f"
+    },
+    {
+     "a_sha": "d3e9d7458b371a2c32a0246ee478fa132f5060e1",
+     "b_sha": "7e503d76b2b5454cb387dd104a656a507569fb73"
+    },
+    {
+     "a_sha": "93a403eacedd45856b510fa37217d0fc304c1b6d",
+     "b_sha": "678d35ee6f00eb03bac6bde853bbd6364dea4765"
+    },
+    {
+     "a_sha": "5497e6f2595f8892c6e349b440605645a3e5bdeb",
+     "b_sha": "50d27b7d7b7213ef7b5da8a51bf2338298667d1c"
+    },
+    {
+     "a_sha": "44bbf4f4169bc528ae0d160fabe5276e08858f58",
+     "b_sha": "9de66b1c358b78dfd57e94c4c07c138d2c5fc2e8"
+    },
+    {
+     "a_sha": "b8928200765a4c897232474746ad1f7bc97f0e9b",
+     "b_sha": "ac25065781ec626c74b5e3aad2571225c946c572"
+    },
+    {
+     "a_sha": "ca5f459c26d4dc2df567524dea46e700448cb36f",
+     "b_sha": "5a889983c199b4c7b1bd238e21d9bb94bfe2a778"
+    },
+    {
+     "a_sha": "8c336c21ba24c4bd0b0fc82a909d0544b4091310",
+     "b_sha": "2896e0a5dc3c0689e297add2352a5494b12f4252"
+    },
+    {
+     "a_sha": "266507d8b4e07cc432e0b255b22df3cd6593c4cc",
+     "b_sha": "b4f61dc1e5d889de0b76eb9db67b3737dad1b889"
+    },
+    {
+     "a_sha": "e6d75ec61f55e0ec7c4985337535fee7d4be1fdf",
+     "b_sha": "3457bae4aafed114d50007777eebeec5374b40db"
+    },
+    {
+     "a_sha": "eb32e9e3d09735e3518ba7033474ac8b9b2ce94d",
+     "b_sha": "623477c4cbcc3d7ea5ba3e59dc8584e313738e88"
+    },
+    {
+     "a_sha": "03576cb716f7cfcf7140d0200747c054fbe78dc7",
+     "b_sha": "3a4c06f822e1c866fcae0caccef4d252b6583071"
+    },
+    {
+     "a_sha": "5dcdbe09aff48ff16da565074b87a9893cbe6235",
+     "b_sha": "20a2c8d3ccc26469fc2d0ec0e433b188a1f95e55"
+    }
+   ],
+   "natural": [],
+   "rename": [
+    {
+     "a_sha": "199f1f3861373db6f708bd9328835005ded09e48",
+     "b_sha": "c834553e06247467207c23d769790b3e8b882ce3"
+    },
+    {
+     "a_sha": "46711ed0edd7d4e0a1516d53c5cef0f52d07c890",
+     "b_sha": "c83601783777060a37b7ea871bc9d99c99d5e060"
+    },
+    {
+     "a_sha": "d3e9d7458b371a2c32a0246ee478fa132f5060e1",
+     "b_sha": "7e503d76b2b5454cb387dd104a656a507569fb73"
+    },
+    {
+     "a_sha": "f4837ba267f45b59a08fb4e447fd6d309663e899",
+     "b_sha": "501ea55f3a8c8cc2bb98506db1af82fe40e57c37"
+    },
+    {
+     "a_sha": "266507d8b4e07cc432e0b255b22df3cd6593c4cc",
+     "b_sha": "b4f61dc1e5d889de0b76eb9db67b3737dad1b889"
+    },
+    {
+     "a_sha": "1aae361342944f6ecdb318232beeb63d5300f693",
+     "b_sha": "733c66323e135784cede110ecb214820d971776a"
+    },
+    {
+     "a_sha": "57a4f31120ea10c175a8cd2fe64ee2f5c42ac0cb",
+     "b_sha": "24184d41dfc3d45eb7c4850e7e65e131df4e332a"
+    },
+    {
+     "a_sha": "5b1878547f6a0aa8c98d7ade5404e6c5bd4ef88b",
+     "b_sha": "e084c0e70b9116584792addad57bb0e2e4273cc0"
+    },
+    {
+     "a_sha": "f54427c2d709e6a8ce9ec8198b8a47d28d379f11",
+     "b_sha": "1cf267c8f828b2ded1d49a7da344b17e7f707304"
+    },
+    {
+     "a_sha": "1af00413e334ddf38013a61c193c186ce84142aa",
+     "b_sha": "2d571bcb3a51132f9200cda367a66352faaf02c6"
+    },
+    {
+     "a_sha": "a09c9c568ff831b3984094a5ccf8c9fc17e214f3",
+     "b_sha": "4e56082fc90a3a9b5b238bf43c6c0ddf38345b8b"
+    },
+    {
+     "a_sha": "6e9e7a0464bc4328dbd4c7772e07ab9f82021548",
+     "b_sha": "63215dab2e9edb7d49c6df2e1ed7e4a0513d7b18"
+    },
+    {
+     "a_sha": "dd21aae9d2512016df3861d1c9ee1335244f8372",
+     "b_sha": "0a16e9414e8f2687d22ecf4221ded154bf923aa5"
+    },
+    {
+     "a_sha": "db204a602f8c4c1b887875bf0a36e116490da28e",
+     "b_sha": "f5975747fbb48fd703e6835bbea617684c91fb6e"
+    },
+    {
+     "a_sha": "b3841a5a63567d704eae00771b099242119893a5",
+     "b_sha": "c4f60597cecb20b4e5de9e549043d89e001b919c"
+    },
+    {
+     "a_sha": "65dd5e874c1789f697196cfe65500be63ddc043f",
+     "b_sha": "a39a8cc7dd6757e3c761594aa57f20924eea082c"
+    },
+    {
+     "a_sha": "80c944a14b8f1f7e840ed629fc6151a1adbdcd9f",
+     "b_sha": "f4951cff971483469ae388eab0266e647cb87f6f"
+    }
+   ],
+   "status": "NO_TARGET entries remain in the frame as evidence of sample sparsity. They are NOT truth groups, they are never replaced, and no pair is substituted for them."
+  },
+  "no_target_replacement_allowed": false,
+  "pair_selection_frozen": true,
+  "pair_selection_may_be_modified": false,
+  "selected_pairs": {
+   "copy": 25,
+   "natural": 50,
+   "rename": 21
+  },
+  "sts_copy_pairs": 71,
+  "sts_frame_pairs": 2326,
+  "sts_natural_candidates": 1915,
+  "sts_rename_pairs": 21,
+  "targets_after_census": {
+   "copy": 9,
+   "natural": 50,
+   "rename": 4,
+   "total": 63
+  }
+ },
+ "seeds": {
+  "b3_used_in_selection": false,
+  "canonical_serialisation": "json.dumps(array, ensure_ascii=False, separators=(\",\",\":\")).encode(\"utf-8\")",
+  "occurrence_id_used": false,
+  "selection_rank_rule": "rank_key = sha256(seed_hex || 0x00 || repo_id || 0x00 || a_sha || 0x00 || b_sha); ascending; ties by (a_sha, b_sha)",
+  "selection_seed": "ce730e47092805a8705ebc0f9b78f663a9c150139a650128f278afa9c393067e",
+  "side_preimage": [
+   "rh-m0-side/v1",
+   "<truth_seed>",
+   "sts",
+   "<A>",
+   "<B>"
+  ],
+  "side_rule": "sha256(canonical).digest()[0] & 1 ; 0 -> A, 1 -> B",
+  "target_preimage": [
+   "rh-m0-target/v1",
+   "<truth_seed>",
+   "sts",
+   "<A>",
+   "<B>",
+   "<side>",
+   "<path>",
+   "<rule>",
+   "<message>",
+   "<start_line>",
+   "<start_column>"
+  ],
+  "target_rule": "minimum lexical sha256 hex over the candidate set",
+  "truth_seed": "7e4f4650a0109d52a4e0492e6d1a087b99a4af328b72ee3144ec746d9f85d7ed"
+ },
+ "status": "FROZEN",
+ "step1_contract": {
+  "canonical_merge_commit": "011c1362861f6b8b20c45e8ebd5bcb912401c1c0",
+  "contracts": {
+   "contracts/finding-lineage-decision-v1.json": {
+    "git_blob": "610654aaf80a6ee7f4e8a96cd1f6095b8f0e5c80",
+    "sha256": "2172a9e16e9e33309a51ef4d7827086131641047595d2912ab442154d73e1ff0"
+   },
+   "contracts/finding-lineage-v1.json": {
+    "git_blob": "211c73ed9672b7408b43f52f36e31ec3e4370cd6",
+    "sha256": "12c180e96fabf186454be89b8f9418684597a116df1428d5b12e2f3c9638c441"
+   }
+  },
+  "contracts_identical_at_reviewed_head_and_merge": true,
+  "merge_shape": {
+   "branch_retained": "claude/lineage-decision-policy",
+   "commits_preserved": 84,
+   "parent_1": "d0b0dbd3f96d2676fa795935b224b67d032b5447",
+   "parent_2": "6dcc02f7d82bebeb5db9be83f77ab8c5455f5692",
+   "parents": 2,
+   "squashed": false
+  },
+  "merged_at": "2026-08-29T08:06:47Z",
+  "normalizer_unchanged_by_merge": {
+   "consequence": "RH-0 and RH-O1 measurements remain valid against canonical main",
+   "files": [
+    "aggregate/normalize.py",
+    "aggregate/provenance.py",
+    "aggregate/sarif_read.py"
+   ],
+   "identical": true
+  },
+  "reviewed_step1_head": "6dcc02f7d82bebeb5db9be83f77ab8c5455f5692"
+ },
+ "stop_conditions": {
+  "after_manifest_commit": "STOP and report the commit and hash",
+  "first_sts_b3_run_requires": "a hashed, frozen truth artifact",
+  "m0_contains_no_correctness_result": true,
+  "no_sts_b3_output_before_frozen_truth": true,
+  "reference_evaluator_may_run_on": "Own.NET only, after this freeze"
+ },
+ "sts_b3_output_exists": false,
+ "truth_labels_created": false,
+ "truth_protocol": {
+  "ai_agreement_is_not_truth": "two agreeing agents produce PROPOSED truth only; the final truth artifact requires human/owner adjudication and sign-off",
+  "evidence_cards_contain": [
+   "source at A and B",
+   "raw finding",
+   "ordinary Git diff",
+   "rename and copy metadata",
+   "commit context"
+  ],
+  "label_vocabulary": [
+   "continued 1:1",
+   "branched 1:N",
+   "merged N:1",
+   "ended",
+   "new",
+   "unresolved-by-truth",
+   "unadjudicable"
+  ],
+  "labeler_a": "blind to B3",
+  "labeler_b": "blind to B3 and to labeler A",
+  "labelers_must_not_see": [
+   "B3 output",
+   "baseline output",
+   "rule ids",
+   "evidence sets",
+   "applicable_rules",
+   "licensed_by",
+   "outcomes"
+  ],
+  "labels_per_target": 2,
+  "resolved_branch_or_merge_carries": "exact endpoint sets, not only the outcome",
+  "targets_frozen_now": 63,
+  "truth_artifact_hashed_and_frozen_before": "the first STS B3 run"
+ },
+ "verdict_taxonomy": {
+  "axes": {
+   "branch": [
+    "PASS-BRANCH",
+    "BRANCH-INCONCLUSIVE",
+    "FAIL/PIVOT"
+   ],
+   "hard": [
+    "HARD-PASS",
+    "HARD-INCONCLUSIVE",
+    "FAIL"
+   ],
+   "merge": [
+    "MERGE-INCONCLUSIVE"
+   ],
+   "natural": [
+    "PASS-NATURAL",
+    "INCONCLUSIVE",
+    "FAIL"
+   ],
+   "rename": [
+    "PASS-RENAME",
+    "RENAME-INCONCLUSIVE",
+    "FAIL"
+   ]
+  },
+  "composite": true,
+  "examples": [
+   [
+    "PASS-NATURAL",
+    "PASS-RENAME",
+    "PASS-BRANCH",
+    "MERGE-INCONCLUSIVE"
+   ],
+   [
+    "PASS-NATURAL",
+    "HARD-INCONCLUSIVE",
+    "BRANCH-INCONCLUSIVE",
+    "MERGE-INCONCLUSIVE"
+   ]
+  ],
+  "merge_axis_is_fixed": "MERGE-INCONCLUSIVE regardless of any other outcome",
+  "monolithic_pass_prohibited": "a single PASS hides which capability was actually exercised; every run reports one verdict per axis"
+ }
+}
