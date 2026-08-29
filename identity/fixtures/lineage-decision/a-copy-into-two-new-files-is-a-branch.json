@@ -1,0 +1,99 @@
+{
+  "case": "a-copy-into-two-new-files-is-a-branch",
+  "contract": "finding-lineage-decision/v1",
+  "status": "preregistered-unimplemented",
+  "title": "A branch whose successors share no pattern id with their predecessor",
+  "why": "THE CASE THE OLD CORPUS COULD NOT HOLD. `R-BRANCH-COPY` profiles each successor, and its `record_binding.successor.excluding` aims that profile at exactly the successors NOT at the predecessor's path. Until the sixth senior amendment the profile required `same_pattern_id` - which `finding-pattern/v1` computes from the path - so the rule demanded of every partner the one thing a copy guarantees it cannot have. Twelve fixtures hid that by writing one opaque id at two paths. Here the ids are real and they DIFFER: occ-a1 is f-something at Broker/Doc.cs, the two successors are elsewhere and hash to something else. The rule fires anyway, because what actually survives a copy is that the analyser said the same thing about the same content. Neither successor sits at the predecessor's path, so `excluding` removes nobody and the profile is asked of both.",
+  "revision_a": {
+    "revision": "r1",
+    "occurrences": [
+      {
+        "occurrence_id": "occ-a1",
+        "path": "Broker/Doc.cs",
+        "rule": "DOTNET_RESOURCE_LEAK",
+        "message": "event handler subscribed and never removed",
+        "start_line": 42,
+        "start_column": null,
+        "pattern_id": "f964274604b5c187",
+        "enclosing_symbol": "DocView.Wire",
+        "anchored_content": "_store.Changed += OnChanged;"
+      }
+    ]
+  },
+  "revision_b": {
+    "revision": "r2",
+    "deleted_paths": [
+      "Broker/Doc.cs"
+    ],
+    "copies": [
+      {
+        "from": "Broker/Doc.cs",
+        "to": "Broker/CopyA.cs",
+        "similarity": 100
+      },
+      {
+        "from": "Broker/Doc.cs",
+        "to": "Broker/CopyB.cs",
+        "similarity": 100
+      }
+    ],
+    "occurrences": [
+      {
+        "occurrence_id": "occ-b1",
+        "path": "Broker/CopyA.cs",
+        "rule": "DOTNET_RESOURCE_LEAK",
+        "message": "event handler subscribed and never removed",
+        "start_line": 42,
+        "start_column": null,
+        "pattern_id": "00cb4d12cb15cb18",
+        "enclosing_symbol": "CopyAView.Wire",
+        "anchored_content": "_store.Changed += OnChanged;"
+      },
+      {
+        "occurrence_id": "occ-b2",
+        "path": "Broker/CopyB.cs",
+        "rule": "DOTNET_RESOURCE_LEAK",
+        "message": "event handler subscribed and never removed",
+        "start_line": 42,
+        "start_column": null,
+        "pattern_id": "7a3209859290f641",
+        "enclosing_symbol": "CopyBView.Wire",
+        "anchored_content": "_store.Changed += OnChanged;"
+      }
+    ]
+  },
+  "expect": [
+    {
+      "outcome": "branched",
+      "frm": "occ-a1",
+      "to": [
+        "occ-b1",
+        "occ-b2"
+      ],
+      "applicable_rules": [
+        "R-BRANCH-COPY"
+      ],
+      "licensed_by": [
+        "R-BRANCH-COPY"
+      ],
+      "not_applicable": {
+        "R-CONT-SAME-SITE": "Broker/Doc.cs is gone and no successor is at it, so same_path never fired",
+        "R-CONT-DRIFT": "same_path never fired, and line_drift alone carries nothing",
+        "R-CONT-RENAME": "there is no rename record - the file was copied and then deleted, not moved",
+        "R-CONT-COPY": "the copy record is present, but structural_context fails: neither CopyAView.Wire nor CopyBView.Wire is DocView.Wire",
+        "R-MERGE-FOLD": "no merge record, and the shape is 1:N rather than N:1"
+      },
+      "note": "the two successors hash to different pattern ids from occ-a1 and from each other, which is what `finding-pattern/v1` does with three different paths. That is no longer an obstacle: the profile asks for same_rule_message and anchored_content, both of which a copy preserves.",
+      "boundary_defeated": {
+        "boundary:containing-file-deleted": "revision_b.copies[].from"
+      }
+    }
+  ],
+  "forbid": [
+    "unresolved because no successor shares the predecessor's pattern_id",
+    "continued to one successor with the other reported as new",
+    "ended for occ-a1 - the copy records say where its content went",
+    "R-CONT-COPY named in applicable_rules or licensed_by",
+    "a branch licensed by anything other than R-BRANCH-COPY"
+  ]
+}

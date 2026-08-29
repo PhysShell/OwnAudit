@@ -1,0 +1,144 @@
+{
+  "case": "every-candidate-blunted-is-an-ambiguity",
+  "title": "Two indistinguishable successors, and every rule that matches matches both",
+  "why": "The reason `arbitration.multiplicity` selects, and until now no case pinned it. Both successors sit in the same file and the same symbol with the same text, so R-CONT-SAME-SITE and R-CONT-DRIFT each match BOTH and single nobody out. `applicable_rules` is therefore empty while `rules_without_a_unique_candidate` is not, which is a different refusal from nothing having matched: candidates existed and nothing preferred one. This is the decision-layer twin of step 0's `two-candidates-unresolved`, and the shape that makes `several_candidates` a mapping entry rather than a sentence. It is also where the candidate ids have to live - the contract promised them in `detail` and had nowhere to put them.",
+  "revision_a": {
+    "revision": "r1",
+    "occurrences": [
+      {
+        "occurrence_id": "occ-a1",
+        "path": "Broker/Doc.cs",
+        "rule": "DOTNET_RESOURCE_LEAK",
+        "message": "event handler subscribed and never removed",
+        "start_line": 42,
+        "start_column": null,
+        "pattern_id": "f964274604b5c187",
+        "enclosing_symbol": "DocView.Wire",
+        "anchored_content": "_store.Changed += OnChanged;"
+      }
+    ]
+  },
+  "revision_b": {
+    "revision": "r2",
+    "occurrences": [
+      {
+        "occurrence_id": "occ-b1",
+        "path": "Broker/Doc.cs",
+        "rule": "DOTNET_RESOURCE_LEAK",
+        "message": "event handler subscribed and never removed",
+        "start_line": 44,
+        "start_column": null,
+        "pattern_id": "f964274604b5c187",
+        "enclosing_symbol": "DocView.Wire",
+        "anchored_content": "_store.Changed += OnChanged;"
+      },
+      {
+        "occurrence_id": "occ-b2",
+        "path": "Broker/Doc.cs",
+        "rule": "DOTNET_RESOURCE_LEAK",
+        "message": "event handler subscribed and never removed",
+        "start_line": 51,
+        "start_column": null,
+        "pattern_id": "f964274604b5c187",
+        "enclosing_symbol": "DocView.Wire",
+        "anchored_content": "_store.Changed += OnChanged;"
+      }
+    ]
+  },
+  "expect": [
+    {
+      "outcome": "unresolved",
+      "side": "a",
+      "frm": "occ-a1",
+      "to": [],
+      "reason": "lineage-id-unavailable:ambiguous-candidates",
+      "applicable_rules": [],
+      "licensed_by": [],
+      "decision_detail": {
+        "rules_without_a_unique_candidate": [
+          "R-CONT-DRIFT",
+          "R-CONT-SAME-SITE"
+        ],
+        "ambiguous_candidates": {
+          "R-CONT-SAME-SITE": [
+            "occ-b1",
+            "occ-b2"
+          ],
+          "R-CONT-DRIFT": [
+            "occ-b1",
+            "occ-b2"
+          ]
+        }
+      },
+      "not_applicable": {
+        "R-CONT-RENAME": "no rename record in this revision pair",
+        "R-CONT-COPY": "no copy record in this revision pair",
+        "R-BRANCH-COPY": "no copy record, so nothing explains the multiplicity",
+        "R-MERGE-FOLD": "no merge record, and the shape is 1:N not N:1"
+      }
+    },
+    {
+      "outcome": "unresolved",
+      "side": "b",
+      "frm": null,
+      "to": [
+        "occ-b1"
+      ],
+      "reason": "lineage-id-unavailable:ambiguous-candidates",
+      "applicable_rules": [],
+      "licensed_by": [],
+      "decision_detail": {
+        "rules_without_a_unique_candidate": [
+          "R-CONT-DRIFT",
+          "R-CONT-SAME-SITE"
+        ],
+        "ambiguous_candidates": {
+          "R-CONT-SAME-SITE": [
+            "occ-b1",
+            "occ-b2"
+          ],
+          "R-CONT-DRIFT": [
+            "occ-b1",
+            "occ-b2"
+          ]
+        }
+      }
+    },
+    {
+      "outcome": "unresolved",
+      "side": "b",
+      "frm": null,
+      "to": [
+        "occ-b2"
+      ],
+      "reason": "lineage-id-unavailable:ambiguous-candidates",
+      "applicable_rules": [],
+      "licensed_by": [],
+      "decision_detail": {
+        "rules_without_a_unique_candidate": [
+          "R-CONT-DRIFT",
+          "R-CONT-SAME-SITE"
+        ],
+        "ambiguous_candidates": {
+          "R-CONT-SAME-SITE": [
+            "occ-b1",
+            "occ-b2"
+          ],
+          "R-CONT-DRIFT": [
+            "occ-b1",
+            "occ-b2"
+          ]
+        }
+      }
+    }
+  ],
+  "forbid": [
+    "continued to either candidate - nothing prefers one, and picking is what uniqueness exists to stop",
+    "no-mapping-evidence as the reason - candidates existed; what was missing was a preference",
+    "conflicting-evidence as the reason - the rules agree, they simply do not discriminate",
+    "either blunted rule in applicable_rules - neither had a surviving 1:1 application",
+    "decision_detail.ambiguous_candidates omitted - a consumer cannot see which partners caused the refusal"
+  ],
+  "contract": "finding-lineage-decision/v1",
+  "status": "preregistered-unimplemented"
+}

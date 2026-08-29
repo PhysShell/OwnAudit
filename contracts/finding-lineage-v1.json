@@ -18,7 +18,63 @@
     "gave 'unresolved' only an A-side anchor - so every unmatched B occurrence was",
     "pushed toward 'new'. That is the fabricated-birth defect the contract exists to",
     "forbid, written into the contract itself. It is fixed in place rather than as a",
-    "v2 because v1 has never been implemented or released: nothing is built on it."
+    "v2 because v1 has never been implemented or released: nothing is built on it.",
+    "",
+    "Amended again by slice 2 STEP 1, which added 'conflicting-evidence'. Step 1",
+    "built a decision policy on this contract and found it had no way to say that",
+    "one observed structure supports two incompatible conclusions - a copy record",
+    "and a merge record touching one occurrence, which is N:M and therefore none of",
+    "the six outcomes. Step 1 first tried to report that as 'ambiguous-candidates',",
+    "which is a different thing: candidates are partners you cannot choose between,",
+    "not readings that contradict each other.",
+    "It was corrected here, in the senior contract, rather than by the junior one",
+    "inventing a value in a vocabulary it declares itself subordinate to. That the",
+    "junior contract had a written rule saying exactly this, and that the rule fired",
+    "on the very next review, is the reason it is written down at all.",
+    "",
+    "Amended a third time by slice 2 STEP 1, which added",
+    "'insufficient-evidence-combination'. The step 1 fixture",
+    "`defeated-signal-drops-below-the-floor` leaves three evidence kinds standing",
+    "after a defeater removes a fourth - above this contract's floor of two - and",
+    "still licenses nothing, because no declared combination survives. The junior",
+    "contract first reported that as 'insufficient-evidence-kind', which was false",
+    "in the plain meaning of the words: the kinds were ample.",
+    "Corrected here rather than below, for the second review running. The junior",
+    "rule against widening from below has now fired twice, which is a better",
+    "argument for writing rules down than any amount of agreeing that one should.",
+    "Still frozen-unimplemented: no mapper exists, so nothing is built on the old",
+    "shape and nothing has to be migrated.",
+    "",
+    "Amended a FOURTH time by slice 2 step 1, which added",
+    "'mutually_exclusive_evidence_kinds'. Step 1's per-rule coverage gate proved that",
+    "a rule reached by a fixture is still not a rule whose REQUIREMENTS are pinned:",
+    "swapping a continued rule's `line_drift` for `path_rename` left every check",
+    "green, because binding requirements to evidence is applicability and the step 1",
+    "suite deliberately refuses to compute it. Declaring which kinds cannot co-occur",
+    "closes part of that gap from the vocabulary side instead, where it costs no",
+    "second mapper. It does not close all of it - see the open question recorded in",
+    "the step 1 pull request.",
+    "",
+    "Amended a FIFTH time by slice 2 step 1, which added",
+    "'evidence_kind_observation'. Step 1's kind-to-record map needed a value for",
+    "kinds that no record witnesses, and any such escape hatch can be pointed at a",
+    "kind that a record DOES witness. Which kinds those are is a fact about this",
+    "vocabulary rather than about any rule, so it is settled here and the junior map",
+    "is checked against it.",
+    "",
+    "Amended a SIXTH time by slice 2 step 1, which added 'same_rule_message'. Review",
+    "found that both group rules were unsatisfiable on real data: they require",
+    "`same_pattern_id` of every profiled partner, and `finding-pattern/v1` hashes the",
+    "PATH into that id, so a copy's successor and a cross-file fold's predecessor can",
+    "never share one. R-BRANCH-COPY's own `excluding` clause makes it worse rather",
+    "than better - it aims the profile precisely at the partners whose path differs.",
+    "Twelve fixtures hid the contradiction by writing an opaque `pat-A` at two paths,",
+    "a value this contract's own identity function cannot produce.",
+    "The repair is a kind that says what those rules meant - the analyser said the",
+    "same thing about both occurrences - rather than weakening `pattern_id`, which is",
+    "deliberately path-bearing and stays exactly as it was. `same_pattern_id` remains",
+    "in the vocabulary and remains the stronger signal where the path did not change;",
+    "it has simply stopped being asked to prove something it cannot."
   ],
   "outcomes": {
     "continued": {
@@ -101,6 +157,10 @@
     "line_drift": {
       "sufficient_alone": false,
       "why": "proximity is not identity; case 8 is proximity without anything else"
+    },
+    "same_rule_message": {
+      "sufficient_alone": false,
+      "why": "the rule and the message are what the analyser SAID, and they survive a file moving. `same_pattern_id` cannot: `finding-pattern/v1` hashes the path together with the rule and the message, so two occurrences of one defect at two paths have different pattern ids BY CONSTRUCTION. Both group rules required `same_pattern_id` of a partner across exactly such a move, which made them unsatisfiable on real data - a copy changes the path, and a cross-file fold changes it for every predecessor that came from another file. This kind is what those rules meant. It is ONE kind and not `same_rule` beside `same_message`: two halves of one comparison would reach the floor of two between them, and the floor would silently become the algorithm again. Not identity, not a hash, no normalisation - equality of two strings the producer already emitted."
     }
   },
   "minimum_evidence_kinds_for_continued": 2,
@@ -120,16 +180,35 @@
   "limitations": {
     "no-mapping-evidence": "lineage-id-unavailable:no-mapping-evidence",
     "ambiguous-candidates": "lineage-id-unavailable:ambiguous-candidates",
+    "conflicting-evidence": "lineage-id-unavailable:conflicting-evidence",
     "missing-occurrence-id": "lineage-id-unavailable:missing-occurrence-id",
     "no-predecessor-revision": "lineage-id-unavailable:no-predecessor-revision",
-    "insufficient-evidence-kind": "lineage-id-unavailable:insufficient-evidence-kind"
+    "insufficient-evidence-kind": "lineage-id-unavailable:insufficient-evidence-kind",
+    "insufficient-evidence-combination": "lineage-id-unavailable:insufficient-evidence-combination"
   },
   "limitations_rule": [
     "These say why a lineage_id is UNAVAILABLE. They belong to 'unresolved' and to",
     "nothing else. An identity limitation is a statement about the mapper's reach;",
     "'ended' and 'new' are statements about the world, and cannot be earned by one.",
     "'no-predecessor-revision' means there is no revision A to compare against at",
-    "all - a first run. It must never be used while a predecessor revision exists."
+    "all - a first run. It must never be used while a predecessor revision exists.",
+    "'ambiguous-candidates' and 'conflicting-evidence' are neighbours and opposites,",
+    "and the difference is worth keeping sharp. Ambiguous candidates: SEVERAL",
+    "possible partners, nothing prefers one - the shape of two-candidates-unresolved.",
+    "Conflicting evidence: ONE observed structure that supports incompatible",
+    "conclusions about the same relation. The first is a choice with no grounds; the",
+    "second is grounds that argue with each other.",
+    "'insufficient-evidence-kind' and 'insufficient-evidence-combination' are the",
+    "second pair of neighbours, and the distinction is the whole reason",
+    "`minimum_evidence_kinds_for_continued` is called a floor.",
+    "Insufficient KIND: fewer kinds than the floor, or one kind carrying a mapping",
+    "no single kind may carry. The count is the problem.",
+    "Insufficient COMBINATION: the floor is met, sometimes comfortably, and no",
+    "combination a decision policy declares sufficient survives. Three kinds may be",
+    "present and the answer still unresolved, because two is the minimum a mapping",
+    "must clear and never the algorithm that decides which mappings are licensed.",
+    "Reporting the second as the first would say the evidence was too thin when it",
+    "was ample and simply did not add up to a rule anyone declared."
   ],
   "boundary_evidence_kinds": {
     "containing-file-deleted": {
@@ -285,5 +364,533 @@
     "this list: a case removed or renamed fails the suite rather than disappearing.",
     "Every one of the six outcomes must appear somewhere in the matrix, or that",
     "outcome is frozen in name only and the mapper may implement it as it likes."
-  ]
+  ],
+  "mutually_exclusive_evidence_kinds": [
+    {
+      "between": [
+        "same_path",
+        "path_rename"
+      ],
+      "why": [
+        "A path that is the SAME did not get renamed, and a path that got renamed",
+        "is not the same. These two kinds cannot both hold of one predecessor and",
+        "successor, and no rule in any junior contract may require both.",
+        "",
+        "This is frozen here rather than in the decision policy because it is a fact",
+        "about the VOCABULARY, not about any particular rule that uses it. It was",
+        "added when slice 2 step 1 found that a continued rule could have its",
+        "`line_drift` requirement swapped for `path_rename` - producing a rule that",
+        "demands a file both stay put and move - with the whole integrity suite",
+        "green. Nothing in either contract said the combination was impossible, so",
+        "nothing could object."
+      ]
+    }
+  ],
+  "mutually_exclusive_rule": [
+    "A pair listed here is UNSATISFIABLE, so a rule requiring both is dead code that",
+    "no evidence can ever reach. That is a defect and not a conservative choice: a",
+    "rule which cannot fire silently removes the conclusion it was meant to license,",
+    "and the mapping degrades to `unresolved` while the contract still advertises the",
+    "rule. Junior contracts are checked against this list; they may not add to it from",
+    "below, for the same reason they may not widen `limitations` from below."
+  ],
+  "evidence_kind_observation": {
+    "same_pattern_id": "pair_property",
+    "same_path": "pair_property",
+    "path_rename": "revision_record",
+    "structural_context": "pair_property",
+    "anchored_content": "pair_property",
+    "line_drift": "pair_property",
+    "same_rule_message": "pair_property",
+    "why": [
+      "HOW EACH KIND IS OBSERVED, which decides whether anything in revision B has",
+      "to be produced to support a claim about it.",
+      "",
+      "A `pair_property` is read off the two occurrences themselves: `same_path`",
+      "compares two paths, `anchored_content` two strings. Nothing in the diff",
+      "witnesses it and nothing can be checked against a record.",
+      "",
+      "A `revision_record` is not visible in the pair at all. Two occurrences at",
+      "different paths look identical whether the file MOVED or whether one ended and",
+      "another began; only a record in revision B distinguishes them. That is the",
+      "whole of the absence-of-record doctrine at the evidence layer, and it is why",
+      "`path_rename` is the one kind a junior contract must bind to a record.",
+      "",
+      "Frozen here, above the decision policy, because a junior contract listing its",
+      "own record-less kinds could declare `path_rename` record-less and unbind the",
+      "rename rule while every check on the mapping still passed. That mutation was",
+      "green until this section existed."
+    ]
+  },
+  "pair_property_fields": {
+    "equality": {
+      "anchored_content": [
+        "anchored_content"
+      ],
+      "same_path": [
+        "path"
+      ],
+      "same_pattern_id": [
+        "pattern_id"
+      ],
+      "same_rule_message": [
+        "rule",
+        "message"
+      ],
+      "structural_context": [
+        "enclosing_symbol"
+      ]
+    },
+    "difference": {
+      "line_drift": [
+        "start_line"
+      ]
+    },
+    "vectors": {
+      "anchored_content": [
+        {
+          "differs_in": [
+            "anchored_content"
+          ],
+          "holds": false
+        },
+        {
+          "differs_in": [
+            "enclosing_symbol"
+          ],
+          "holds": true
+        },
+        {
+          "differs_in": [
+            "message"
+          ],
+          "holds": true
+        },
+        {
+          "differs_in": [
+            "occurrence_id"
+          ],
+          "holds": true
+        },
+        {
+          "differs_in": [
+            "path"
+          ],
+          "holds": true
+        },
+        {
+          "differs_in": [
+            "pattern_id"
+          ],
+          "holds": true
+        },
+        {
+          "differs_in": [
+            "rule"
+          ],
+          "holds": true
+        },
+        {
+          "differs_in": [
+            "start_column"
+          ],
+          "holds": true
+        },
+        {
+          "differs_in": [
+            "start_line"
+          ],
+          "holds": true
+        }
+      ],
+      "line_drift": [
+        {
+          "differs_in": [
+            "anchored_content"
+          ],
+          "holds": false
+        },
+        {
+          "differs_in": [
+            "enclosing_symbol"
+          ],
+          "holds": false
+        },
+        {
+          "differs_in": [
+            "message"
+          ],
+          "holds": false
+        },
+        {
+          "differs_in": [
+            "occurrence_id"
+          ],
+          "holds": false
+        },
+        {
+          "differs_in": [
+            "path"
+          ],
+          "holds": false
+        },
+        {
+          "differs_in": [
+            "pattern_id"
+          ],
+          "holds": false
+        },
+        {
+          "differs_in": [
+            "rule"
+          ],
+          "holds": false
+        },
+        {
+          "differs_in": [
+            "start_column"
+          ],
+          "holds": false
+        },
+        {
+          "differs_in": [
+            "start_line"
+          ],
+          "holds": true
+        }
+      ],
+      "same_path": [
+        {
+          "differs_in": [
+            "anchored_content"
+          ],
+          "holds": true
+        },
+        {
+          "differs_in": [
+            "enclosing_symbol"
+          ],
+          "holds": true
+        },
+        {
+          "differs_in": [
+            "message"
+          ],
+          "holds": true
+        },
+        {
+          "differs_in": [
+            "occurrence_id"
+          ],
+          "holds": true
+        },
+        {
+          "differs_in": [
+            "path"
+          ],
+          "holds": false
+        },
+        {
+          "differs_in": [
+            "pattern_id"
+          ],
+          "holds": true
+        },
+        {
+          "differs_in": [
+            "rule"
+          ],
+          "holds": true
+        },
+        {
+          "differs_in": [
+            "start_column"
+          ],
+          "holds": true
+        },
+        {
+          "differs_in": [
+            "start_line"
+          ],
+          "holds": true
+        }
+      ],
+      "same_pattern_id": [
+        {
+          "differs_in": [
+            "anchored_content"
+          ],
+          "holds": true
+        },
+        {
+          "differs_in": [
+            "enclosing_symbol"
+          ],
+          "holds": true
+        },
+        {
+          "differs_in": [
+            "message"
+          ],
+          "holds": true
+        },
+        {
+          "differs_in": [
+            "occurrence_id"
+          ],
+          "holds": true
+        },
+        {
+          "differs_in": [
+            "path"
+          ],
+          "holds": true
+        },
+        {
+          "differs_in": [
+            "pattern_id"
+          ],
+          "holds": false
+        },
+        {
+          "differs_in": [
+            "rule"
+          ],
+          "holds": true
+        },
+        {
+          "differs_in": [
+            "start_column"
+          ],
+          "holds": true
+        },
+        {
+          "differs_in": [
+            "start_line"
+          ],
+          "holds": true
+        }
+      ],
+      "same_rule_message": [
+        {
+          "differs_in": [
+            "anchored_content"
+          ],
+          "holds": true
+        },
+        {
+          "differs_in": [
+            "enclosing_symbol"
+          ],
+          "holds": true
+        },
+        {
+          "differs_in": [
+            "message"
+          ],
+          "holds": false
+        },
+        {
+          "differs_in": [
+            "occurrence_id"
+          ],
+          "holds": true
+        },
+        {
+          "differs_in": [
+            "path"
+          ],
+          "holds": true
+        },
+        {
+          "differs_in": [
+            "pattern_id"
+          ],
+          "holds": true
+        },
+        {
+          "differs_in": [
+            "rule"
+          ],
+          "holds": false
+        },
+        {
+          "differs_in": [
+            "start_column"
+          ],
+          "holds": true
+        },
+        {
+          "differs_in": [
+            "start_line"
+          ],
+          "holds": true
+        }
+      ],
+      "structural_context": [
+        {
+          "differs_in": [
+            "anchored_content"
+          ],
+          "holds": true
+        },
+        {
+          "differs_in": [
+            "enclosing_symbol"
+          ],
+          "holds": false
+        },
+        {
+          "differs_in": [
+            "message"
+          ],
+          "holds": true
+        },
+        {
+          "differs_in": [
+            "occurrence_id"
+          ],
+          "holds": true
+        },
+        {
+          "differs_in": [
+            "path"
+          ],
+          "holds": true
+        },
+        {
+          "differs_in": [
+            "pattern_id"
+          ],
+          "holds": true
+        },
+        {
+          "differs_in": [
+            "rule"
+          ],
+          "holds": true
+        },
+        {
+          "differs_in": [
+            "start_column"
+          ],
+          "holds": true
+        },
+        {
+          "differs_in": [
+            "start_line"
+          ],
+          "holds": true
+        }
+      ]
+    },
+    "why": [
+      "WHICH OCCURRENCE FIELDS A PAIR PROPERTY COMPARES, frozen HERE for exactly",
+      "the reason the section above it is frozen here: a junior contract that",
+      "defines what a senior kind compares has redefined the kind.",
+      "",
+      "The decision policy carried this table for one commit and review took it",
+      "apart in the obvious way. The list was validated as a non-empty list of",
+      "strings, so `same_rule_message` could be widened to `[rule, message, path]`",
+      "- and then a witness whose rule and message AGREE still reads as the kind",
+      "failing, because the paths differ. The fixture written to prove the",
+      "requirement went back to being able to lie, one level below where that was",
+      "last repaired, and the amended kind would have made R-CONT-RENAME and",
+      "R-CONT-COPY unsatisfiable on every real move.",
+      "",
+      "`same_rule_message` compares the rule and the message and NOTHING ELSE. It",
+      "is the path-independent kind - that is its whole purpose, since",
+      "`finding-pattern/v1` hashes the path into `same_pattern_id` and no occurrence",
+      "that moved can carry one.",
+      "",
+      "TOTAL over the pair properties and PARTITIONED. Every kind",
+      "`evidence_kind_observation` calls a `pair_property` is an `equality` or a",
+      "`difference`, never both and never neither. A kind in neither is a comparison",
+      "nobody has written down.",
+      "",
+      "`line_drift` is why `difference` exists, and why it is a TABLE rather than an",
+      "excuse. It was a one-line note saying the kind is not an equality, and the",
+      "positive reader intersected with the equality map - so the note became a",
+      "BLIND SPOT: a case could license R-CONT-DRIFT with the successor on the",
+      "predecessor's own line, drift required and absent, and nothing objected.",
+      "An exclusion list read as a filter and never as a thing needing its own",
+      "reader is the same defect as a claim checked where it was named and not at",
+      "the adjacent site. `line_drift` holds when `start_line` DIFFERS; that is now",
+      "written where it can be read, vectored like the others, and required to hold",
+      "of any relation a rule requiring it licenses.",
+      "",
+      "WIDENING IS A CONTRADICTION, NOT A PREFERENCE, and it is checkable without",
+      "any of this being asserted: a kind whose fields CONTAIN another kind's",
+      "entails that kind, so widening `same_rule_message` with `path` makes it entail",
+      "`same_path` - and `same_path` is frozen mutually exclusive with",
+      "`path_rename`, which R-CONT-RENAME requires. The rule becomes dead, and the",
+      "existing law against requiring an impossible combination says so.",
+      "",
+      "INDEPENDENT, NOT MERELY DISTINCT. No kind's fields may contain another's. The",
+      "floor for a `continued` counts KINDS, so a kind that is another kind and more",
+      "would let one observation satisfy two and meet the floor by itself - the same",
+      "argument the sixth amendment made for keeping `same_rule_message` one kind",
+      "rather than `same_rule` beside `same_message`. Widening with `path` is caught",
+      "by the exclusivity law above; widening `same_rule_message` with",
+      "`anchored_content`, or `same_pattern_id` with `path`, is caught only here, and",
+      "both were green until this said so.",
+      "",
+      "AND THE FIELD SET IS PINNED BY VECTORS, not by properties of the list.",
+      "Membership in the occurrence vocabulary, totality, and independence between",
+      "kinds are all properties a WRONG set can have. Review demonstrated two:",
+      "`same_rule_message` extended with `start_line`, which is an occurrence field and",
+      "contains no other kind's set, and `anchored_content` REPLACED by `start_line`,",
+      "which is a different comparison entirely. Both were green. The corpus could not",
+      "object because every negative witness already differs on rule or message, and",
+      "the positive rename and copy cases happen to sit at line 42 on both sides.",
+      "",
+      "A vector says: two occurrences that differ in exactly these fields and agree on",
+      "every other one - does the kind hold? That is the definition itself, written",
+      "down in the form that can be checked. One vector per occurrence field per kind,",
+      "and the set of subsets consistent with them must contain EXACTLY ONE member,",
+      "which must be the declared list. So the vectors cannot be thinned into ambiguity",
+      "and the list cannot drift from them: change either and they disagree.",
+      "",
+      "This is the same instrument `finding-occurrence/v1` and `finding-pattern/v1`",
+      "already use, arriving here for the same reason - a definition stated only as",
+      "prose beside a list is a definition nothing reads.",
+      "",
+      "WHAT THE CORPUS CAN AND CANNOT SEPARATE, measured rather than assumed. A",
+      "coordinated edit - the list AND its vectors changed together - is an amendment",
+      "made in the open, and the frozen cases are the second reader of it. Two",
+      "obligations do that reading: a rule a case says LICENSED a relation must have",
+      "every pair property it requires actually hold between the occurrences named -",
+      "fields agreeing for an equality, differing for a difference - and every pair",
+      "property must have a case where it FAILS, declared in `required_kind_witnesses`.",
+      "Sweeping every one-field redefinition of every kind in both tables, 98 in all,",
+      "the cases reject 88 and accept 10.",
+      "",
+      "It was 17 of 82 when this section was first written, and the difference is worth",
+      "recording, because none of it was a new instrument. Three of the eight closed",
+      "were kinds with no failing witness at all - the corpus already held the cases,",
+      "only the declarations were missing. Five were `start_column`, null in all 79",
+      "occurrences because `finding-occurrence/v1` allows the column to be absent and",
+      "every fixture took that option; two pairs now carry real columns that moved, a",
+      "reindented statement and a copy target with its own numbering.",
+      "",
+      "The 10 that remain are one argument wearing three faces, and none is a missing",
+      "fixture. `rule` and `message` agree across every licensed relation NECESSARILY:",
+      "every continuation rule requires `same_rule_message` or `same_pattern_id`, so a",
+      "case where they differed and a relation was still licensed is a case this policy",
+      "forbids. Redefining `same_path` as `pattern_id` is the same - a same-path rule",
+      "already requires the id to agree. And redefining `line_drift` as 'the content",
+      "differs' survives for the same reason from the other side: wherever a drift is",
+      "licensed ALONE the content must have changed, or R-CONT-SAME-SITE would have",
+      "applied too, so the two conditions coincide everywhere the corpus can look.",
+      "",
+      "No valid corpus can separate a kind from a strictly stronger one when every case",
+      "exercising the kind satisfies the stronger condition too. Manufacturing a case",
+      "whose only purpose is to discriminate a hypothetical amendment would be building",
+      "corpus for the checker rather than for the policy, which is the one thing the",
+      "preregistration rule exists to prevent. The vectors are what pin those 10, and",
+      "they pin them the only way a definition can be pinned when no example",
+      "distinguishes it: by being written down where a reader can disagree with it.",
+      "That is a real limit and it is stated here rather than left to be discovered."
+    ]
+  }
 }

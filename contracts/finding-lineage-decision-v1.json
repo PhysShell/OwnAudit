@@ -1,0 +1,1532 @@
+{
+  "contract": "finding-lineage-decision/v1",
+  "status": "frozen-unimplemented",
+  "builds_on": "finding-lineage/v1",
+  "notes": [
+    "Own.NET#266 slice 2, step 1. finding-lineage/v1 froze WHAT a mapping may",
+    "conclude and what it must show. This freezes WHICH EVIDENCE LICENSES WHICH",
+    "conclusion - and, just as load-bearing, what happens when two answers apply",
+    "at once. Still no mapper: this is the decision policy, not the code.",
+    "Everything here is subordinate to the outcome contract. Where they appear to",
+    "disagree, finding-lineage/v1 wins and this file is the thing that is wrong."
+  ],
+  "why_rule_ids_and_not_a_confidence_score": [
+    "A scalar confidence collapses WHICH signals fired into a number, and the",
+    "outcome contract already forbids exactly that for evidence. Two different",
+    "evidence sets scoring 0.8 become indistinguishable in the record, and the",
+    "question 'would this mapping still be made under the new rule' stops having",
+    "an answer - which is the promise mapping_provenance exists to keep.",
+    "So a mapping cites RULES BY ID, and the recorded id lists answer two",
+    "different questions.",
+    "RE-JUDGEMENT: retiring or changing a rule means finding every mapping it",
+    "touched - including the ones where it LOST arbitration, and the ones where it",
+    "matched and failed uniqueness. Both are mappings that would change. That",
+    "property belongs to the UNION defined in `recall_set`, and to no single field:",
+    "`applicable_rules` is its largest part and not the whole of it.",
+    "An earlier draft claimed the property for `licensed_by` while that field still",
+    "held winners and losers together. Splitting the fields did not move the",
+    "property to the other list, which is what this section said for one revision -",
+    "it distributed it across the stages, and `recall_set` is where the pieces are",
+    "added back up.",
+    "`licensed_by` answers the other question: why this outcome and not another.",
+    "No list substitutes for another.",
+    "A threshold moving from 0.7 to 0.75 leaves no such trail at all.",
+    "This is a deliberate NO to a confidence class, not an omission. If one is",
+    "ever wanted, it must be derived FROM the cited rules and stored beside them,",
+    "never instead of them."
+  ],
+  "decision_procedure": [
+    "0. ELIGIBILITY. A finding whose `occurrence_id` is null is not a subject a",
+    "   relation can be stated about, and the answer is settled before any evidence",
+    "   is read:",
+    "     outcome = unresolved",
+    "     reason  = lineage-id-unavailable:missing-occurrence-id",
+    "   No signals are collected, no candidates are constructed, no rule is matched",
+    "   and nothing is arbitrated. See `eligibility`.",
+    "",
+    "1. COLLECT the signals that were actually evaluated. A signal that could not",
+    "   be evaluated is not absent - see `unavailable_inputs`.",
+    "2. DEFEAT: remove every signal an explaining record accounts for. A defeated",
+    "   signal is REMOVED, never weighed.",
+    "3. MATCH every rule against the surviving set. A rule may match ONE candidate",
+    "   binding or SEVERAL - matching is about the predicate, not about how many",
+    "   partners answer it.",
+    "4. FILTER. Two different rejections happen here and they are RECORDED",
+    "   SEPARATELY, because they are not the same fact and a recall set built from",
+    "   one of them would miss the other:",
+    "   - a 1:1 rule with anything other than exactly one candidate matched but",
+    "     singled nobody out -> `decision_detail.rules_without_a_unique_candidate`",
+    "   - a group rule below its declared minimum matched a shape it does not",
+    "     govern; no ambiguity occurred at all ->",
+    "     `decision_detail.rules_excluded_by_cardinality`",
+    "   An earlier revision put both in the first field. A mapper following it had",
+    "   to either call a cardinality rejection an ambiguity or drop it from the",
+    "   record, and the second is worse.",
+    "5. APPLY: the survivors of step 4 are `applicable_rules`. All of them, not the",
+    "   first match.",
+    "6. ARBITRATE by `arbitration`, over `applicable_rules` only. The result is the",
+    "   outcome and `licensed_by`.",
+    "7. RECORD every stage's output, the evidence, `decision_detail`, and the",
+    "   provenance."
+  ],
+  "eligibility": {
+    "observable_from": "the finding's own `occurrence_id`",
+    "condition": "occurrence_id is null",
+    "outcome": "unresolved",
+    "reason": "lineage-id-unavailable:missing-occurrence-id",
+    "record_shape": "input_local",
+    "precedence": "before_every_other_stage",
+    "is_not_a_rule": true,
+    "record_shape_rule": "The missing-occurrence-id refusal belongs to the INPUT FINDING ITSELF and is not a relation record. Lineage enrichment annotates the normalized finding, which is already the subject; it does not emit an edge. The exact output field name is frozen in a later schema step - the SEMANTICS are frozen here.",
+    "forbids": {
+      "synthetic_occurrence_id": "a synthetic occurrence id minted to make the record referenceable",
+      "ordinal_standing_in_for_identity": "an ordinal or index standing in for identity",
+      "anchor_hash_standing_in_for_identity": "a hash of the physical anchor standing in for identity",
+      "null_endpoint_as_pseudo_reference": "`frm: null` or `to: null` used as a pseudo-reference to the subject"
+    },
+    "forbids_rule": "Each key is a PROHIBITION TOKEN the integrity suite carries a field vocabulary for, and each token's fields are held out of the eligibility expectation schema and out of every eligibility fixture's `expect`. The list this replaced was four sentences no check read: swapping them for `[\"anything\", \"else\"]` left the corpus and the suite green, which is the same defect - a claim applied where it was named and never asked of the adjacent site - written into the section added to fix another instance of it. The token set and the suite's enforceable set must be EQUAL: a token the suite cannot enforce is prose again, and a prohibition the suite enforces but the contract stopped declaring is an enforcement nobody agreed to.",
+    "why": [
+      "A NULL OCCURRENCE ID IS NORMAL OUTPUT, NOT MALFORMED INPUT. `identity/occurrence.py`",
+      "returns `(occurrence_id | None, limitations)` and deliberately returns None when",
+      "provenance is absent or the physical anchor is ambiguous; `aggregate/normalize.py`",
+      "writes that None straight into the `normalized-findings/v2` record. A run without",
+      "producer provenance produces them routinely.",
+      "",
+      "`finding-lineage/v1` has frozen the refusal for exactly this since step 0, and",
+      "this policy had no path to it: the procedure began at COLLECT, no reason_mapping",
+      "branch emitted it, and no case in either corpus reached it. A mapper receiving",
+      "such a finding had no defined result at all - the one situation the whole",
+      "absence-of-record doctrine exists to make impossible.",
+      "",
+      "WHY A STAGE AND NOT A SEVENTH RULE. Rules relate a predecessor to a successor.",
+      "Here there is no subject to relate: the identity the relation would have to name",
+      "is the thing that is missing. This is a precondition of the relation problem",
+      "existing, so it is answered before the problem is posed - and it ABSORBS. No",
+      "later combination of same_path, anchored_content, a rename record or boundary",
+      "evidence rescues the decision, which is what keeps an identity limitation on",
+      "`unresolved` where the senior contract put it, rather than letting it drift to",
+      "`ended` or `new`.",
+      "",
+      "WHY THE REFUSAL IS INPUT-LOCAL. A relation record has to reference its subject,",
+      "and the reference it would use is precisely the id that is absent. Upstream",
+      "refused to invent an identity; this layer may not restore one with sticky tape.",
+      "Everything under `forbids` is a way of doing that, and each would silently turn",
+      "an honest 'we do not know which occurrence this is' into a confident edge."
+    ],
+    "preregistered_cases": [
+      "an-unidentified-finding-in-revision-a-is-unresolved",
+      "an-unidentified-finding-in-revision-b-is-unresolved"
+    ]
+  },
+  "order_independence": [
+    "Nothing in the procedure depends on the order anything was written in.",
+    "Steps 3 and 4 evaluate SETS - of rules, and of the candidate bindings each",
+    "rule matched - and neither asks which came first. Step 6 resolves by a",
+    "DECLARED relation rather than by position: `dominance` is pairwise and",
+    "explicit, and the theorem in `what_the_subset_sweep_proves` quantifies over a",
+    "subset and a relation with no sequence anywhere in the argument.",
+    "This is the whole reason the procedure is written in stages: an `if/elif`",
+    "chain makes the answer depend on the order someone happened to type the",
+    "branches in, and that order is invisible in the output. Two mappers",
+    "implementing this contract must agree, and they cannot agree about something",
+    "neither of them records."
+  ],
+  "rules": {
+    "R-CONT-SAME-SITE": {
+      "outcome": "continued",
+      "cardinality": {
+        "shape": "1:1"
+      },
+      "requires_all": [
+        "same_path",
+        "structural_context",
+        "anchored_content",
+        "same_pattern_id"
+      ],
+      "means": "the occurrence is where it was, in the symbol it was in, saying what it said"
+    },
+    "R-CONT-DRIFT": {
+      "outcome": "continued",
+      "cardinality": {
+        "shape": "1:1"
+      },
+      "requires_all": [
+        "same_path",
+        "structural_context",
+        "line_drift",
+        "same_pattern_id"
+      ],
+      "means": "same file and same enclosing symbol, moved by an edit elsewhere",
+      "note": "content is NOT required: a defect may be edited without ceasing to be the same defect. The PATTERN is required, and that is a different claim - `same_pattern_id` says the analyser is still saying the same thing about the same file, which is what makes this the same defect rather than the same PLACE. Without it, a `pat-A` that disappears and a single `pat-B` appearing a few lines lower in the same method inherits the lineage because a chair came free nearby. Same path and same enclosing symbol identify the SITE well enough; they do not identify the diagnostic, and for a fail-closed lineage `unresolved` is the better answer than a false continuity. `same_pattern_id` is safe to require here precisely because this rule is same-path: nothing about it pretends to survive a move, which is the thing the sixth senior amendment was needed for."
+    },
+    "R-CONT-RENAME": {
+      "outcome": "continued",
+      "cardinality": {
+        "shape": "1:1"
+      },
+      "requires_all": [
+        "path_rename",
+        "structural_context",
+        "anchored_content",
+        "same_rule_message"
+      ],
+      "means": "the file moved and the occurrence moved with it, unchanged inside",
+      "note": "path_rename alone can never do this. A rename relates FILES; the other two are what relate the occurrence."
+    },
+    "R-CONT-COPY": {
+      "outcome": "continued",
+      "cardinality": {
+        "shape": "1:1"
+      },
+      "requires_all": [
+        "copy_record",
+        "structural_context",
+        "anchored_content",
+        "same_rule_message"
+      ],
+      "means": "the file was COPIED and this occurrence went with the copy, unchanged inside, in a symbol of the same name",
+      "note": "the literal mirror of R-CONT-RENAME, differing only in where the path relation comes from: `copies` instead of `renames`. Its absence was a hole, not a simplification - finding-lineage/v1 freezes `deleted-source-survives-in-its-copy` as continued and forbids even unresolved there, and with no rule of this shape the only rule that fired on that edge was R-BRANCH-COPY, which names a different outcome. A policy whose single applicable rule contradicts a frozen case is not incomplete; it is wrong."
+    },
+    "R-BRANCH-COPY": {
+      "outcome": "branched",
+      "cardinality": {
+        "shape": "1:N",
+        "min_successors": 2
+      },
+      "requires_all": [
+        "copy_record"
+      ],
+      "partner_profile": {
+        "per": "successor",
+        "requires_all": [
+          "same_rule_message",
+          "anchored_content"
+        ],
+        "why": "what every successor must show ON ITS OWN, across a transformation that changed the path and may have changed the enclosing symbol too - and it may NOT be `same_pattern_id`: `finding-pattern/v1` hashes the path into that id, so the partner this profile is aimed at can never share one with its counterpart. The rule was unsatisfiable on real data until this said `same_rule_message` instead - the analyser saying the same thing about both occurrences, which is what 'the same defect' meant here all along. `record_binding.successor.excluding` makes the point sharpest: it aims this profile at exactly the successors NOT at the predecessor's path."
+      },
+      "means": "one predecessor, several successors, and a RECORD explaining why there are several",
+      "note": "the copy record is what separates a branch from an ambiguity. Without it, several equally-supported candidates are `unresolved` - see `arbitration.multiplicity`.",
+      "record_binding": {
+        "predecessor": {
+          "quantifier": "every"
+        },
+        "successor": {
+          "quantifier": "every",
+          "excluding": "partners_where_same_path_holds"
+        },
+        "why": [
+          "EVERY successor the exclusion leaves, and the union of the copy records is what",
+          "has to cover them. `excluding` removes the partners at the predecessor's own",
+          "path - those are where the occurrence already was, and a continued rule reaches",
+          "them, which is why `copy-record-dominates-the-single-match` is not rejected by",
+          "the strong quantifier. What remains is exactly the set the records are supposed",
+          "to explain, and each of them has to be explained: a successor at a new path that",
+          "no copy record names is not a branch of this defect, it is an occurrence that",
+          "happens to look like it.",
+          "",
+          "This said `at_least_one` until `a-copy-into-two-new-files-is-a-branch` showed",
+          "what that licensed - see `record_binding_vocabulary.why`. The coverage axis is",
+          "what makes the strong quantifier satisfiable: git writes one copy record per",
+          "destination, so the branch is described by the records together and by no one of",
+          "them alone."
+        ],
+        "coverage": "union_of_entries",
+        "coverage_witness": {
+          "case": "a-copy-into-two-new-files-is-a-branch",
+          "transform": "none",
+          "verdict": "accepts",
+          "why": "The case as committed already separates the two readings: two off-path successors and one copy record each, which `union_of_entries` accepts and `single_entry` rejects because no one record names both. No transform is needed, and `none` is declared rather than the field omitted - an absent witness and a witness that needs nothing done to it are different claims."
+        }
+      }
+    },
+    "R-MERGE-FOLD": {
+      "outcome": "merged",
+      "cardinality": {
+        "shape": "N:1",
+        "min_predecessors": 2
+      },
+      "requires_all": [
+        "merge_record"
+      ],
+      "partner_profile": {
+        "per": "predecessor",
+        "requires_all": [
+          "same_rule_message",
+          "anchored_content"
+        ],
+        "why": "the merge record relates the old structural sites to the new one; what each predecessor must show on its own is that it is the same defect, not that it is in a symbol the fold has just renamed out of existence - and it may NOT be `same_pattern_id`: `finding-pattern/v1` hashes the path into that id, so the partner this profile is aimed at can never share one with its counterpart. The rule was unsatisfiable on real data until this said `same_rule_message` instead - the analyser saying the same thing about both occurrences, which is what 'the same defect' meant here all along. A fold is not confined to one file: `merge_record` matches on enclosing symbols and imposes no same-path restriction, so a predecessor folded in from another file is an ordinary case this rule has to license."
+      },
+      "means": "several predecessors, one successor, and a RECORD explaining the fold",
+      "record_binding": {
+        "predecessor": {
+          "quantifier": "every"
+        },
+        "successor": {
+          "quantifier": "every"
+        },
+        "why": [
+          "A fold names all of its sources: the record's `from` must carry every",
+          "predecessor's enclosing symbol, and its `to` must be the successor's. A merge",
+          "that named only some of the predecessors would be claiming a fold it cannot see,",
+          "and the quantifier is what makes that different from the copy case rather than a",
+          "matter of taste.",
+          "",
+          "`coverage: single_entry` is the other half, and it is NOT inherited from the copy",
+          "rule by symmetry. Two records naming one source each describe two folds into the",
+          "same successor, not the one transformation this mapping claims - and that claim",
+          "is EXECUTED rather than argued: `coverage_witness` below names the case, the",
+          "transform that produces exactly that input, and the verdict this reading has to",
+          "reach on it. It was a probe run once in a scratch directory before that, which is",
+          "the difference between a decision and a recollection of one."
+        ],
+        "coverage": "single_entry",
+        "coverage_witness": {
+          "case": "a-fold-across-files-is-still-a-merge",
+          "transform": "split_records_one_partner_each",
+          "verdict": "rejects",
+          "why": "The corpus as committed CANNOT separate the fold's two readings: every case satisfies the stronger one, so weakening it changes nothing and the choice would be made on paper. The separating input is that case's own record spread over one source each - `from: [A, B]` becomes two records - which is two folds into one successor rather than the one transformation the mapping claims. `single_entry` rejects it and `union_of_entries` accepts it, which is the whole difference between the two values.\n\nAn earlier revision of this contract called that input an invalid mapping that could not be preregistered, and reported the fold's value as pinned only by being the stronger reading. The first half confused the RECORD being partial with the INPUT being unpreregisterable, and the second half was a disclosed gap standing in for a closed one. The transform is applied by the suite now, so the claim in `why` above is executed rather than believed."
+        }
+      }
+    }
+  },
+  "rules_note": [
+    "This set is deliberately SMALL and deliberately not exhaustive. Every rule",
+    "here names at least two evidence kinds, because finding-lineage/v1 sets that",
+    "floor and this file may not sit under it.",
+    "There is no rule licensing `ended` or `new`: those are earned by boundary",
+    "evidence, which the outcome contract already governs. Adding a rule for them",
+    "here would create a second, competing route to a death or a birth - the",
+    "exact defect that contract was corrected for.",
+    "",
+    "FALSIFIED ONCE, BY ITS OWN FIXTURE STEP. The first draft gave the structural",
+    "rules a per-partner condition reading `a rule of outcome continued`. Walking",
+    "the frozen finding-lineage/v1 corpus rule by rule showed that condition is",
+    "unsatisfiable on the two cases those rules exist for: in the copy, occ-a1 and",
+    "occ-b2 share neither path nor enclosing symbol, and in the fold both",
+    "predecessors sit in symbols the fold replaced. Every continued rule requires",
+    "`structural_context`, so none applied, so R-BRANCH-COPY and R-MERGE-FOLD",
+    "could never license the outcomes the senior contract had already frozen.",
+    "The same walk found R-CONT-COPY missing, with a worse symptom than a gap.",
+    "This is what a preregistered corpus is FOR. The policy could not quietly",
+    "declare itself ready while failing to reproduce the cases it was written",
+    "against, and no fixture written after the fact would have argued with it."
+  ],
+  "signal_defeaters": {
+    "structural_context": {
+      "defeated_by_signal": "renamed_symbol_record",
+      "why": "an enclosing symbol that was RENAMED matches by name only by accident; the rename record says the site moved, so a name match across it is coincidence rather than continuity"
+    },
+    "anchored_content": {
+      "defeated_by_signal": "reformatted_paths",
+      "why": "content equality across a reformatting pass is a property of the formatter, not of the occurrence - it neither confirms nor denies that this is the same defect"
+    }
+  },
+  "defeater_rule": [
+    "A defeated signal is REMOVED from the set before rules are applied. It is not",
+    "given a lower weight, because weight is the thing this contract refuses to",
+    "have. A rule that needed it simply stops applying, and the record says which",
+    "signal was defeated and by which record.",
+    "Defeaters therefore always beat positive signals - not because they are",
+    "'stronger', but because they act EARLIER and on a different object: they",
+    "remove an input rather than argue with a conclusion."
+  ],
+  "unavailable_inputs": {
+    "meaning": "a signal that could not be EVALUATED at all: no symbol index, no diff, no content for the revision",
+    "distinct_from": "a signal that was evaluated and did not hold",
+    "effect": "rules depending on it do not apply; they do not fail, and they certainly do not count against the mapping",
+    "recorded_as": "inputs_unavailable",
+    "why": [
+      "This is the absence-of-record doctrine at a third layer. The runtime witness",
+      "refuses to read an unread heap as a clean one; the occurrence contract",
+      "refuses an ambiguous anchor rather than guessing; here, a diff that was not",
+      "available must not read as 'the file did not move'.",
+      "Concretely: with no diff, `path_rename` cannot be evaluated, so R-CONT-RENAME",
+      "cannot apply - and an occurrence that really did move with a renamed file",
+      "comes out `unresolved`, naming the missing input, instead of `ended` plus",
+      "`new`. Slower, and true."
+    ],
+    "observable_from": "revision_b.unavailable_signals",
+    "recorded_as_why": "the FIELD NAME, machine-readable, because the integrity suite reads the record through it. It said `inputs_unavailable, listing the signal names` and the suite knew the field independently, so the two could drift: repointing this at `signals_defeated` left every check green while the contract told a mapper to write unevaluable signals into the field reserved for evaluated-and-removed ones."
+  },
+  "arbitration": {
+    "none_applies": {
+      "outcome": "unresolved",
+      "reason": "lineage-id-unavailable:no-mapping-evidence",
+      "implements": "no_rule_applied"
+    },
+    "all_agree": {
+      "outcome": {
+        "computed_from": "surviving_rules",
+        "field": "outcome",
+        "why": "NOT a literal. The value is whatever outcome the surviving rules share, and this was the prose string `the shared outcome` until review pointed out that a check rejecting only the six senior literals accepts `no outcome`, or the field being deleted. A marker a mapper can read is the whole point of the field."
+      },
+      "licensed_by": "EVERY applicable rule, not the first or the strongest",
+      "why": "the record has to survive one of those rules being retired later",
+      "this_is_not_a_separate_law": [
+        "It is the general rule read on a set that happens to agree. Dominance",
+        "never spans two rules naming the same outcome - `dominance sanity`",
+        "forbids exactly that - so no rule here can be dominated by another",
+        "applicable one, and every applicable rule survives. The branch is kept",
+        "because it is the common case and reading it out of the general rule",
+        "each time invites a mapper to get it subtly wrong."
+      ]
+    },
+    "conflict": {
+      "outcome": "unresolved",
+      "reason": "lineage-id-unavailable:conflicting-evidence",
+      "implements": "conflicting_rules",
+      "unless": "after removing every rule dominated by another APPLICABLE rule, the surviving rules are non-empty and all name the same outcome; then the outcome is that shared outcome and `licensed_by` is EVERY surviving rule",
+      "licensed_by_on_refusal": "EMPTY. Nothing licensed the refusal.",
+      "why": "two rules reaching different conclusions from the same evidence is a defect in this contract, and a mapper is the wrong place to paper over it. Refusing makes it visible; picking one hides it behind whichever branch was typed first.",
+      "why_survivors_and_not_a_single_winner": [
+        "An earlier wording read `unless exactly ONE applicable rule dominates",
+        "every other applicable rule`. That is a different policy, and a narrower",
+        "one: {R-CONT-DRIFT, R-CONT-RENAME, R-MERGE-FOLD} has both continued rules",
+        "dominating the merge rule and neither dominating the other, so the old",
+        "wording refused while the survivor reading answers `continued`. Refusing",
+        "there would be wrong on its own terms - both survivors agree, and there is",
+        "nothing left to disagree with them.",
+        "It also cost the contract its theorem. Totality follows from pair",
+        "completeness and acyclicity precisely because survivors cannot span two",
+        "outcome classes and cannot be empty; `exactly one dominating rule` is not",
+        "implied by either axiom, so the proof in `what_the_subset_sweep_proves`",
+        "supported the survivor reading and the prose asked for something else.",
+        "The suite was proving totality of a policy this file did not describe."
+      ]
+    },
+    "multiplicity": {
+      "rule": "a 1:1 outcome requires exactly ONE candidate satisfying the licensing rule. Rules that are not 1:1 declare so in `cardinality` and are guarded by it instead - see `cardinality_rule`.",
+      "several_candidates_with_a_structural_record": "branched or merged, per R-BRANCH-COPY / R-MERGE-FOLD, whose `cardinality` guards already require the multiplicity rather than tolerating it",
+      "several_candidates_without_one": {
+        "outcome": "unresolved",
+        "reason": "lineage-id-unavailable:ambiguous-candidates",
+        "implements": "several_candidates"
+      },
+      "why": [
+        "This is what makes twins work without any rule mentioning twins. Two",
+        "occurrences of one pattern in one file agree on path, pattern and content;",
+        "only structural_context tells them apart. A rule that does not include it",
+        "is satisfied by BOTH candidates, and uniqueness turns that into a refusal",
+        "instead of into whichever candidate was enumerated first.",
+        "Uniqueness is checked per RULE, not per outcome: a discriminating rule may",
+        "single out a candidate while a blunter one does not.",
+        "What this section no longer does is overturn a structural rule after the fact.",
+        "Cardinality is a precondition now, so a lone successor never licenses",
+        "`branched` in the first place; see `cardinality_rule` for why that is a",
+        "different thing from arriving at the same answer two sections later."
+      ]
+    },
+    "licensed_by_rule": {
+      "selects": "undominated_applicable",
+      "empty_exactly_when": "refusal",
+      "dominated_rules_remain_in": "applicable_rules",
+      "why": [
+        "ONE definition, and the branches above are readings of it: `licensed_by` is",
+        "the set of SURVIVING rules - the applicable rules that no other applicable",
+        "rule dominates - and it is empty exactly when the outcome is a refusal.",
+        "Dominated rules never appear in it. They stay in `applicable_rules`, where",
+        "the disagreement remains readable without being credited with the answer.",
+        "",
+        "MACHINE-READABLE, because the prose alone was checked for EXISTENCE and",
+        "nothing else: replacing these lines with the opposite claim - that",
+        "`licensed_by` carries every applicable rule, dominated ones included -",
+        "left the whole suite green. A mapper reading the contract and a suite",
+        "reading the code could then disagree about the provenance a record",
+        "carries, which is the one thing `licensed_by` exists to make legible.",
+        "The tokens above are swept against the arbitration procedure over every",
+        "subset of the rule set, so changing one changes the verdict."
+      ]
+    },
+    "reason_declarations_rule": [
+      "EVERY branch here that names a `reason` also names the `reason_mapping` entry",
+      "it IMPLEMENTS, and the integrity suite requires the two to agree.",
+      "The reason is that this file states each refusal value three times - here, in",
+      "`reason_mapping`, and for a refused pair in `deliberately_unresolved_conflicts`",
+      "- and for a while nothing tied them together. Repointing any one of the three",
+      "left the suite green, so a mapper implementing from this section could emit a",
+      "value the mapping and every fixture reject.",
+      "The correspondence is declared rather than known by the checker, for the same",
+      "reason `observable_from` is: a checker that knows which branch means which",
+      "entry has an opinion nobody can review."
+    ]
+  },
+  "dominance": {
+    "declared_pairs": [
+      {
+        "winner": "R-BRANCH-COPY",
+        "loses": [
+          "R-CONT-SAME-SITE",
+          "R-CONT-DRIFT",
+          "R-CONT-RENAME",
+          "R-CONT-COPY"
+        ],
+        "why": "a copy record EXPLAINS the multiplicity; a 1:1 rule reached its answer by not looking at the other successor. The more informed reading wins, and the losers stay in `applicable_rules` so the disagreement remains visible - not in `licensed_by`, which names only what the outcome rests on."
+      },
+      {
+        "winner": "R-MERGE-FOLD",
+        "loses": [
+          "R-CONT-SAME-SITE",
+          "R-CONT-DRIFT",
+          "R-CONT-RENAME",
+          "R-CONT-COPY"
+        ],
+        "why": "the mirror case: a merge record explains why several predecessors reach one successor, and continuing just one of them would report the others as fixed."
+      }
+    ],
+    "rule": [
+      "These two winners are NOT decoration. finding-lineage/v1 preregisters",
+      "`copy-branches-without-a-winner`, where the original site continues AND a copy",
+      "exists: R-CONT-SAME-SITE and R-BRANCH-COPY both apply and disagree. That",
+      "fixture forbids 'continued to exactly one of them', so the outcome contract",
+      "has already decided this conflict - and a decision policy that left it",
+      "unresolved would contradict a frozen case rather than implement it.",
+      "An earlier draft of this file declared dominance empty 'on purpose'. It was",
+      "checked against the step 0 matrix and was simply wrong: the conflict is",
+      "constructible, and the answer was already frozen.",
+      "For a while the motive was true and the mechanism was not: the same draft's",
+      "per-successor condition made R-BRANCH-COPY unreachable, so the conflict this",
+      "section cited as its reason to exist could not actually arise. Explicit",
+      "partner profiles restore it - on that fixture occ-b1 really does satisfy",
+      "R-CONT-SAME-SITE while the successor SET satisfies R-BRANCH-COPY, so the",
+      "disagreement is real and the branch reading really is the more informed one.",
+      "R-CONT-COPY loses to both for the same reason as the other 1:1 readings: a",
+      "structural record read at group cardinality knows why the partners are several,",
+      "and a 1:1 rule reached its answer by not looking. The cardinality guards make",
+      "this particular pair hard to reach in practice - R-CONT-COPY wants exactly one",
+      "successor and R-BRANCH-COPY wants two - and it is classified anyway, which is",
+      "the price of a completeness law that covers unreachable pairs. That price buys",
+      "the absence of a conflict nobody looked at.",
+      "Dominance is declared PAIRWISE and explicitly. There is no global ranking,",
+      "no rule priority number, and no tie-break by name - all three would decide",
+      "conflicts nobody has looked at yet."
+    ]
+  },
+  "record_additions": {
+    "applicable_rules": "the DISTINCT ids of rules with a SURVIVING application - matched, then past uniqueness and cardinality, per `decision_procedure` step 5. A set of ids, not a count of applications. Rules that matched and failed uniqueness are NOT here; they are in `decision_detail.rules_without_a_unique_candidate`, and both are needed for re-judgement - see `recall_set`.",
+    "licensed_by": "the SURVIVING rules the outcome rests on - the applicable rules that no other applicable rule dominates, per `arbitration.licensed_by_rule`. Non-empty for continued, branched and merged; EMPTY on a refused conflict.",
+    "decision_detail": "decision-layer precision that the senior contract's `reason` vocabulary does not carry: `conflicting_rules`, `rules_without_a_unique_candidate` (matched, singled nobody out), `rules_excluded_by_cardinality` (matched, wrong shape - no ambiguity involved) and `ambiguous_candidates` (rule id -> the occurrence ids it could not choose between). The rejecting stages are not cosmetic: without them a rule that lost before arbitration leaves no trace, and `applicable_rules` would either have to omit it (losing the recall set) or include it (claiming it supported the answer). It did neither. `ambiguous_candidates` is not cosmetic either: `reason_mapping.several_candidates` promised `the candidate ids` as its detail while the record shape defined nowhere to put them, so a mapper could not implement the promise and a consumer could not see which partners caused the refusal. NOT `inputs_unavailable` and NOT `signals_defeated`: both are top level.",
+    "signals_defeated": "signal name -> the record that defeated it. TOP LEVEL, and spelled this way everywhere: an earlier revision also called it `defeated_signals` inside `decision_detail`, so two conforming implementations could have produced different JSON while each followed part of this contract. Present whenever step 2 removed anything.",
+    "inputs_unavailable": "signal names that could not be evaluated. TOP LEVEL, like `signals_defeated`, and declared in exactly one place. Present whenever any were.",
+    "evidence_surviving": "the evidence kinds still standing after step 2 removed the defeated ones. TOP LEVEL, like `signals_defeated`, and present whenever a defeat occurred: which kinds survive is what decides whether the refusal is `insufficient-evidence-kind` or `insufficient-evidence-combination`, and a record that omits it leaves a consumer unable to tell an honest limitation from the other one. It may be EMPTY - a defeat can remove everything - so emptiness is a fact, not an absence.",
+    "boundary_defeated": "boundary kind -> the revision B record that defeated it, for each boundary whose evidence this revision pair carries and whose outcome the mapping did not reach. The senior contract says which record defeats which boundary; this field is where a mapper writes down that it applied one. Present whenever a carried boundary was not honoured: `deleted_paths` proves `ended` unless something says otherwise, and a mapping that concludes `continued` in silence is the absence-of-record defect one layer up.",
+    "excluded_partners_reached_by": "occurrence id -> the rule id that reaches it, for every partner a `record_binding` exclusion dropped from the record's coverage. Same shape as `signals_defeated` and `boundary_defeated`: the thing, and what explains it. The named rule must be in `applicable_rules` and must conclude the outcome the exclusion's `requires_applicable_outcome` names - it need NOT be in `licensed_by`, because a rule that reached a partner and was then dominated still reached it; that is exactly what happens in `copy-record-dominates-the-single-match`. Naming a partner the exclusion did not drop is rejected. Without this field the promise was discharged at the level of the whole mapping: ONE applicable continued rule covered EVERY dropped partner, so a second same-path successor with a different enclosing symbol rode in on the first one's rescuer while being reached by nothing."
+  },
+  "preregistered_cases": [
+    "copy-record-dominates-the-single-match",
+    "merge-record-dominates-the-single-match",
+    "copy-at-one-to-one-is-not-a-branch",
+    "defeated-signal-drops-below-the-floor",
+    "renamed-symbol-defeats-structural-context",
+    "unavailable-diff-is-not-a-deletion",
+    "blunt-rule-loses-to-uniqueness",
+    "copy-source-that-is-also-a-fold-refuses",
+    "every-candidate-blunted-is-an-ambiguity",
+    "a-defeat-can-leave-too-few-kinds",
+    "a-recorded-rename-is-not-an-unresolved",
+    "an-edit-elsewhere-is-still-the-same-defect",
+    "a-copy-into-two-new-files-is-a-branch",
+    "a-fold-across-files-is-still-a-merge",
+    "an-ambiguity-outranks-a-cardinality-rejection",
+    "a-different-defect-at-the-same-site-is-not-a-drift",
+    "a-reclassified-defect-at-an-unchanged-site-is-not-a-continuation",
+    "a-reclassified-defect-across-a-rename-is-not-a-continuation",
+    "a-reclassified-defect-across-a-copy-is-not-a-continuation"
+  ],
+  "preregistration_rule": [
+    "Fixed before the mapper, same as slice 2 step 0. These are about the POLICY",
+    "rather than the vocabulary: each is a shape where two answers are available",
+    "and the contract has to say which, or say neither.",
+    "The matrix on disk must equal this list EXACTLY - the same gate step 0 uses.",
+    "It has already paid for itself twice: trying to write the first two cases is",
+    "what proved the structural rules could not license the outcomes the senior",
+    "contract had frozen, and a later check found the declared N:M refusal pinned",
+    "by no case at all. A half-matrix of the cases that happened to pass would have",
+    "hidden both, which is why partial credit is not offered.",
+    "THE LIST ABOVE IS THE COUNT, and this paragraph does not repeat it. Two",
+    "earlier revisions of these lines said SIX and then SEVEN while the list said",
+    "otherwise - a number restated in prose goes stale exactly as often as it is",
+    "restated. Both cases added after the first draft are named here rather than",
+    "folded in silently:",
+    "  `copy-at-one-to-one-is-not-a-branch` - the same copy record at 1:1, where",
+    "  the cardinality guard means it explains a MOVE rather than a multiplicity.",
+    "  One record, two readings, and cardinality is what chooses.",
+    "  `copy-source-that-is-also-a-fold-refuses` - the N:M shape that",
+    "  `deliberately_unresolved_conflicts` freezes. That refusal was a decision",
+    "  this contract had already made and no fixture exercised; a witness check",
+    "  found it, which is the argument for proofs over the rule set rather than",
+    "  fixtures alone, made twice now.",
+    "A case may be ADDED with its entry here and an obligation in",
+    "`case_obligations`; none may be removed or renamed to make an implementation",
+    "look better."
+  ],
+  "conflict_completeness_rule": [
+    "PAIR COMPLETENESS. Every pair of DECLARED rule ids naming a different outcome",
+    "must appear either in `dominance.declared_pairs` or in",
+    "`deliberately_unresolved_conflicts`. The suite enumerates pairs from the rule",
+    "ids and their outcomes, and fails on any pair in neither list.",
+    "It does NOT ask whether the pair is reachable from a real evidence record. An",
+    "earlier wording said 'can be satisfied by one evidence set' and had the suite",
+    "compute that from `requires_all` - which is the applicability reasoning that",
+    "`what_the_subset_sweep_proves` forbids the checker to do, in the same file. A",
+    "contract cannot hold both, and a suite author would have had to pick which",
+    "half to believe.",
+    "Checking every declared pair is also the stronger rule: an unreachable pair",
+    "costs one line to declare and stops being a question, while a pair judged",
+    "unreachable by a checker's guess is a decision nobody reviewed.",
+    "This is a proof over the RULE SET rather than an example: a fixture shows one",
+    "conflict is handled, this says none is unhandled. It caught the empty-dominance",
+    "error and then the N:M pair, and it will catch the next rule added without a",
+    "thought about what it argues with."
+  ],
+  "deliberately_unresolved_conflicts": [
+    {
+      "between": [
+        "R-BRANCH-COPY",
+        "R-MERGE-FOLD"
+      ],
+      "outcome": "unresolved",
+      "reason": "lineage-id-unavailable:conflicting-evidence",
+      "why": [
+        "One occurrence that is both a copy source and a participant in a fold is an",
+        "N:M shape, and finding-lineage/v1 has six outcomes among which none is N:M.",
+        "Neither rule dominates, because neither is more informed: each holds a",
+        "structural record the other does not consult, and both records are true.",
+        "Picking `branched` would drop the predecessors the fold names; picking",
+        "`merged` would drop the successors the copy names. Refusing loses nothing",
+        "except the pretence.",
+        "The shape stays visible without being licensed: both ids appear in",
+        "`applicable_rules` and in `decision_detail.conflicting_rules`, while",
+        "`licensed_by` is EMPTY. Nothing licensed the refusal - the refusal is what",
+        "happens when nothing can, and whoever decides whether a v2 needs a seventh",
+        "outcome reads it from there.",
+        "This pair was not noticed while the rules were being written. The pair",
+        "completeness check found it on its first run, which is the argument for a",
+        "proof over the rule set rather than fixtures alone."
+      ]
+    }
+  ],
+  "applicable_rules_vs_licensed_by": [
+    "Three sets, because there are three questions, and earlier drafts of this file",
+    "collapsed them twice - once into a single field, once into two.",
+    "`matched` - the rules whose predicate held on the surviving evidence. Not",
+    "  stored as such; it is the input to the uniqueness filter.",
+    "`applicable_rules` - the rules with a SURVIVING application, after uniqueness",
+    "  and cardinality. This is what arbitration sees, and it includes the rules",
+    "  that lost arbitration: they are exactly the mappings that would change if the",
+    "  winner were retired.",
+    "`licensed_by` - the SURVIVING rules of arbitration, and only those: the",
+    "  applicable rules that no other applicable rule dominates. Several may survive",
+    "  together, and all of them are named; see `arbitration.licensed_by_rule`.",
+    "A draft put losers and winners both into `licensed_by`, so a branched mapping",
+    "asserted that R-CONT-SAME-SITE licensed `branched`. It did not: it proposed",
+    "`continued` and lost. A record that says otherwise is wrong in the same way a",
+    "fabricated successor is wrong - it attributes a conclusion to something that",
+    "never reached it.",
+    "On a refused conflict `licensed_by` is EMPTY, and the disagreeing rules appear",
+    "in `applicable_rules` and in `decision_detail.conflicting_rules`. Nothing",
+    "licensed the refusal; the refusal is what happens when nothing can.",
+    "One more thing `licensed_by` is NOT: a trace. A rule that survived on one",
+    "candidate edge appears once. The place for per-candidate bindings is the",
+    "evidence and the decision detail.",
+    "And `applicable_rules` is NOT the recall set on its own - see `recall_set`."
+  ],
+  "reason_mapping": {
+    "no_rule_applied": {
+      "reason": "lineage-id-unavailable:no-mapping-evidence",
+      "detail": "inputs_unavailable, when the reason nothing applied is that a signal could not be evaluated"
+    },
+    "no_rule_applied_after_a_defeat": {
+      "reason_by_surviving_kinds": {
+        "below_the_floor": "lineage-id-unavailable:insufficient-evidence-kind",
+        "at_or_above_the_floor": "lineage-id-unavailable:insufficient-evidence-combination",
+        "floor": {
+          "senior_field": "minimum_evidence_kinds_for_continued",
+          "counted_over": "distinct_kinds",
+          "sufficient_alone_clears": true,
+          "why": [
+            "MACHINE-READABLE, and read by the suite rather than restated in it.",
+            "",
+            "This was the sentence `minimum_evidence_kinds_for_continued, counted over",
+            "DISTINCT surviving kinds`, and the `why` below said a defeat leaving ZERO or",
+            "ONE kind is below the floor. Both stopped being true the moment the senior",
+            "contract's own exception was honoured: a surviving kind with",
+            "`sufficient_alone: true` clears the floor and the count does not apply to it.",
+            "A mapper reading this section would have classified such a defeat",
+            "`below_the_floor` while the integrity suite classified it `at_or_above_the_floor`.",
+            "",
+            "The exception was taught to four checker call sites and to none of the places",
+            "the CONTRACT states it - which is the same claim at a fifth site, found by a",
+            "reviewer after a census that enumerated predicates in the checker and never",
+            "looked here.",
+            "",
+            "`counted_over` is a TOKEN, not a sentence. It read `DISTINCT surviving kinds`,",
+            "and the check that was supposed to bind this section accepted `all signals` in",
+            "its place - and accepted `senior_field: limitations`, a real senior key with",
+            "nothing to do with the floor. Membership standing in for the correct member,",
+            "inside the check written to stop this section drifting from the senior rule."
+          ]
+        }
+      },
+      "detail": "`signals_defeated` (top level): signal name -> the record that removed it",
+      "why": [
+        "Distinguished from `no-mapping-evidence` because the two are not the same",
+        "situation and a consumer reads this field. When a defeater fires, evidence WAS",
+        "observed - it was removed because a record explained it away - and saying `no",
+        "mapping evidence` would be false in the plain meaning of the words.",
+        "CONDITIONAL, not a single value. An earlier revision mapped every defeat to",
+        "A formatter or rename defeat that leaves too few kinds is below the senior",
+        "floor, and there the shortage really is of kinds - which is the distinction the",
+        "senior contract was amended to carry. `too few` is `floor` above, exception",
+        "included: a single surviving kind is below it unless that kind is",
+        "`sufficient_alone`, in which case the senior contract says the count stops",
+        "applying and the shortage is of combinations, not kinds.",
+        "the very entry that asked for it.",
+        "In `defeated-signal-drops-below-the-floor` three kinds survive against a floor",
+        "of two: ample kinds, and no declared combination accepts them."
+      ]
+    },
+    "conflicting_rules": {
+      "reason": "lineage-id-unavailable:conflicting-evidence",
+      "detail": "conflicting_rules: the ids that disagreed"
+    },
+    "several_candidates": {
+      "reason": "lineage-id-unavailable:ambiguous-candidates",
+      "detail": "`decision_detail.ambiguous_candidates`: rule id -> the occurrence ids that rule could not choose between, alongside the rule ids in `rules_without_a_unique_candidate`"
+    }
+  },
+  "reason_mapping_rule": [
+    "THE DECISION LAYER INVENTS NO REASON VALUES. Every `unresolved.reason` it can",
+    "emit is drawn from finding-lineage/v1's `limitations`, and the integrity suite",
+    "asserts that against the SENIOR contract rather than against a union of both.",
+    "A draft of this file declared two new values of its own. A second draft mapped",
+    "a rule conflict onto `ambiguous-candidates`, which was closer but still wrong:",
+    "ambiguous candidates are several partners with nothing to prefer between them,",
+    "while a rule conflict is ONE structure read two incompatible ways. Reusing the",
+    "word would have left that distinction alive only in a junior field.",
+    "So the senior contract was amended, in the open, to carry",
+    "`conflicting-evidence` - which is what the rule two paragraphs down demands,",
+    "and it demanded it of this file first.",
+    "An unevaluable input stays `no-mapping-evidence`: there really is nothing",
+    "observed to license a link, and `inputs_unavailable` keeps the reason why.",
+    "If a future situation is genuinely unsayable in the senior vocabulary, amend",
+    "the senior contract. Do not widen it from below, and do not teach a junior",
+    "test to accept a union - that is a test granting a contract what the senior",
+    "contract withheld."
+  ],
+  "arbitration_invariant": [
+    "PAIRWISE COMPLETENESS IS NOT ENOUGH. A > B, B > C, C > A covers every pair and",
+    "decides nothing; a mapper implementing only the pairwise law would resolve by",
+    "enumeration order, which is the defect this section exists to remove.",
+    "The invariant is TOTALITY over the declared rule ids:",
+    "",
+    "  Arbitration is a total function on every non-empty subset of the declared",
+    "  rule IDs - whether or not that subset is reachable from a valid evidence",
+    "  record - and its result does not depend on enumeration order.",
+    "",
+    "An earlier draft said 'every jointly satisfiable set', then counted 31 subsets",
+    "in the next line. That does not follow: five rules give 31 mathematical",
+    "subsets, not 31 realisable evidence states. `same_path` and `path_rename` are",
+    "normally exclusive for one predecessor-successor edge, and the branch/merge",
+    "rules apply at a different cardinality scope entirely.",
+    "Totality is the stronger and cleaner property anyway, and it keeps the suite",
+    "out of a job it must not have: deciding which signal combinations are",
+    "physically possible is domain reasoning, and a checker doing it would become a",
+    "second mapper, hidden and worse dressed than the first."
+  ],
+  "structural_signals": {
+    "copy_record": {
+      "observable_from": "revision_b.copies",
+      "entry_shape": {
+        "from": "path",
+        "to": "path",
+        "similarity": "int"
+      },
+      "matches": {
+        "from": "predecessor.path",
+        "to": "successor.path"
+      },
+      "why": "the record that explains why one predecessor has several successors"
+    },
+    "merge_record": {
+      "observable_from": "revision_b.merged_symbols",
+      "entry_shape": {
+        "from": "list of enclosing symbols",
+        "to": "enclosing symbol"
+      },
+      "matches": {
+        "from": "predecessor.enclosing_symbol",
+        "to": "successor.enclosing_symbol"
+      },
+      "why": "the record that explains why several predecessors reach one successor"
+    },
+    "renamed_symbol_record": {
+      "observable_from": "revision_b.renamed_symbols",
+      "entry_shape": {
+        "from": "enclosing symbol",
+        "to": "enclosing symbol"
+      },
+      "matches": {
+        "from": "predecessor.enclosing_symbol"
+      },
+      "why": "defeats structural_context: a name that matches across a rename matches by accident",
+      "note": "not exercised by any finding-lineage/v1 fixture; the step 1 fixtures introduce it"
+    },
+    "reformatted_paths": {
+      "observable_from": "revision_b.reformatted_paths",
+      "entry_shape": "path",
+      "matches": {
+        "path": "predecessor.path"
+      },
+      "why": "defeats anchored_content: equality across a formatter pass is a property of the formatter",
+      "note": "not exercised by any finding-lineage/v1 fixture; the step 1 fixtures introduce it"
+    },
+    "rename_record": {
+      "observable_from": "revision_b.renames",
+      "entry_shape": {
+        "from": "path",
+        "to": "path",
+        "similarity": "int"
+      },
+      "matches": {
+        "from": "predecessor.path",
+        "to": "successor.path"
+      },
+      "why": "the record that says a file MOVED rather than being deleted and another born"
+    }
+  },
+  "structural_signals_rule": [
+    "`copy_record` and `merge_record` were bare atoms in the first draft - named in",
+    "rules, observable from nowhere stated. That is exactly the gap step 0 closed",
+    "for boundary evidence when it required `observable_from` and `match`, on the",
+    "grounds that evidence living only in prose is not evidence.",
+    "`observable_from` here names REAL fields of the step 0 fixtures: `copies` and",
+    "`merged_symbols` are the ones copy-branches-without-a-winner and",
+    "duplicate-sites-merge-into-one already carry. The two defeater sources are",
+    "declared as not yet exercised, which is a fact worth stating rather than",
+    "leaving to be discovered.",
+    "`signal_defeaters` is validated against this catalog, so a defeater cannot",
+    "name a source that does not exist."
+  ],
+  "entry_shape_rule": [
+    "`entry_shape` IS THE RECORD'S SCHEMA. `matches` says which of its fields take",
+    "part in relation binding. Those are different questions, and the domain of",
+    "the first must never be read off the second: a key that no rule matches on is",
+    "still part of the record a mapper has to parse, and deriving the schema from",
+    "`matches` would quietly promote a binding declaration into a type definition.",
+    "",
+    "A token carries a SHAPE - one value or many, text or int - and, for the two",
+    "occurrence attributes, a CLASS. The shape half is read of EVERY declaration",
+    "against the real records in the frozen corpus - per key for a record like",
+    "`copies`, and whole-entry where the entries are bare values, as",
+    "`reformatted_paths` are. A missing key, a scalar written as a one-element",
+    "list, a `similarity` written as `\"100\"` are all rejected there, and the key",
+    "set is read in BOTH directions, so the schema is bound to the data rather",
+    "than to the rules.",
+    "The whole-entry form was the half this sentence claimed and the check did not",
+    "cover: `reformatted_paths` could be redeclared `list of paths` while the",
+    "corpus went on supplying scalars, and the class test cannot see it, since",
+    "both tokens name the same class. A rule wider than the check under it is the",
+    "defect this document keeps having to repair, and it is worth saying that it",
+    "arrived once more in the sentence written to announce the repair.",
+    "The class half was read only where `matches` named the key, which left",
+    "`renamed_symbol_record.entry_shape.to` free to say `path` with nothing",
+    "noticing - membership standing in for the correct member, one level up: the",
+    "keys of `entry_shape` were read THROUGH the keys of `matches`, which covers",
+    "the intersection and calls it the whole.",
+    "",
+    "It is bound now by what the record IS. These records relate two ends of one",
+    "move, and the two ends are the same kind of thing: a copy goes from a path to",
+    "a path, a fold from enclosing symbols to an enclosing symbol, a symbol rename",
+    "from a name to a name. Cardinality may differ across the pair - a fold's",
+    "`from` is a list - but the class may not. So `from` and `to` are checked",
+    "against each other, and `matches` binding either end binds both.",
+    "`similarity` needs nothing further: `int` is a class the corpus itself",
+    "refutes, since a score written as a path is not a number."
+  ],
+  "what_the_subset_sweep_proves": [
+    "The subset sweep proves ARBITRATION ALGEBRA: given a set of rule ids, the",
+    "policy yields one answer, always, regardless of order. It does NOT prove",
+    "APPLICABILITY SEMANTICS - that some real evidence record can produce that set.",
+    "Fixtures prove that, and keeping the two apart means neither has to pretend to",
+    "be the other.",
+    "",
+    "TWO AXIOMS AND A THEOREM, not three axioms. An earlier draft listed the three",
+    "as if they were independent, which looked tidier and was false:",
+    "  1. PAIR COMPLETENESS - every different-outcome pair of declared ids is",
+    "     classified exactly once, as dominance or as deliberate refusal.",
+    "  2. DOMINANCE SANITY - edges name existing ids, never self-edge, always span",
+    "     different outcomes, never point both ways, and form no cycle. No",
+    "     transitivity is inferred: A>B and B>C do not create A>C.",
+    "  3. TOTALITY - follows FROM 1 and 2 plus the absorbing refusal rule:",
+    "     Let S have more than one outcome and no refused pair. By 1 every",
+    "     different-outcome pair inside S is an edge. Survivors cannot span two",
+    "     outcome classes, since any two survivors of different outcomes form a",
+    "     pair that is an edge, and whichever way it points one of them has an",
+    "     incoming edge from inside S. Survivors cannot be empty, since a finite",
+    "     acyclic digraph has a source. So the result exists and is unique, and",
+    "     order never enters the argument.",
+    "",
+    "THE ARGUMENT DOES NOT MENTION THE NUMBER OF RULES. Read it again and check:",
+    "every step quantifies over a subset and a relation, and nothing anywhere says",
+    "five, or six, or twenty. That is why the check below is NOT an enumeration of",
+    "this policy's own classification space.",
+    "It used to be. All 3^7 = 2187 classifications of the five-rule set's seven",
+    "conflicting pairs were enumerated, and the run was honest but the design was",
+    "not: it charged an exponential in k for a theorem whose proof is independent",
+    "of k. Adding one ordinary rule took it to 3^9 x 63 = 1240029 arbitrations, so",
+    "the fail-closed budget fired - correctly - and turned `write a sixth rule`",
+    "into `revise the CI compute policy`. Raising the ceiling would have bought one",
+    "more rule and the same bill again after it.",
+    "",
+    "So the two jobs are separated:",
+    "  - THIS POLICY is verified directly and completely: exact pair completeness,",
+    "    dominance sanity, the full 2^n - 1 subset sweep of the real rule set,",
+    "    absorbing refusals, and mutations proving each checker bites. That cost is",
+    "    exponential in the RULE COUNT, and budgeted for it.",
+    "    Calling that cost linear, as an earlier revision of this section did, was",
+    "    simply wrong. Removing the 3^k factor took 3^k x (2^n - 1) down to 2^n - 1;",
+    "    it did not make the remainder linear. Six rules sweep 63 subsets, twelve",
+    "    sweep 4095, twenty sweep over a million - so this sweep carries a reviewed",
+    "    ceiling of its own, failing CI when it is exceeded rather than growing",
+    "    quietly until someone notices the bill. The k-independent argument bought",
+    "    a much smaller exponent, not the absence of one, and the difference is",
+    "    exactly the kind of claim this file exists to stop making.",
+    "  - THE THEOREM is falsified against a FIXED synthetic model - four rules",
+    "    partitioned A, A, B, C, every classification of its pairs enumerated. Its",
+    "    size does not move when a production rule is added, so adding one is a",
+    "    contract edit and nothing else.",
+    "The model is chosen to contain the case the survivor reading turns on: two",
+    "rules of the SAME outcome surviving together, which is exactly what the old",
+    "`exactly one dominating rule` wording got wrong. A model without that shape",
+    "would be a cheaper check of a weaker claim.",
+    "",
+    "And it is called what it is: BOUNDED FALSIFICATION, not proof. The proof is the",
+    "paragraph above, written out and readable. The falsifier is a standing attempt",
+    "to break it, and a general argument that survives every classification of a",
+    "small model is not thereby proven - it is un-refuted at that size. The honest",
+    "claim is the weaker one, and it costs nothing to state it.",
+    "",
+    "1 and 2 ARE independent of each other, shown rather than argued: dropping one",
+    "pair classification fails 1 with 2 still green, and a three-cycle with every",
+    "pair classified fails 2 with 1 still green."
+  ],
+  "partner_profile_rule": [
+    "WHY A PROFILE AND NOT A COUNT, AND NOT A BRIDGE.",
+    "",
+    "Two repairs were available for the falsification above and both are refused",
+    "here, on the record, because both look reasonable from a distance.",
+    "",
+    "NOT BRIDGES. A bridge would let `copy_record` be read AS `same_path`, or",
+    "`merge_record` AS `structural_context`, so the ordinary continued rules would",
+    "fire again. That is evidence laundering: a structural record explains why the",
+    "ordinary context CHANGED, and reading it as though the context did not change",
+    "throws away the only thing the record knows. The copy case makes the dishonesty",
+    "concrete - no bridge turns `DocView.Wire` into `DocCopyView.Wire` while telling",
+    "the truth, because the symbol really is a different one.",
+    "",
+    "NOT A BARE COUNT. `minimum_evidence_kinds_for_continued` is 2, and it would",
+    "have been easy to make the per-partner condition `at least two kinds`. But the",
+    "senior contract calls that number a FLOOR, not the algorithm, and it is right:",
+    "the floor forbids resting on one weak signal, it does not promise that any two",
+    "weak signals suffice. `same_path` plus `same_pattern_id` is two kinds and says",
+    "only that one file holds two occurrences of one pattern - which is the twin",
+    "shape the whole contract exists to refuse. Choosing WHICH combinations license",
+    "what is the job the senior contract left to this file, and answering it with a",
+    "cardinal number would be handing the job back.",
+    "",
+    "So each structural rule declares its partner profile EXPLICITLY, by naming the",
+    "kinds. `same_rule_message` and `anchored_content`: the partner must be an",
+    "occurrence the analyser said the same thing about, showing the same content.",
+    "",
+    "It read `same_pattern_id` here until the sixth senior amendment, and the",
+    "sentence that followed it - `which is what survives a transformation that moved",
+    "the file` - was the defect itself, written down. It does not survive one:",
+    "`finding-pattern/v1` hashes the PATH into that id, so a partner reached across",
+    "a move never shares it. Both group rules were therefore unsatisfiable on real",
+    "data, and the corpus hid it by writing one opaque id at two paths. The kinds",
+    "named here now are the ones that actually survive the move. The integrity suite",
+    "checks the profile clears the senior floor and that no kind in it is",
+    "`sufficient_alone` - it does NOT derive the profile, because a derived profile",
+    "would be the cardinal number again with extra steps.",
+    "",
+    "WHICH SIDE, AND WHY IT IS DERIVED RATHER THAN DECLARED.",
+    "",
+    "`per` names the REPEATED side, and the suite reads it off `cardinality` instead",
+    "of trusting the declaration: `per` accepted either value for either shape, so a",
+    "1:N rule could profile the predecessor - the side it has exactly one of - and",
+    "license a branch whose successors showed none of the required evidence. The",
+    "senior contract defines `branched` as several EQUALLY SUPPORTED successors, and",
+    "a profile aimed at the singleton supports none of them.",
+    "",
+    "This is derived where the QUANTIFIER is declared, and the difference is the",
+    "point. How many partners a record must name is a policy choice - copy explains",
+    "one, fold names every - and a checker choosing it would hold an opinion nobody",
+    "reviewed. Which side is repeated is not a choice at all: `1:N` means one",
+    "predecessor and N successors. Deriving a fact and declaring a decision are",
+    "different acts, and this file should keep doing both rather than picking one."
+  ],
+  "cardinality_rule": [
+    "Cardinality is a machine-readable PRECONDITION of the rule, not something",
+    "`arbitration.multiplicity` cleans up afterwards.",
+    "The difference is not stylistic. Left to arbitration, a single copy_record",
+    "would first license `branched` for one lonely successor and then have another",
+    "section of this file overturn it - two passages deciding one question, which",
+    "is a theological dispute between halves of a JSON document waiting to be",
+    "debugged at the worst possible moment. Declared as a guard, R-BRANCH-COPY",
+    "simply does not apply below two successors, and R-CONT-COPY - which does - is",
+    "the rule that answers.",
+    "`1:1` for every continued rule, `1:N` with `min_successors: 2` for the branch,",
+    "`N:1` with `min_predecessors: 2` for the fold. These mirror the shape rules",
+    "finding-lineage/v1 already enforces on its fixtures, which is the point: the",
+    "policy states them where a mapper reads them."
+  ],
+  "case_obligations": {
+    "why": [
+      "What each case must MECHANICALLY exhibit, beyond reaching the right answer.",
+      "Without this a case can be right for the wrong reason and stay green: drop",
+      "R-CONT-SAME-SITE out of `copy-record-dominates-the-single-match` and into",
+      "`not_applicable`, and the fixture still reports `branched` licensed by",
+      "R-BRANCH-COPY - correct, and no longer showing dominance doing any work at",
+      "all. The suite cannot catch that on its own, because deciding which rules",
+      "really fired is applicability, and a checker doing applicability is a second",
+      "mapper. So the obligation is PREREGISTERED here instead, and checked against",
+      "the fixture's own declarations."
+    ],
+    "obligations": {
+      "a-copy-into-two-new-files-is-a-branch": [
+        "rule_licensed_alone"
+      ],
+      "a-defeat-can-leave-too-few-kinds": [
+        "defeat_removed_a_signal"
+      ],
+      "a-different-defect-at-the-same-site-is-not-a-drift": [
+        "required_kind_withheld_a_rule"
+      ],
+      "a-fold-across-files-is-still-a-merge": [
+        "rule_licensed_alone",
+        "required_kind_withheld_a_rule"
+      ],
+      "a-reclassified-defect-across-a-copy-is-not-a-continuation": [
+        "required_kind_withheld_a_rule",
+        "cardinality_excluded_a_rule"
+      ],
+      "a-reclassified-defect-across-a-rename-is-not-a-continuation": [
+        "required_kind_withheld_a_rule"
+      ],
+      "a-reclassified-defect-at-an-unchanged-site-is-not-a-continuation": [
+        "required_kind_withheld_a_rule"
+      ],
+      "a-recorded-rename-is-not-an-unresolved": [
+        "rule_licensed_alone",
+        "required_kind_withheld_a_rule"
+      ],
+      "an-ambiguity-outranks-a-cardinality-rejection": [
+        "blunt_rule_recorded",
+        "cardinality_excluded_a_rule"
+      ],
+      "an-edit-elsewhere-is-still-the-same-defect": [
+        "rule_licensed_alone",
+        "required_kind_withheld_a_rule"
+      ],
+      "blunt-rule-loses-to-uniqueness": [
+        "blunt_rule_recorded"
+      ],
+      "copy-at-one-to-one-is-not-a-branch": [
+        "cardinality_excluded_a_rule"
+      ],
+      "copy-record-dominates-the-single-match": [
+        "dominance_did_work",
+        "required_kind_withheld_a_rule"
+      ],
+      "copy-source-that-is-also-a-fold-refuses": [
+        "refusal_was_recorded"
+      ],
+      "defeated-signal-drops-below-the-floor": [
+        "defeat_removed_a_signal"
+      ],
+      "every-candidate-blunted-is-an-ambiguity": [
+        "blunt_rule_recorded"
+      ],
+      "merge-record-dominates-the-single-match": [
+        "dominance_did_work"
+      ],
+      "renamed-symbol-defeats-structural-context": [
+        "defeat_removed_a_signal"
+      ],
+      "unavailable-diff-is-not-a-deletion": [
+        "input_was_unavailable"
+      ]
+    },
+    "meanings": {
+      "blunt_rule_recorded": "`decision_detail.rules_without_a_unique_candidate` is non-empty. The blunt rule must be visible as having failed to choose, not merely absent.",
+      "cardinality_excluded_a_rule": "the case names `decision_detail.rules_excluded_by_cardinality`, and each rule there is genuinely unable to fit the declared shape - checked against its own `min_successors` / `min_predecessors`, not against prose. An earlier revision of this entry still named a top-level `excluded_by_cardinality`, abandoned when the stage got a declared home; a fixture author following it would have produced a shape the checker rejects and the recall union never sees.",
+      "defeat_removed_a_signal": "`signals_defeated` is non-empty, the defeating record is carried by revision B, and it names this occurrence.",
+      "dominance_did_work": "some rule in `applicable_rules` is absent from `licensed_by` AND is dominated by a rule that is in it. The conflict is real and arbitration resolved it, rather than there having been one candidate all along.",
+      "input_was_unavailable": "`inputs_unavailable` is non-empty and revision B declares the same signal in `unavailable_signals`.",
+      "refusal_was_recorded": "the case exercises a pair declared in `deliberately_unresolved_conflicts` - both ids applicable together - and records them in `decision_detail.conflicting_rules` with an EMPTY `licensed_by`. Until this obligation existed the N:M refusal was frozen in the contract and pinned by no case at all, which is the shape of defect this matrix exists to catch.",
+      "required_kind_withheld_a_rule": "the case names, in `not_applicable`, a rule that stood down because a kind its own `requires_all` lists did not hold - and names that kind. This is what pins a rule's requirement to a case rather than to an assertion in the suite: R-CONT-DRIFT gained `same_pattern_id` because a same-site drift must stay the same DEFECT and not merely the same PLACE, and `a-different-defect-at-the-same-site-is-not-a-drift` is where that requirement is either doing work or is decoration.",
+      "rule_licensed_alone": "exactly one rule is in `applicable_rules` and the same rule is in `licensed_by`. Nothing was dominated, nothing was filtered out, and the conclusion therefore rests ENTIRELY on that rule's own requirements - which is what makes the case a pin on them. A rule reachable only in cases where some other rule also applies is a rule whose requirements can be rewritten without any fixture noticing."
+    },
+    "rule": [
+      "Every preregistered case must appear here, and every obligation must be one",
+      "of the meanings above. A case added without an obligation is a case nobody",
+      "has said what to expect of, which is how a matrix drifts into decoration."
+    ]
+  },
+  "stages_rule": [
+    "MATCHED, SURVIVING and LICENSED are three different sets, and an earlier draft",
+    "of this file used one word for the first two. It defined `applicable_rules` as",
+    "the rules with at least one surviving application while also saying a rule",
+    "firing on several candidate edges appears there once - which reads as the",
+    "PRE-uniqueness set. Then `blunt-rule-loses-to-uniqueness` and its checker",
+    "required the opposite: a rule matching two candidates must be ABSENT from",
+    "`applicable_rules` and recorded as unable to choose.",
+    "Both cannot be true. The staged reading above is the one kept, because the",
+    "alternative puts a rule into arbitration that licensed no mapping - and",
+    "arbitration would then have it disagree with rules that did.",
+    "So: matching is about the predicate. Surviving is about uniqueness and",
+    "cardinality. `applicable_rules` is the set AFTER step 4, and it is what",
+    "arbitration sees."
+  ],
+  "recall_set": [
+    "WHICH MAPPINGS MUST BE REVISITED IF A RULE CHANGES.",
+    "",
+    "  recall = applicable_rules",
+    "         + decision_detail.rules_without_a_unique_candidate",
+    "         + decision_detail.rules_excluded_by_cardinality",
+    "         + any further explicitly recorded rejected stage",
+    "",
+    "`applicable_rules` alone stopped being the recall set the moment filters",
+    "appeared in front of it. A rule dropped for matching two candidates is exactly",
+    "a mapping that would CHANGE if that rule were made more discriminating; a rule",
+    "dropped for being the wrong shape is exactly a mapping that would change if its",
+    "cardinality were relaxed. Neither appears in `applicable_rules` at all, and a",
+    "recall set built from that field alone would miss both, silently.",
+    "EVERY REJECTING STAGE JOINS THIS UNION IN THE SAME BREATH AS IT IS ADDED.",
+    "That is the rule, and it has already been broken once: cardinality became a",
+    "filter without a field of its own, so its rejections were either mislabelled as",
+    "ambiguities or lost. A stage whose output is discarded cannot be recalled from."
+  ],
+  "rule_coverage_rule": [
+    "EVERY DECLARED RULE MUST LICENSE SOMETHING SOMEWHERE.",
+    "",
+    "Two rules - R-CONT-RENAME and R-CONT-DRIFT - were declared here, argued for in",
+    "their own `note` fields, and reached by no preregistered case at all. Both could",
+    "be rewritten into a different policy with the whole suite staying green:",
+    "swapping R-CONT-RENAME's `path_rename` for `same_path`, or R-CONT-DRIFT's",
+    "`line_drift` for `path_rename`, changed nothing any check could see. Outcome",
+    "coverage did not catch it, because other rules of outcome `continued` were",
+    "exercised and the outcome was therefore ticked off; and the senior corpus could",
+    "not catch it either, because `finding-lineage/v1` fixtures name no decision rule",
+    "ids and this suite does not arbitrate them.",
+    "",
+    "So the gate is PER RULE, not per outcome: every id in `rules` must appear in the",
+    "`licensed_by` of some expectation.",
+    "",
+    "WHAT THE GATE DOES NOT DO, stated because a check whose message claims more than",
+    "its code checks is the defect this branch has found most often. Appearing in",
+    "`licensed_by` does not verify that the rule's `requires_all` is WHY it applied -",
+    "that is applicability, which fixtures declare and this suite refuses to compute.",
+    "The gate guarantees a rule is reached, and `rule_licensed_alone` on the two cases",
+    "above guarantees the reaching is not incidental to some other rule doing the work.",
+    "Binding requirements to evidence is a separate question and it is NOT answered",
+    "here. Two invariants stand in for part of it, both chosen because neither needs",
+    "a checker to decide whether a signal holds:",
+    "",
+    "  - no rule may require a combination the senior contract freezes as mutually",
+    "    exclusive, because such a rule can never fire and takes its outcome with it;",
+    "  - no two rules may carry identical requirements under one outcome and shape,",
+    "    because that is one rule under two names.",
+    "",
+    "Together they catch every single-signal rewrite tried so far, including the two",
+    "that motivated this section. They do not catch every possible one, and the",
+    "residue is recorded as an open question rather than closed by a checker that",
+    "would have to compute applicability to do it."
+  ],
+  "record_binding_vocabulary": {
+    "why": [
+      "WHAT THE STRUCTURAL RECORD MUST NAME, MACHINE-READABLY.",
+      "",
+      "This replaces `requires_all_scope`, which said the same thing in prose that",
+      "nothing read. Two probes showed the cost: dropping it from a group rule",
+      "changed nothing, and adding `GROUP` scope to the 1:1 R-CONT-SAME-SITE - a rule",
+      "with no group at all - changed nothing either, leaving the contract pointing a",
+      "mapper at a partner set that does not exist.",
+      "",
+      "It is NOT a fourth place naming which side the group is on. The roles here are",
+      "the roles the signal's own `matches` names, and the suite rejects a binding",
+      "whose roles disagree with the catalog.",
+      "",
+      "THE QUANTIFIERS ARE NO LONGER UNPINNED, AND THE REASON THEY WERE IS NOW FALSE.",
+      "An earlier revision of this paragraph held that the copy rule's quantifier was",
+      "a policy choice this corpus could not decide, because `excluding` narrowed the",
+      "successor pool to exactly one occurrence and `every` over one element is",
+      "`at_least_one` over one element. That was true of the twelve fixtures then in",
+      "the corpus. It stopped being true in the same change that added",
+      "`a-copy-into-two-new-files-is-a-branch`, where NEITHER successor sits at the",
+      "predecessor's path, `excluding` removes nobody, and the pool holds two. The",
+      "paragraph was left standing across that change - a reasoned-for exemption",
+      "outliving its reason, which is the defect this document keeps describing.",
+      "",
+      "On that fixture the two values are distinguishable and the weaker one is",
+      "wrong: with `at_least_one`, deleting the `Broker/CopyB.cs` copy record leaves",
+      "the branch licensed over BOTH successors, so the second successor is absorbed",
+      "on the strength of its partner profile alone - the same rule, message and",
+      "anchored content that any unrelated occurrence of that defect anywhere in the",
+      "tree would also show. The rule's own `note` says the copy record is what",
+      "separates a branch from an ambiguity; under `at_least_one` a successor with no",
+      "record was separated from an ambiguity by nothing.",
+      "",
+      "So the copy rule now says `every`, over the pool `excluding` leaves. That is",
+      "not the reading the old `why` rejected: what it rejected was demanding every",
+      "successor INCLUDING the one at the predecessor's own path, which `excluding`",
+      "had already removed by the time this was written. The exclusion arrived and the",
+      "quantifier was never asked again.",
+      "",
+      "WHICH FORCED THE SECOND AXIS. `every` over a two-successor pool is unsatisfiable",
+      "under the old single-entry reading, because git emits ONE COPY RECORD PER",
+      "DESTINATION: no single entry of `revision_b.copies` can name both. A fold is the",
+      "opposite - one record names all of its sources, and two records naming one each",
+      "describe two folds. `coverage` is where that difference is now declared instead",
+      "of being a property of whichever rule the checker happened to be written for.",
+      "",
+      "AND BOTH VALUES ARE PINNED, BY A LAW RATHER THAN BY ARGUMENT. A declared",
+      "coverage that nothing can distinguish from its alternatives is a policy nobody",
+      "chose, which is how the copy sat at `at_least_one` for twelve fixtures. Each",
+      "rule therefore names a `coverage_witness`: a committed case, a transform of it",
+      "the suite applies, and the verdict the declared reading must reach. The sweep",
+      "requires the declared value to DISAGREE with every other value there and to",
+      "reach the DECLARED VERDICT - the second half added after the first draft of the",
+      "law stayed green while the fold's value was flipped, because proving two",
+      "readings differ says nothing about which one was taken.",
+      "",
+      "A paragraph here reported the fold as pinned only by being the stronger",
+      "reading, its separating input being 'an invalid mapping no valid case can",
+      "express'. That confused the RECORD being partial with the INPUT being",
+      "unpreregisterable: a repository where two folds were recorded separately is an",
+      "ordinary state with a definite answer. It is now the fold's witness."
+    ],
+    "quantifier": {
+      "every": "the record must name EVERY occurrence in that role for this mapping",
+      "at_least_one": "the record must name at least one, because the remaining partners are explained by a different rule rather than by this record"
+    },
+    "excluding": {
+      "partners_where_same_path_holds": {
+        "means": "partners at the predecessor's own path are not what the copy record explains; `same_path` holds of them, so a continued rule reaches them and this record does not have to",
+        "requires_applicable_outcome": "continued",
+        "why": [
+          "THE SECOND CLAUSE OF `means` IS A CLAIM ABOUT THE MAPPING, AND IT USED TO BE",
+          "AN ASSUMPTION. `requires_applicable_outcome` is that clause made a condition:",
+          "where this exclusion actually removes a partner, the mapping has to declare",
+          "an applicable rule that concludes the named outcome - otherwise the record",
+          "requirement is lifted on a promise nobody keeps.",
+          "",
+          "The hole it closes: a successor at the predecessor's own path whose ENCLOSING",
+          "SYMBOL changed. `same_path` holds, so the exclusion drops it from the copy",
+          "record's coverage - and `structural_context` fails, so no continued rule",
+          "reaches it either. It was then absorbed into the branch by `same_rule_message`",
+          "and `anchored_content` alone, which any unrelated occurrence of that defect",
+          "anywhere in the tree also shows. Three successors, two explained by copy",
+          "records and one explained by nothing, and the suite reported OK.",
+          "",
+          "It binds ONLY when the exclusion removed someone. Where no partner sits at the",
+          "predecessor's path the exclusion lifts nothing and assumes nothing, which is",
+          "why `a-copy-into-two-new-files-is-a-branch` is untouched by it.",
+          "",
+          "The outcome is NAMED here rather than spelled in the checker, for the same",
+          "reason the quantifiers are: a checker that decided on its own which outcome",
+          "rescues an excluded partner would be holding the policy's opinion for it."
+        ]
+      }
+    },
+    "rule": [
+      "A quantifier, exclusion or coverage not listed here is REJECTED rather than",
+      "ignored. A binding vocabulary that silently accepts unknown tokens is a binding",
+      "that stops binding the moment someone invents a word.",
+      "",
+      "`coverage` is REQUIRED of every rule that declares a `record_binding`. It was",
+      "added because the quantifier alone could not be satisfied honestly on a 1:N",
+      "copy, and a rule that omitted it would fall back to whichever reading the",
+      "checker was written for - which is exactly the unread declaration this",
+      "vocabulary exists to replace."
+    ],
+    "at_one_to_one": "A 1:1 rule declares NO `record_binding`, because at one occurrence per role `every` and `at_least_one` are the same condition and there is nothing to choose. The record must still relate the pair: skipping the check there let R-CONT-COPY license a `continued` on a copy pointing at an unrelated path.",
+    "coverage": {
+      "single_entry": "ONE entry must satisfy the quantifiers for both roles on its own. Two entries describe two transformations and do not add up to one - a fold split into `WireA -> Wire` and `WireB -> Wire` is two folds, not the one this mapping claims.",
+      "union_of_entries": "the entries that relate this mapping are taken TOGETHER and their union must satisfy the quantifiers. A copy into N destinations is N records, one per destination, so requiring a single entry to name them all would require a record shape the producer never emits - and accepting one entry would leave the other destinations explained by nothing."
+    }
+  },
+  "evidence_kind_records": {
+    "map": {
+      "anchored_content": "no_structural_record",
+      "line_drift": "no_structural_record",
+      "path_rename": "rename_record",
+      "same_path": "no_structural_record",
+      "same_pattern_id": "no_structural_record",
+      "same_rule_message": "no_structural_record",
+      "structural_context": "no_structural_record"
+    },
+    "why": [
+      "Some rules name a senior EVIDENCE KIND in `requires_all` and some name a",
+      "record from `structural_signals` directly. `path_rename` is the first sort, and",
+      "so the record behind it was bound by nothing: R-CONT-RENAME could license a",
+      "`continued` while `revision_b.renames` described two unrelated files. That is",
+      "the same defect review found for R-CONT-COPY, one rule over, and fixing only",
+      "the reported instance would have left the class.",
+      "",
+      "This maps the kind to the record that OBSERVES it. It does not change what any",
+      "rule requires - `requires_all` still names `path_rename` - it says where a",
+      "checker or a mapper must look to see whether the claim is carried.",
+      "",
+      "The mappings live under `map` and nothing else does. They were siblings of this",
+      "prose, so the suite filtered the object by value type to tell them apart - and",
+      "that filter was itself a fail-open: `path_rename: null` dropped out before",
+      "validation and resolved to no record, leaving R-CONT-RENAME licensed with its",
+      "rename record unchecked. A type filter standing in for a namespace is a check",
+      "that silently agrees with whatever it cannot classify.",
+      "",
+      "TOTAL, not merely valid. Every senior evidence kind that a rule names directly in",
+      "`requires_all` must appear here exactly once, with either a record name or",
+      "`no_structural_record`. Kinds reached only through a `partner_profile` are NOT in",
+      "the domain, and a key outside it is rejected: an unused-but-valid mapping is how",
+      "this map was first made to unbind the rule it exists for."
+    ],
+    "no_structural_record": "the explicit value for a kind that is a property of the occurrence PAIR rather than a record in revision B. `same_path` compares two paths; no entry in the diff witnesses it. Written out because the map must be TOTAL over the kinds rules require directly - a map that is merely well-formed can be replaced with a valid entry nobody consumes, and then `path_rename` resolves to nothing and its record goes unchecked while every per-entry check still passes."
+  },
+  "excluded_partners_rescuer_rule": [
+    "WHAT THE RESCUE MAP ESTABLISHES, AND WHAT IT DOES NOT. Both are stated because",
+    "the gap is real and three rounds of review walked into it in a row.",
+    "",
+    "ESTABLISHED. Every partner an exclusion dropped is named. Every named partner",
+    "was actually dropped - including the case where nothing was dropped, where the",
+    "field may not appear at all. Each named rescuer is a rule this mapping declares",
+    "APPLICABLE and one that concludes the outcome the exclusion requires. And no",
+    "rescuer catches more partners in a role than its own `cardinality` relates: a",
+    "1:1 rule named for two dropped successors is rejected, because two candidates",
+    "satisfying a 1:1 rule is `arbitration.multiplicity` - an ambiguity - not two",
+    "rescues.",
+    "",
+    "NOT ESTABLISHED. That a named rescuer's application actually INCLUDES the",
+    "partner it is named for. With one dropped partner and one named 1:1 rescuer,",
+    "nothing here shows that rule reaches THAT occurrence rather than some other.",
+    "Showing it means evaluating the rescuer's `requires_all` against the pair -",
+    "deciding which rules a record produces, which is APPLICABILITY, and",
+    "`rule_coverage_rule` says this suite refuses to compute it. A checker that",
+    "did would be a second mapper: hidden, unversioned, and disagreeing with the",
+    "first one the day either changed.",
+    "",
+    "So the residue is a DELIBERATE BOUNDARY, not an oversight, and closing it is a",
+    "decision about what the integrity suite is allowed to be - not a repair anyone",
+    "should make quietly. Three ways out, none of them free:",
+    "",
+    "  - let the suite compute applicability for THIS narrow purpose, and accept a",
+    "    second implementation of the evidence predicates alongside the mapper's;",
+    "  - have the fixture declare the rescuing relation as its own preregistered",
+    "    expectation, which the corpus cannot currently express: in",
+    "    `copy-record-dominates-the-single-match` the rescuer REACHED its partner and",
+    "    was then dominated, so there is no `continued` mapping to point at;",
+    "  - remove the exclusion, and require every successor to be named by a copy",
+    "    record - which rejects that same case, the one the exclusion exists for.",
+    "",
+    "Until it is decided, an exclusion rests on a rescuer named by the fixture and",
+    "checked for everything except the one thing only a mapper can answer."
+  ],
+  "retired_names": [
+    "requires_all_scope",
+    "defeated_signals",
+    "excluded_by_cardinality"
+  ],
+  "retired_names_rule": [
+    "NAMES THIS CONTRACT MENTIONS BECAUSE THEY NO LONGER EXIST. Each is cited in",
+    "prose that explains what it was and why it went, and each would otherwise fail",
+    "the cross-reference gate as a dangling reference.",
+    "",
+    "Listing them is not a way of silencing the gate. It is the difference between a",
+    "reference the contract keeps ON PURPOSE - `requires_all_scope` was prose nothing",
+    "read and `record_binding` replaced it; `defeated_signals` was the same field",
+    "under a second spelling; `excluded_by_cardinality` was a top-level twin of",
+    "`decision_detail.rules_excluded_by_cardinality` - and one nobody noticed had",
+    "gone stale. Adding a name here is a claim that the prose citing it is HISTORY,",
+    "and a reader can check that claim against the sentence.",
+    "",
+    "The gate that needs this list found exactly one real defect on the corpus it was",
+    "first run against: a `why` contrasting two classifications named",
+    "`at_or_above_the_floor` by a truncation of it, so the sentence pointed at no",
+    "branch of the mapping it was describing. That was a TYPO, not a retired name,",
+    "and it was corrected rather than listed here - which is the distinction this",
+    "section exists to keep."
+  ],
+  "reason_selector": {
+    "order": [
+      {
+        "when": "eligibility_refused",
+        "reason": "lineage-id-unavailable:missing-occurrence-id",
+        "observed_from": [
+          "occurrence_id"
+        ]
+      },
+      {
+        "when": "conflicting_rules_present",
+        "reason": "lineage-id-unavailable:conflicting-evidence",
+        "observed_from": [
+          "applicable_rules",
+          "decision_detail.conflicting_rules"
+        ]
+      },
+      {
+        "when": "ambiguous_candidates_present",
+        "reason": "lineage-id-unavailable:ambiguous-candidates",
+        "observed_from": [
+          "decision_detail.ambiguous_candidates",
+          "decision_detail.rules_without_a_unique_candidate"
+        ]
+      },
+      {
+        "when": "a_defeat_left_no_surviving_rule",
+        "reason": "reason_mapping.no_rule_applied_after_a_defeat.reason_by_surviving_kinds",
+        "observed_from": [
+          "signals_defeated"
+        ]
+      },
+      {
+        "when": "otherwise",
+        "reason": "lineage-id-unavailable:no-mapping-evidence",
+        "observed_from": []
+      }
+    ],
+    "cardinality_selects_no_reason": "`decision_detail.rules_excluded_by_cardinality` is PROVENANCE, never a reason. A cardinality filter says only that a rule does not govern this shape; it does not say why the relation failed. Where it coincides with `rules_without_a_unique_candidate`, the honest account of why a known 1:1 hypothesis produced no relation is the AMBIGUITY, and the cardinality-excluded rule stays recorded beside it for the recall set.",
+    "why": [
+      "TWO REJECTING STAGES CAN FIRE AT ONCE, AND ONLY ONE OF THEM IS AN ANSWER.",
+      "",
+      "`decision_procedure` step 4 already insisted the two rejections are recorded",
+      "SEPARATELY, and was right to. What it did not say is which of them the RECORD's",
+      "`reason` comes from when both happen in one mapping - and a mapper reading that",
+      "step alone could reasonably have reported either.",
+      "",
+      "The order here is total and it is checkable from the record's own fields, which",
+      "is the point: no stage of it needs applicability. Eligibility absorbs before any",
+      "evidence is read. A conflict is grounds that argue with each other. An ambiguity",
+      "is several partners with nothing to choose between them. A defeat that leaves no",
+      "rule standing is answered by the floor. Everything else is",
+      "`no-mapping-evidence`, which is what the senior contract already means by",
+      "'nothing was observed that could license a link'.",
+      "",
+      "Cardinality is deliberately nowhere in that order. It is the one rejection that",
+      "is not about the evidence at all.",
+      "",
+      "`observed_from` NAMES RECORD FIELDS, and it is checked against the predicate.",
+      "It was a sentence beside each step and nothing read it, so pointing the",
+      "ambiguity branch at `signals_defeated` left the suite green and this document",
+      "telling a mapper to look where the decision does not come from. Both reviewers",
+      "found that independently.",
+      "",
+      "Writing it down also corrected it. Two branches were UNDER-DECLARED: a conflict",
+      "is observed from `applicable_rules` as well as `decision_detail.conflicting_rules`",
+      "- rules that applied and still produced a refusal disagreed - and an ambiguity",
+      "from `rules_without_a_unique_candidate` as well as `ambiguous_candidates`. The",
+      "prose had named one field each. `otherwise` names none, which is what makes it",
+      "the branch that always holds.",
+      "",
+      "`eligibility_refused` names `occurrence_id`, and that field is on the FINDING",
+      "rather than on a relation record - stage 0 answers before a relation record",
+      "exists, which is the whole of `eligibility.record_shape: input_local`."
+    ]
+  },
+  "required_kind_witnesses": {
+    "a-different-defect-at-the-same-site-is-not-a-drift": {
+      "rule": "R-CONT-DRIFT",
+      "kind": "same_pattern_id"
+    },
+    "a-fold-across-files-is-still-a-merge": {
+      "rule": "R-CONT-SAME-SITE",
+      "kind": "structural_context"
+    },
+    "a-reclassified-defect-across-a-copy-is-not-a-continuation": {
+      "rule": "R-CONT-COPY",
+      "kind": "same_rule_message"
+    },
+    "a-reclassified-defect-across-a-rename-is-not-a-continuation": {
+      "rule": "R-CONT-RENAME",
+      "kind": "same_rule_message"
+    },
+    "a-reclassified-defect-at-an-unchanged-site-is-not-a-continuation": {
+      "rule": "R-CONT-SAME-SITE",
+      "kind": "same_pattern_id"
+    },
+    "a-recorded-rename-is-not-an-unresolved": {
+      "rule": "R-CONT-SAME-SITE",
+      "kind": "same_path"
+    },
+    "an-edit-elsewhere-is-still-the-same-defect": {
+      "rule": "R-CONT-SAME-SITE",
+      "kind": "anchored_content"
+    },
+    "copy-record-dominates-the-single-match": {
+      "rule": "R-CONT-DRIFT",
+      "kind": "line_drift"
+    },
+    "rule": [
+      "WHICH RULE STOOD DOWN FOR WHICH KIND, NAMED BY THE CONTRACT RATHER THAN BY THE",
+      "SUITE. A case carrying `required_kind_withheld_a_rule` declares its witness here,",
+      "and the suite checks that the named rule appears in that case's",
+      "`not_applicable`, that the text there names the kind, and that the kind is one",
+      "the rule's own `requires_all` lists.",
+      "",
+      "The first form of the obligation asked only whether SOME rule in",
+      "`not_applicable` mentioned SOME kind it requires - which any case satisfies,",
+      "because rules stand down naming their requirements all the time. It would have",
+      "passed with R-CONT-DRIFT's entry rewritten to say nothing about",
+      "`same_pattern_id` at all, so the obligation written to pin E's decision did not",
+      "pin it. Membership standing in for the correct member, one more time.",
+      "",
+      "Hard-coding the pair in the checker was the other option and it is the one this",
+      "project keeps refusing: the value that decides a case belongs in the frozen",
+      "document, where a reader can disagree with it.",
+      "",
+      "Three more witnesses arrived with the same finding one rule over: review asked",
+      "why R-CONT-DRIFT had to prove the defect was the same defect while",
+      "R-CONT-SAME-SITE, R-CONT-RENAME and R-CONT-COPY did not. They had no answer.",
+      "`anchored_content` is source text - evidence the STATEMENT survived, never that",
+      "the finding is the same finding - so a reclassified diagnostic at an unchanged",
+      "site, across a rename, and across a copy each inherited a lineage it had not",
+      "earned. Each rule now names a kind and each has its own case: the copy did not",
+      "get the rename's result by symmetry, which is the assumption this branch keeps",
+      "having to unmake.",
+      "",
+      "A witness also has to be FALSIFIABLE BY THE PAYLOAD IT SITS IN. Naming the rule",
+      "and the kind pinned the DECLARATION and nothing else, so the same-site witness",
+      "could be rewritten to carry one pattern id on both sides while still declaring",
+      "that R-CONT-SAME-SITE stood down because it did not. The kind must therefore",
+      "genuinely FAIL between the predecessor and every successor of the case.",
+      "",
+      "What it compares is read from `finding-lineage/v1`.",
+      "`pair_property_fields` lives there and not here: this contract carrying",
+      "its own copy is a junior redefining a senior kind, and the first version of that",
+      "table could be widened with `path` until a witness whose rule and message AGREED",
+      "still read as the kind failing. Every witness kind must be one the senior map",
+      "names, so the table cannot be emptied into a vacuum either - drop an entry and",
+      "the witnesses naming it fail at once rather than passing unevaluated.",
+      "",
+      "EVERY EQUALITY KIND NEEDS ONE. Three did not have one, and review showed what",
+      "that costs: with nothing making `anchored_content` fail on real occurrences, the",
+      "senior contract could be amended to say the kind compares `start_column` - the",
+      "vectors edited to agree, and every licensed relation still passing, because the",
+      "column is null on both sides everywhere. Two declarations agreeing with each",
+      "other is not the same as either of them being bound to data.",
+      "",
+      "The corpus already held the witnesses; only the declarations were missing.",
+      "`an-edit-elsewhere-is-still-the-same-defect` has R-CONT-SAME-SITE standing down",
+      "because the content changed, `a-fold-across-files-is-still-a-merge` because the",
+      "fold replaced the enclosing symbols, and `a-recorded-rename-is-not-an-unresolved`",
+      "because the paths differ. Each now says so, and each therefore pins the field",
+      "its kind is really compared on.",
+      "",
+      "`line_drift` is the sixth, and it is a DIFFERENCE rather than an equality: it",
+      "holds when `start_line` differs. It had no witness because it was not in the",
+      "equality table at all, and every reader intersected with that table - so the",
+      "kind that says the line MOVED was checked by nothing, in either direction.",
+      "`copy-record-dominates-the-single-match` already recorded R-CONT-DRIFT standing",
+      "down because occ-b1 is at the same line; it now says so where that can be read."
+    ]
+  }
+}

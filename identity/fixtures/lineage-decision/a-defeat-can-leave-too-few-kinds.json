@@ -1,0 +1,85 @@
+{
+  "case": "a-defeat-can-leave-too-few-kinds",
+  "title": "A defeat below the floor, where the shortage really is of kinds",
+  "why": "The other half of the distinction the senior contract was amended to carry, and the half no case exercised. `defeated-signal-drops-below-the-floor` leaves THREE kinds standing and is therefore about the combination; here the reformat defeats anchored_content and only same_rule_message survives - one kind against a floor of two. That is `insufficient-evidence-kind` in its literal sense, and without this case the below-floor branch of `reason_mapping` was selected by nothing, so changing which limitation it names left the suite green. A coverage gate over outcomes cannot see this: both cases are `unresolved`. The surviving kind was `same_pattern_id` until the sixth senior amendment, which is exactly the claim review falsified: these two occurrences are at different paths, so `finding-pattern/v1` gives them different ids and the old fixture asserted a collision its own identity function cannot produce.",
+  "revision_a": {
+    "revision": "r1",
+    "occurrences": [
+      {
+        "occurrence_id": "occ-a1",
+        "path": "Broker/Doc.cs",
+        "rule": "DOTNET_RESOURCE_LEAK",
+        "message": "event handler subscribed and never removed",
+        "start_line": 42,
+        "start_column": null,
+        "pattern_id": "f964274604b5c187",
+        "enclosing_symbol": "DocView.Wire",
+        "anchored_content": "_store.Changed += OnChanged;"
+      }
+    ]
+  },
+  "revision_b": {
+    "revision": "r2",
+    "reformatted_paths": [
+      "Broker/Doc.cs"
+    ],
+    "occurrences": [
+      {
+        "occurrence_id": "occ-b1",
+        "path": "Broker/Other.cs",
+        "rule": "DOTNET_RESOURCE_LEAK",
+        "message": "event handler subscribed and never removed",
+        "start_line": 10,
+        "start_column": null,
+        "pattern_id": "0b34b0c7f1c60c08",
+        "enclosing_symbol": "Helper.Init",
+        "anchored_content": "_store.Changed += OnChanged;"
+      }
+    ]
+  },
+  "expect": [
+    {
+      "outcome": "unresolved",
+      "side": "a",
+      "frm": "occ-a1",
+      "to": [],
+      "reason": "lineage-id-unavailable:insufficient-evidence-kind",
+      "applicable_rules": [],
+      "licensed_by": [],
+      "signals_defeated": {
+        "anchored_content": "reformatted_paths"
+      },
+      "evidence_surviving": [
+        "same_rule_message"
+      ],
+      "not_applicable": {
+        "R-CONT-SAME-SITE": "the path differs, and anchored_content was defeated anyway",
+        "R-CONT-DRIFT": "the path differs, so same_path and line_drift never fired",
+        "R-CONT-RENAME": "no rename record relates the two paths",
+        "R-CONT-COPY": "no copy record relates the two paths",
+        "R-BRANCH-COPY": "no copy record in this revision pair",
+        "R-MERGE-FOLD": "no merge record in this revision pair"
+      }
+    },
+    {
+      "outcome": "unresolved",
+      "side": "b",
+      "frm": null,
+      "to": [
+        "occ-b1"
+      ],
+      "reason": "lineage-id-unavailable:no-mapping-evidence",
+      "applicable_rules": [],
+      "licensed_by": [],
+      "note": "the mirror side, and its reason comes from what is observable HERE. A defeat is a statement about why a RELATION signal was removed, and this record names no predecessor - `frm` is null - so there is nothing for a predecessor-bound defeater to attach to. Carrying the a-side's `signals_defeated` and `evidence_surviving` across would have recorded evidence about a relation the record itself does not state. What is left observable is that nothing links this occurrence back and nothing says it is new."
+    }
+  ],
+  "forbid": [
+    "insufficient-evidence-combination as the reason - one surviving kind is below the floor, not a combination nobody declared",
+    "continued on same_rule_message alone - one kind, and no kind is sufficient alone",
+    "ended for occ-a1 or new for occ-b1 - neither carries boundary evidence",
+    "anchored_content counted after the reformat defeated it"
+  ],
+  "contract": "finding-lineage-decision/v1",
+  "status": "preregistered-unimplemented"
+}

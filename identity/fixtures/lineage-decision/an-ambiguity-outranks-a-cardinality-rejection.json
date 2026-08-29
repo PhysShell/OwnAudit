@@ -1,0 +1,168 @@
+{
+  "case": "an-ambiguity-outranks-a-cardinality-rejection",
+  "contract": "finding-lineage-decision/v1",
+  "status": "preregistered-unimplemented",
+  "title": "Two rejecting stages fire together, and only one of them is the reason",
+  "why": "THE CASE THAT DECIDES WHICH REJECTION ANSWERS. `decision_procedure` step 4 has always recorded the two rejections separately and never said which one the record's `reason` comes from when both happen at once - so a mapper could have reported either and been reading the contract correctly. No case exercised the coincidence: twelve fixtures had one rejection or the other and never both.\n\nHere a fold record names two sources, only one of which carried this defect, so R-MERGE-FOLD matched its record and formed a group of ONE predecessor - below `min_predecessors`, and excluded by cardinality. Meanwhile the fold produced a method holding two instances of the leak, so both 1:1 same-site rules match and neither can single one out.\n\nThe answer is the AMBIGUITY. A cardinality filter says only that a rule does not govern this shape; it is not a statement about the evidence and it is not why the relation failed. The excluded rule stays recorded beside it, because the recall set needs to know R-MERGE-FOLD was considered here - see `reason_selector`.",
+  "revision_a": {
+    "revision": "r1",
+    "occurrences": [
+      {
+        "occurrence_id": "occ-a1",
+        "path": "Broker/Doc.cs",
+        "rule": "DOTNET_RESOURCE_LEAK",
+        "message": "event handler subscribed and never removed",
+        "start_line": 42,
+        "start_column": null,
+        "pattern_id": "f964274604b5c187",
+        "enclosing_symbol": "DocView.Wire",
+        "anchored_content": "_store.Changed += OnChanged;"
+      }
+    ]
+  },
+  "revision_b": {
+    "revision": "r2",
+    "removed_symbols": [
+      "LegacyView.Wire"
+    ],
+    "merged_symbols": [
+      {
+        "from": [
+          "DocView.Wire",
+          "LegacyView.Wire"
+        ],
+        "to": "DocView.Wire"
+      }
+    ],
+    "occurrences": [
+      {
+        "occurrence_id": "occ-b1",
+        "path": "Broker/Doc.cs",
+        "rule": "DOTNET_RESOURCE_LEAK",
+        "message": "event handler subscribed and never removed",
+        "start_line": 44,
+        "start_column": null,
+        "pattern_id": "f964274604b5c187",
+        "enclosing_symbol": "DocView.Wire",
+        "anchored_content": "_store.Changed += OnChanged;"
+      },
+      {
+        "occurrence_id": "occ-b2",
+        "path": "Broker/Doc.cs",
+        "rule": "DOTNET_RESOURCE_LEAK",
+        "message": "event handler subscribed and never removed",
+        "start_line": 51,
+        "start_column": null,
+        "pattern_id": "f964274604b5c187",
+        "enclosing_symbol": "DocView.Wire",
+        "anchored_content": "_store.Changed += OnChanged;"
+      }
+    ]
+  },
+  "expect": [
+    {
+      "outcome": "unresolved",
+      "side": "a",
+      "frm": "occ-a1",
+      "to": [],
+      "reason": "lineage-id-unavailable:ambiguous-candidates",
+      "applicable_rules": [],
+      "licensed_by": [],
+      "decision_detail": {
+        "rules_without_a_unique_candidate": [
+          "R-CONT-DRIFT",
+          "R-CONT-SAME-SITE"
+        ],
+        "rules_excluded_by_cardinality": [
+          "R-MERGE-FOLD"
+        ],
+        "ambiguous_candidates": {
+          "R-CONT-DRIFT": [
+            "occ-b1",
+            "occ-b2"
+          ],
+          "R-CONT-SAME-SITE": [
+            "occ-b1",
+            "occ-b2"
+          ]
+        }
+      },
+      "not_applicable": {
+        "R-CONT-RENAME": "no rename record in this revision pair",
+        "R-CONT-COPY": "no copy record in this revision pair",
+        "R-BRANCH-COPY": "no copy record, so nothing explains the multiplicity",
+        "R-MERGE-FOLD": "the merge record is present and its shape is not this one: N:1 with min_predecessors 2, and only occ-a1 carried the defect among the fold's sources"
+      },
+      "note": "both rejecting stages are populated and the reason comes from the ambiguity. `rules_excluded_by_cardinality` is provenance for the recall set and selects nothing."
+    },
+    {
+      "outcome": "unresolved",
+      "side": "b",
+      "frm": null,
+      "to": [
+        "occ-b1"
+      ],
+      "reason": "lineage-id-unavailable:ambiguous-candidates",
+      "applicable_rules": [],
+      "licensed_by": [],
+      "decision_detail": {
+        "rules_without_a_unique_candidate": [
+          "R-CONT-DRIFT",
+          "R-CONT-SAME-SITE"
+        ],
+        "rules_excluded_by_cardinality": [
+          "R-MERGE-FOLD"
+        ],
+        "ambiguous_candidates": {
+          "R-CONT-DRIFT": [
+            "occ-b1",
+            "occ-b2"
+          ],
+          "R-CONT-SAME-SITE": [
+            "occ-b1",
+            "occ-b2"
+          ]
+        }
+      },
+      "note": "the mirror side. This successor is not preferred over occ-b2, and nothing in revision B says it is new. The reason is the ambiguity here too - both rejecting stages are carried, and the cardinality one selects nothing on this side either."
+    },
+    {
+      "outcome": "unresolved",
+      "side": "b",
+      "frm": null,
+      "to": [
+        "occ-b2"
+      ],
+      "reason": "lineage-id-unavailable:ambiguous-candidates",
+      "applicable_rules": [],
+      "licensed_by": [],
+      "decision_detail": {
+        "rules_without_a_unique_candidate": [
+          "R-CONT-DRIFT",
+          "R-CONT-SAME-SITE"
+        ],
+        "rules_excluded_by_cardinality": [
+          "R-MERGE-FOLD"
+        ],
+        "ambiguous_candidates": {
+          "R-CONT-DRIFT": [
+            "occ-b1",
+            "occ-b2"
+          ],
+          "R-CONT-SAME-SITE": [
+            "occ-b1",
+            "occ-b2"
+          ]
+        }
+      },
+      "note": "the twin, stated separately rather than assumed. An unresolved(b) names exactly one occurrence, so a shape that refuses to choose between two of them needs two records to say so."
+    }
+  ],
+  "forbid": [
+    "no-mapping-evidence as the reason - candidates were observed and could not be chosen between",
+    "a reason drawn from the cardinality rejection - a rule that does not govern this shape says nothing about why the relation failed",
+    "rules_excluded_by_cardinality dropped because the ambiguity outranked it - the recall set would then miss that R-MERGE-FOLD was considered",
+    "continued to occ-b1 or occ-b2 - picking whichever was enumerated first",
+    "merged - the fold record is real and it does not describe THIS mapping"
+  ]
+}
