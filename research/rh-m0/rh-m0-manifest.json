@@ -60,30 +60,34 @@
     "verdict": "FAIL/PIVOT"
    },
    {
-    "condition": "fewer than 3 adjudicated groups whose truth label is `branched`",
+    "condition": "fewer than 3 adjudicated groups whose truth label is exactly `branched 1:N`",
     "note": "regardless of B3 output",
     "row": 2,
     "verdict": "BRANCH-INCONCLUSIVE"
    },
    {
-    "condition": "at least 3 genuine branched groups, but all of them inside a SINGLE revision pair",
+    "condition": "at least 3 adjudicated groups with truth label exactly `branched 1:N`, but all of them inside a SINGLE revision pair",
     "note": "preregistered explicitly. Several frozen copy targets share a revision pair, so this case is reachable; one pair cannot demonstrate a capability that must generalise across history.",
     "row": 3,
     "verdict": "BRANCH-INCONCLUSIVE"
    },
    {
-    "condition": "at least 3 genuine branched groups spanning >= 2 distinct revision pairs, and B3 correctly resolves at least 3 of them with the exact successor endpoint set, zero silent cardinality loss and zero invented endpoints",
+    "condition": "at least 3 adjudicated groups with truth label exactly `branched 1:N` spanning >= 2 distinct revision pairs, and B3 correctly resolves at least 3 of them with the exact successor endpoint set, zero silent cardinality loss and zero invented endpoints",
     "row": 4,
     "verdict": "PASS-BRANCH"
    },
    {
-    "condition": "at least 3 genuine branched groups spanning >= 2 distinct revision pairs, zero unsafe relation errors, but B3 correctly resolves only 0-2 of them",
+    "condition": "at least 3 adjudicated groups with truth label exactly `branched 1:N` spanning >= 2 distinct revision pairs, zero unsafe relation errors, but B3 correctly resolves only 0-2 of them",
     "row": 5,
     "verdict": "BRANCH-INCONCLUSIVE"
    }
   ],
   "precedence": "rows are evaluated in order; the first matching row decides. Row 1 therefore dominates every other outcome.",
-  "supersedes": "the earlier row 'all endpoint sets exact' was vacuously true when B3 produced no endpoint sets at all, so PASS-BRANCH was reachable with zero resolutions. Row 4 now requires at least 3 correct resolutions."
+  "supersedes": "the earlier row 'all endpoint sets exact' was vacuously true when B3 produced no endpoint sets at all, so PASS-BRANCH was reachable with zero resolutions. Row 4 now requires at least 3 correct resolutions.",
+  "truth_labels_referenced": [
+   "branched 1:N"
+  ],
+  "truth_token_note": "conditions name the canonical token from truth_protocol.label_vocabulary verbatim. The earlier wording said `branched` and used the prose phrase 'genuine branched group'; under exact comparison neither matches any truth label, so PASS-BRANCH was unreachable."
  },
  "contains_correctness_result": false,
  "descriptive_strata": {
@@ -747,13 +751,40 @@
    "condition_2": "correct_resolved(B3) >= max(correct_resolved(B1), correct_resolved(B2)) + 3",
    "if_safe_but_fewer_than_3_added": "HARD-INCONCLUSIVE, not FAIL"
   },
+  "hard_pass_criterion_retained_for_reference": {
+   "both_required": true,
+   "condition_1": "unsafe_relation_errors(B3) == 0 across all adjudicable hard groups",
+   "condition_2": "correct_resolved(B3) >= max(correct_resolved(B1), correct_resolved(B2)) + 3",
+   "if_safe_but_fewer_than_3_added": "HARD-INCONCLUSIVE, not FAIL"
+  },
+  "outcome_table": [
+   {
+    "condition": "unsafe_relation_errors(B3) > 0 on any adjudicable hard group",
+    "row": 1,
+    "verdict": "FAIL"
+   },
+   {
+    "condition": "unsafe_relation_errors(B3) == 0 AND correct_resolved(B3) >= max(correct_resolved(B1), correct_resolved(B2)) + 3",
+    "row": 2,
+    "verdict": "HARD-PASS"
+   },
+   {
+    "condition": "unsafe_relation_errors(B3) == 0 AND correct_resolved(B3) < max(correct_resolved(B1), correct_resolved(B2)) + 3",
+    "row": 3,
+    "verdict": "HARD-INCONCLUSIVE"
+   }
+  ],
   "per_class_percentage_thresholds": "PROHIBITED at n=4 and n=9",
   "pooled_into_primary_precision": false,
+  "precedence": "rows are evaluated in order; the first matching row decides. Row 1 therefore dominates every other outcome.",
   "reported_separately": true,
   "superseded_criterion": {
    "old_text": "B3 has fewer unsafe relation errors than B1/B2",
    "why_impossible": "B1 and B2 both require same_pattern_id, and pattern_id includes the path. Across a rename or a copy the path changes, so the baselines return unresolved, which is not an unsafe error. Their unsafe-error count is therefore naturally 0, and requiring fewer than 0 is unsatisfiable."
   },
+  "supersedes": "hard_pass_criterion, which declared HARD-PASS and HARD-INCONCLUSIVE but left unsafe_relation_errors > 0 without a verdict although FAIL is declared for the axis",
+  "thresholds_unchanged": "the +3 margin and the zero-unsafe requirement are exactly the previously frozen criterion; only the FAIL branch, which had no declared verdict, was added",
+  "total": "the table is total: rows 2 and 3 partition the unsafe == 0 case, and row 1 covers the remainder. Every combination maps to exactly one verdict.",
   "unsafe_relation_error_definition": [
    "false continuation",
    "fabricated branch",
@@ -766,29 +797,25 @@
   "b3_executed": false,
   "findings_applied": [
    {
-    "assessment": "valid. A precision or correctness violation had no declared verdict, so the choice between FAIL and INCONCLUSIVE remained available after unblinding.",
-    "fix": "primary_holdout.outcome_table: six rows, precedence-ordered, total",
+    "assessment": "valid and blocking. The vocabulary declares `branched 1:N`; the table said `branched`. Under exact comparison PASS-BRANCH was unreachable.",
+    "fix": "all truth-sensitive branch conditions name the canonical token verbatim, and truth_labels_referenced lists it structurally",
     "id": "P2-a",
-    "thresholds_changed": false,
-    "title": "natural axis had no total number-to-verdict rule"
+    "same_class_fixed_alongside": "the rename table embedded `continued 1:1` inside prose; it now names the token the same way",
+    "title": "branch referenced a truth token that does not exist"
    },
    {
-    "assessment": "valid. PASS is not a token of any axis.",
-    "fix": "concrete token-by-token mapping over all 11 declared tokens",
+    "assessment": "valid. unsafe_relation_errors > 0 had no verdict although FAIL is declared.",
+    "consequence": "hard became table-backed, so consistency_rule.scope now includes it",
+    "fix": "three-row precedence-ordered table; thresholds unchanged",
     "id": "P2-b",
-    "title": "disposition mapping used tokens the taxonomy does not declare"
+    "title": "hard axis was not total"
    },
    {
-    "assessment": "MERGE-INCONCLUSIVE is preregistered on every run, so a global INCONCLUSIVE -> HOLD would make PROCEED unreachable forever.",
-    "fix": "renamed to axis_disposition with an explicit no_global_aggregator clause",
-    "id": "self-found",
-    "title": "the mapping read as a global aggregator"
-   },
-   {
-    "assessment": "natural became table-backed, so leaving the scope at [rename, branch] would have created the next finding inside the same commit.",
-    "fix": "consistency_rule.scope now [natural, rename, branch]; hard and merge remain out",
-    "id": "self-found",
-    "title": "adding a natural table changed what the consistency scope must cover"
+    "assessment": "valid. sha256sum --check treats the trailing \\r as part of the filename and looks for rh-m0-manifest.json\\r, so the sidecar was not machine-verifiable even though the digest was correct.",
+    "fix": "sidecar written with LF; verified with sha256sum --check",
+    "id": "artifact-integrity",
+    "self_found_alongside": "the manifest itself was CRLF, which makes its digest depend on the writing platform: regenerating it on Linux would produce a different hash for identical content. Now written with LF.",
+    "title": "checksum sidecar written with CRLF"
    }
   ],
   "frozen_targets_unchanged": true,
@@ -827,22 +854,27 @@
     "reason": "consistency rule narrowed to the axes it checks",
     "revision": 6,
     "sha256": "7d087e8a8dc0ab06cc39b5328824c6ad902d2b87c6f996f7239d068b10bf72fd"
+   },
+   {
+    "commit": "6e3304a498951089f8945f6cb3ec99978e65e887",
+    "reason": "total natural outcome rule, concrete axis dispositions",
+    "revision": 7,
+    "sha256": "71f4c923d7091a1d88869d0ec7c97154e1aab15a6a1da82fb6ea8d1d074944a8"
    }
   ],
-  "reason": "two external review findings on revision 6, plus one consequence of fixing them",
-  "revision": 7,
-  "supersedes_commit": "ac54fcb3420550f0423366842fdd488f69bf1b3a",
-  "supersedes_sha256": "7d087e8a8dc0ab06cc39b5328824c6ad902d2b87c6f996f7239d068b10bf72fd",
+  "reason": "two external review findings and one artifact-integrity finding on revision 7",
+  "revision": 8,
+  "supersedes_commit": "6e3304a498951089f8945f6cb3ec99978e65e887",
+  "supersedes_sha256": "71f4c923d7091a1d88869d0ec7c97154e1aab15a6a1da82fb6ea8d1d074944a8",
   "targets_sampling_truth_or_b3_surface_touched": false,
   "truth_labels_created": false,
   "what_this_revision_did_not_touch": [
    "verdict_taxonomy.axes",
-   "rename_capability.outcome_table",
-   "branch_capability.outcome_table",
-   "hard_challenge",
-   "frozen_targets",
    "truth_protocol",
-   "seeds"
+   "seeds",
+   "frozen_targets",
+   "primary_holdout.outcome_table",
+   "hard thresholds"
   ]
  },
  "merge_capability": {
@@ -918,6 +950,7 @@
   ],
   "supersedes": "the earlier requirements list, which attached 'otherwise INCONCLUSIVE' to only two of six criteria and left a precision or correctness violation without a declared verdict",
   "total": "the table is total: row 6 is unconditional, so every combination of measurements maps to exactly one verdict",
+  "truth_labels_referenced": [],
   "why": "a deliberately oversampled hard slice must not be able to rescue a failing natural-history sample by arithmetic"
  },
  "producer_and_toolchain": {
@@ -943,17 +976,17 @@
     "verdict": "FAIL"
    },
    {
-    "condition": "fewer than 3 adjudicated rename targets have truth = continued 1:1 through the rename",
+    "condition": "fewer than 3 adjudicated rename targets whose truth label is exactly `continued 1:1` across the rename",
     "row": 2,
     "verdict": "RENAME-INCONCLUSIVE"
    },
    {
-    "condition": "at least 3 genuine continued-1:1 rename groups exist, B3 correctly resolves at least 3 of them to the exact counterpart, and there are zero unsafe relation errors",
+    "condition": "at least 3 adjudicated rename targets with truth label exactly `continued 1:1` across the rename, B3 correctly resolves at least 3 of them to the exact counterpart, and there are zero unsafe relation errors",
     "row": 3,
     "verdict": "PASS-RENAME"
    },
    {
-    "condition": "at least 3 genuine continued-1:1 rename groups exist, zero unsafe relation errors, but B3 correctly resolves only 0-2 of them",
+    "condition": "at least 3 adjudicated rename targets with truth label exactly `continued 1:1` across the rename, zero unsafe relation errors, but B3 correctly resolves only 0-2 of them",
     "row": 4,
     "verdict": "RENAME-INCONCLUSIVE"
    }
@@ -961,6 +994,9 @@
   "pair_replacement": "PROHIBITED",
   "precedence": "rows are evaluated in order; the first matching row decides. Row 1 therefore dominates every other outcome.",
   "supersedes": "the earlier rule required only >= 3 adjudicable rename groups and zero unsafe errors. Four `unresolved` answers satisfy both, so PASS-RENAME was reachable without resolving a single rename.",
+  "truth_labels_referenced": [
+   "continued 1:1"
+  ],
   "truth_must_be_continued_1_to_1": "the denominator counts only groups whose TRUTH is continued 1:1 across the rename. Correctly calling `ended` or any other outcome on a renamed file does not demonstrate R-CONT-RENAME, and must not be able to earn the axis.",
   "why_threshold_is_three": [
    "1 of 4 validates nothing",
@@ -1379,17 +1415,17 @@
    "method": "cross-product of the outcome_table rows of the in-scope axes against verdict_taxonomy.axes, in both directions",
    "no_tables_added_for_uniformity": "the other three axes are NOT given outcome tables to make the rule uniform. Extending a frozen specification for the sake of a checker's symmetry is the wrong direction: the checker is narrowed to what it checks.",
    "non_table_backed_axes": {
-    "hard": "governed by hard_challenge criteria, not outcome_table",
     "merge": "fixed singleton ceiling MERGE-INCONCLUSIVE"
    },
    "rule": "for every table-backed axis, every outcome_table verdict MUST belong to that axis's declared token set, and every declared token for that axis MUST be reachable from at least one outcome-table row",
    "scope": [
     "natural",
+    "hard",
     "rename",
     "branch"
    ],
-   "scope_change_note": "natural entered the scope in revision 7, when it gained an outcome table. The scope tracks the structure; it is not a fixed list.",
-   "scope_reason": "these are the table-backed axes. hard and merge declare their tokens through acceptance criteria and a fixed ceiling, not through rows.",
+   "scope_change_note": "natural entered in revision 7 and hard in revision 8, each when it gained an outcome table. The scope tracks the structure; it is not a fixed list.",
+   "scope_reason": "these are the table-backed axes. merge is the only axis left outside, because it is a fixed singleton ceiling rather than a decision.",
    "supersedes": "the revision-5 wording 'every verdict appearing in any outcome_table ... and every declared token SHOULD be reachable', which was unscoped and therefore unreproducible for three of the five axes",
    "verified_mechanically": true,
    "why_the_scope_matters": "applying the reachability half to all five axes would report 7 falsely unreachable tokens - natural 3, hard 3, merge 1 - purely because those axes have no rows. The previous wording promised that broader scope while the reported result covered only the two axes actually checked."
@@ -1441,6 +1477,18 @@
    },
    "rule": "no axis may reach a PASS verdict without a positive count of correct resolutions",
    "why": "zero unsafe errors is trivially achieved by answering `unresolved` everywhere. Safety without resolution is not a capability, and an axis that can be passed by silence measures nothing."
+  },
+  "truth_label_reference_rule": {
+   "result_at_this_revision": {
+    "not_in_vocabulary": 0,
+    "referenced": [
+     "branched 1:N",
+     "continued 1:1"
+    ]
+   },
+   "rule": "every truth label named in truth_labels_referenced of any outcome table MUST be a member of truth_protocol.label_vocabulary, verbatim",
+   "verified_mechanically": true,
+   "why": "the branch table referred to `branched` while the vocabulary declares `branched 1:N`. A verdict machinery that is exact about its own vocabulary must be equally exact about the vocabulary it consumes."
   }
  }
 }
