@@ -798,17 +798,32 @@
   "documentation_only": true,
   "findings_applied": [
    {
-    "assessment": "valid. Two sentences still described three axes without tables and seven falsely unreachable tokens. Both were correct at revision 6; natural gained a table in revision 7 and hard in revision 8, so the current figure is one, MERGE-INCONCLUSIVE.",
+    "assessment": "valid. The arithmetic was right and both reviewers confirmed the value; the provenance claim was wrong. A reader of the repository sees a JSON literal and a declaration that it is derived, with nothing that derives it.",
+    "checker_committed": false,
     "fix": [
-     "no_tables_added_for_uniformity now refers to merge alone",
-     "why_the_scope_matters states the current figure and marks seven as historical",
-     "the count moved into a derived field so it cannot go stale again"
+     "removed count, tokens and derived",
+     "current_value_materialization is now PROHIBITED with the reason recorded",
+     "why_the_scope_matters no longer names the number anywhere",
+     "the revision-6 historical entry is retained as an immutable fact"
     ],
     "id": "P2",
-    "semantics_changed": false,
-    "tables_changed": false,
-    "thresholds_changed": false,
-    "title": "consistency_rule prose did not follow the structure"
+    "raised_by": [
+     "Codex",
+     "CodeRabbit"
+    ],
+    "raised_independently": true,
+    "title": "falsely_unreachable_if_applied_to_all_axes stored a cache and called it derived",
+    "why_not": "adding a validator for one counter would re-expand the surface"
+   },
+   {
+    "assessment": "verified_mechanically and mechanical_result read as claims that a permanent validator enforces those properties. Nothing does; RH-M0 commits the manifest and its checksum only.",
+    "fix": [
+     "verified_mechanically -> verified_during_revision_construction, four places",
+     "mechanical_result and result_at_this_revision -> result_at_revision_construction",
+     "verdict_taxonomy.verification_status states the position once"
+    ],
+    "id": "self-found",
+    "title": "the same seam ran through four flags and three snapshots"
    }
   ],
   "frozen_targets_unchanged": true,
@@ -859,12 +874,18 @@
     "reason": "exact truth tokens, total hard axis, LF checksum artifact",
     "revision": 8,
     "sha256": "ff6a5ed408dd56571036137c570cb4a0c6c0a4e98e6e447f67b4842337e9464a"
+   },
+   {
+    "commit": "11057180fe0c12011ea82c7f85cb57483c0225da",
+    "reason": "checker prose follows the structure it describes",
+    "revision": 9,
+    "sha256": "502477c44fb9a315efef10d3504ef33eabfa12f17401ed4abc7905c5c9c50b94"
    }
   ],
-  "reason": "one external review finding on revision 8: stale current-state prose inside the checker metadata",
-  "revision": 9,
-  "supersedes_commit": "ad58b29383d36b9fad0f0dc65a5faa3ace6636e8",
-  "supersedes_sha256": "ff6a5ed408dd56571036137c570cb4a0c6c0a4e98e6e447f67b4842337e9464a",
+  "reason": "one finding raised independently by both external reviewers on revision 9: a materialised value declared as derived, with no generator in the repository",
+  "revision": 10,
+  "supersedes_commit": "11057180fe0c12011ea82c7f85cb57483c0225da",
+  "supersedes_sha256": "502477c44fb9a315efef10d3504ef33eabfa12f17401ed4abc7905c5c9c50b94",
   "targets_sampling_truth_or_b3_surface_touched": false,
   "truth_labels_created": false,
   "what_this_revision_did_not_touch": [
@@ -1408,9 +1429,8 @@
   "composite": true,
   "consistency_rule": {
    "falsely_unreachable_if_applied_to_all_axes": {
-    "count": 1,
-    "derivation": "for every axis without an outcome_table, every token declared for it in verdict_taxonomy.axes",
-    "derived": true,
+    "current_value_materialization": "PROHIBITED",
+    "derivation": "for every axis without an outcome_table, take every token declared for that axis in verdict_taxonomy.axes",
     "historical_values": [
      {
       "correct_at_the_time": true,
@@ -1423,20 +1443,18 @@
       ]
      }
     ],
-    "tokens": [
-     "merge: MERGE-INCONCLUSIVE"
-    ],
-    "why_derived": "the count was prose at revision 6 and went stale the moment natural and hard gained tables. It is computed from the structure so it cannot drift again."
+    "historical_values_are_immutable_facts": "the revision-6 entry is retained. It is not a derived current value but a record of what the computation yielded at that revision, so it cannot become semantically stale.",
+    "reason": "the current count and token list are intentionally not stored. Consumers compute them from the authoritative structure, which prevents the cache drift that produced this finding: the value was materialised at revision 9, was correct then, and would have gone stale again the next time an axis gained or lost a table."
    },
    "how_the_defect_was_missed": "the rename table was written by analogy with the branch table, which legitimately uses FAIL/PIVOT. Prose review compares a row against its neighbours; only a mechanical check compares it against its own axis.",
-   "mechanical_result": {
-    "declared_but_unreachable": 0,
-    "emitted_not_declared": 0
-   },
    "method": "cross-product of the outcome_table rows of the in-scope axes against verdict_taxonomy.axes, in both directions",
    "no_tables_added_for_uniformity": "merge is deliberately NOT given an outcome table merely to make the checker uniform. It remains a fixed singleton ceiling and therefore stays outside the table-backed scope.",
    "non_table_backed_axes": {
     "merge": "fixed singleton ceiling MERGE-INCONCLUSIVE"
+   },
+   "result_at_revision_construction": {
+    "declared_but_unreachable": 0,
+    "emitted_not_declared": 0
    },
    "rule": "for every table-backed axis, every outcome_table verdict MUST belong to that axis's declared token set, and every declared token for that axis MUST be reachable from at least one outcome-table row",
    "scope": [
@@ -1450,21 +1468,21 @@
    "structural_invariants": {
     "non_table_backed_is_the_complement": "set(non_table_backed_axes) == set(verdict_taxonomy.axes) - set(consistency_rule.scope)",
     "scope_equals_table_backed_axes": "set(consistency_rule.scope) == set(axes whose section contains an outcome_table)",
-    "verified_mechanically": true,
+    "verified_during_revision_construction": true,
     "why_structural_not_textual": "the invariants are asserted against the structure, never against the wording. A checker that verifies its own description needs a second checker for that description, and so on."
    },
    "supersedes": "the revision-5 wording 'every verdict appearing in any outcome_table ... and every declared token SHOULD be reachable', which was unscoped and therefore unreproducible for three of the five axes",
-   "verified_mechanically": true,
-   "why_the_scope_matters": "At revision 9, natural, hard, rename and branch are table-backed. Applying table reachability to all five axes would falsely report exactly one unreachable token, MERGE-INCONCLUSIVE, solely because merge intentionally has no outcome_table. The earlier count of seven applied before natural and hard became table-backed and is historical, not the current mechanical result. The authoritative value is the derived field below, not this sentence."
+   "verified_during_revision_construction": true,
+   "why_the_scope_matters": "Applying table reachability outside consistency_rule.scope would classify the declared tokens of intentionally non-table-backed axes as unreachable. The current value is intentionally not materialized; it is computed from verdict_taxonomy.axes and the actual presence of outcome_table."
   },
   "disposition_coverage_rule": {
-   "result_at_this_revision": {
+   "result_at_revision_construction": {
     "mapped_but_undeclared": 0,
     "tokens_declared": 11,
     "tokens_unmapped": 0
    },
    "rule": "every token declared in verdict_taxonomy.axes MUST have exactly one entry in axis_disposition.mapping",
-   "verified_mechanically": true,
+   "verified_during_revision_construction": true,
    "why": "finding two of this round was precisely a mapping written against tokens that did not exist. A rule that is checked cannot drift back into that state silently."
   },
   "every_run_reports_one_verdict_per_axis": true,
@@ -1506,7 +1524,7 @@
    "why": "zero unsafe errors is trivially achieved by answering `unresolved` everywhere. Safety without resolution is not a capability, and an axis that can be passed by silence measures nothing."
   },
   "truth_label_reference_rule": {
-   "result_at_this_revision": {
+   "result_at_revision_construction": {
     "not_in_vocabulary": 0,
     "referenced": [
      "branched 1:N",
@@ -1514,8 +1532,15 @@
     ]
    },
    "rule": "every truth label named in truth_labels_referenced of any outcome table MUST be a member of truth_protocol.label_vocabulary, verbatim",
-   "verified_mechanically": true,
+   "verified_during_revision_construction": true,
    "why": "the branch table referred to `branched` while the vocabulary declares `branched 1:N`. A verdict machinery that is exact about its own vocabulary must be equally exact about the vocabulary it consumes."
+  },
+  "verification_status": {
+   "consumer_expectation": "a consumer needing a current value computes it from the authoritative structure rather than reading a stored one",
+   "no_committed_validator": "RH-M0 commits the manifest and its checksum sidecar only. No checker is committed alongside them.",
+   "supersedes": "the earlier verified_mechanically and mechanical_result naming, which could be read as asserting that a permanent validator enforces these properties",
+   "what_the_flags_mean": "every verified_during_revision_construction flag and every result_at_revision_construction object records what was computed while that revision was being built. They are construction-time observations, not live repository invariants, and nothing re-runs them.",
+   "why_no_checker_is_added": "committing a validator to service one counter would extend the RH-M0 surface at the exact moment the remaining defects became purely meta-level. The cache is removed instead of being managed."
   }
  }
 }
