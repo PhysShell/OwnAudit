@@ -795,35 +795,26 @@
  },
  "manifest_revision": {
   "b3_executed": false,
-  "documentation_only": true,
   "findings_applied": [
    {
-    "assessment": "valid. The arithmetic was right and both reviewers confirmed the value; the provenance claim was wrong. A reader of the repository sees a JSON literal and a declaration that it is derived, with nothing that derives it.",
-    "checker_committed": false,
+    "assessment": "valid. Endpoint sets were required only for branched 1:N and merged N:1, yet the rename axis scores resolution to the exact counterpart and natural precision must separate a correct continuation from one to a neighbouring similar finding. With two candidates on the far side the question was undecidable after the freeze.",
     "fix": [
-     "removed count, tokens and derived",
-     "current_value_materialization is now PROHIBITED with the reason recorded",
-     "why_the_scope_matters no longer names the number anywhere",
-     "the revision-6 historical entry is retained as an immutable fact"
+     "endpoint_contract covers every vocabulary entry with an explicit cardinality",
+     "endpoint identity is a frozen hash, computed by the builder, never free text",
+     "ended and new carry a structurally empty opposite-side set so the scorer has one contract instead of per-verdict guesses"
     ],
-    "id": "P2",
-    "raised_by": [
-     "Codex",
-     "CodeRabbit"
-    ],
-    "raised_independently": true,
-    "title": "falsely_unreachable_if_applied_to_all_axes stored a cache and called it derived",
-    "why_not": "adding a validator for one counter would re-expand the surface"
+    "id": "P1-a",
+    "title": "continued 1:1 carried no counterpart endpoint"
    },
    {
-    "assessment": "verified_mechanically and mechanical_result read as claims that a permanent validator enforces those properties. Nothing does; RH-M0 commits the manifest and its checksum only.",
+    "assessment": "valid and not hypothetical. evidence_cards_contain listed 'raw finding' while labelers_must_not_see forbids rule ids, and the canonical normalized finding carries rule, category, category_name, pattern_id and occurrence_id. Confirmed against a real normalized snapshot.",
     "fix": [
-     "verified_mechanically -> verified_during_revision_construction, four places",
-     "mechanical_result and result_at_this_revision -> result_at_revision_construction",
-     "verdict_taxonomy.verification_status states the position once"
+     "an explicit allowlist replaces the raw finding",
+     "forbidden fields are enumerated, and the rule ids / `rule` naming gap is stated",
+     "tool is excluded because a single producer makes it constant"
     ],
-    "id": "self-found",
-    "title": "the same seam ran through four flags and three snapshots"
+    "id": "P1-b",
+    "title": "the evidence card leaked forbidden fields"
    }
   ],
   "frozen_targets_unchanged": true,
@@ -880,22 +871,31 @@
     "reason": "checker prose follows the structure it describes",
     "revision": 9,
     "sha256": "502477c44fb9a315efef10d3504ef33eabfa12f17401ed4abc7905c5c9c50b94"
+   },
+   {
+    "commit": "b10d48b231de80fa4a5deeb636174a555188a74b",
+    "reason": "cached derived value removed, not managed",
+    "revision": 10,
+    "sha256": "08f266e927d733ac177a6b5592da6cab4db51df8b82467e0bacc3b7f6b342758"
    }
   ],
-  "reason": "one finding raised independently by both external reviewers on revision 9: a materialised value declared as derived, with no generator in the repository",
-  "revision": 10,
-  "supersedes_commit": "11057180fe0c12011ea82c7f85cb57483c0225da",
-  "supersedes_sha256": "502477c44fb9a315efef10d3504ef33eabfa12f17401ed4abc7905c5c9c50b94",
-  "targets_sampling_truth_or_b3_surface_touched": false,
+  "reason": "two external review findings on revision 10, both substantive truth-protocol defects",
+  "revision": 11,
+  "supersedes_commit": "b10d48b231de80fa4a5deeb636174a555188a74b",
+  "supersedes_sha256": "08f266e927d733ac177a6b5592da6cab4db51df8b82467e0bacc3b7f6b342758",
   "truth_labels_created": false,
+  "truth_protocol_changed_on_purpose": "this revision edits truth_protocol, which earlier revisions asserted unchanged. Both findings are defects in the truth representation itself, so it is the correct thing to change. label_vocabulary is unchanged.",
   "what_this_revision_did_not_touch": [
+   "frozen_targets",
+   "seeds",
    "verdict_taxonomy.axes",
    "axis_disposition",
    "consistency_rule.scope",
    "all four outcome tables",
-   "truth_protocol",
-   "seeds",
-   "frozen_targets"
+   "truth_protocol.label_vocabulary",
+   "labels_per_target",
+   "labelers_must_not_see",
+   "ai_agreement_is_not_truth"
   ]
  },
  "merge_capability": {
@@ -1339,9 +1339,85 @@
  "truth_labels_created": false,
  "truth_protocol": {
   "ai_agreement_is_not_truth": "two agreeing agents produce PROPOSED truth only; the final truth artifact requires human/owner adjudication and sign-off",
+  "construction_time_guarantees": {
+   "checks": [
+    "labeler_finding_projection.allowlist and forbidden_finding_fields are disjoint",
+    "every label_vocabulary entry has an endpoint_contract.by_outcome entry",
+    "every resolved outcome declares an endpoint cardinality"
+   ],
+   "not_repository_enforced": "RH-M0 commits the manifest and its checksum only; see verdict_taxonomy.verification_status",
+   "result_at_revision_construction": {
+    "allowlist_forbidden_overlap": 0,
+    "endpoint_contract_entries_outside_vocabulary": 0,
+    "resolved_outcomes_without_cardinality": 0,
+    "vocabulary_entries_without_endpoint_contract": 0
+   },
+   "verified_during_revision_construction": true
+  },
+  "endpoint_contract": {
+   "by_outcome": {
+    "branched 1:N": {
+     "cardinality": ">= 2",
+     "endpoint_set": "successors",
+     "resolved": true
+    },
+    "continued 1:1": {
+     "cardinality": "exactly 1",
+     "endpoint_set": "opposite side",
+     "resolved": true
+    },
+    "ended": {
+     "cardinality": "empty",
+     "endpoint_set": "opposite side",
+     "resolved": true
+    },
+    "merged N:1": {
+     "cardinality": ">= 2",
+     "endpoint_set": "predecessors",
+     "resolved": true
+    },
+    "new": {
+     "cardinality": "empty",
+     "endpoint_set": "opposite side",
+     "resolved": true
+    },
+    "unadjudicable": {
+     "cardinality": "not applicable; not a resolved relation",
+     "endpoint_set": null,
+     "resolved": false
+    },
+    "unresolved-by-truth": {
+     "cardinality": "not applicable; not a resolved relation",
+     "endpoint_set": null,
+     "resolved": false
+    }
+   },
+   "endpoint_identity": {
+    "computed_by": "the truth-artifact builder, from the normalized snapshot of the named revision. Labelers never compute it and never see its preimage.",
+    "digest": "sha256, lowercase hex",
+    "form": "endpoint_id, a hash over the canonical identity of one normalized finding",
+    "free_text_prohibited": "an endpoint is never recorded as prose such as 'the finding one line below'. A natural-language foreign key cannot be scored.",
+    "how_labelers_designate_endpoints": "by the candidate index printed on the evidence card. The builder resolves an index to its endpoint_id. This keeps rule and message-identity machinery out of the labeler's view while still producing a machine-comparable record.",
+    "preimage": [
+     "rh-m0-endpoint/v1",
+     "<truth_seed>",
+     "<repo_id>",
+     "<revision_sha>",
+     "<path>",
+     "<rule>",
+     "<message>",
+     "<start_line>",
+     "<start_column>"
+    ],
+    "serialisation": "json.dumps(array, ensure_ascii=False, separators=(\",\",\":\")).encode(\"utf-8\")"
+   },
+   "scorer_consequence": "a B3 relation is correct only if its endpoint set equals the truth endpoint set exactly, by endpoint_id. Cardinality mismatch is a silent cardinality loss or an invented endpoint, both already defined as unsafe relation errors.",
+   "why": "a truth label states what happened. Without endpoints it does not state with whom, and with two plausible candidates on the far side nobody can decide after the freeze whether a resolution was a true positive or a false continuation to a neighbouring finding.",
+   "why_ended_and_new_carry_an_empty_set": "natural outcome row 1 fails on a fabricated new/ended where truth has a counterpart. If the truth artifact states an EMPTY opposite-side set structurally, the scorer applies one endpoint contract instead of guessing per verdict what absence was supposed to mean."
+  },
   "evidence_cards_contain": [
    "source at A and B",
-   "raw finding",
+   "finding projection, allowlist below",
    "ordinary Git diff",
    "rename and copy metadata",
    "commit context"
@@ -1357,6 +1433,38 @@
   ],
   "labeler_a": "blind to B3",
   "labeler_b": "blind to B3 and to labeler A",
+  "labeler_finding_projection": {
+   "allowlist": [
+    "path",
+    "line",
+    "start_line",
+    "start_column",
+    "message"
+   ],
+   "forbidden_finding_fields": [
+    "rule",
+    "category",
+    "category_name",
+    "pattern_id",
+    "occurrence_id",
+    "resource",
+    "identity_limitations",
+    "suppressed",
+    "suppress_reason"
+   ],
+   "principle": "an allowlist, never a subtraction. 'raw finding minus rule' would silently start carrying whatever field the normalizer gains next.",
+   "structures_not_part_of_the_projection": [
+    "B3 output",
+    "baseline output",
+    "evidence sets",
+    "applicable_rules",
+    "licensed_by",
+    "outcomes"
+   ],
+   "supersedes": "evidence_cards_contain previously listed 'raw finding', which contradicts labelers_must_not_see: the canonical normalized finding carries rule, category, category_name, pattern_id and occurrence_id.",
+   "tool_excluded": "one producer is used for the whole experiment, so tool is constant and carries no information for adjudication. It is excluded rather than admitted by habit.",
+   "vocabulary_mapping": "'rule ids' in labelers_must_not_see corresponds to the `rule` field of the normalized finding schema. The names differ, so the correspondence is stated rather than assumed."
+  },
   "labelers_must_not_see": [
    "B3 output",
    "baseline output",
@@ -1367,7 +1475,6 @@
    "outcomes"
   ],
   "labels_per_target": 2,
-  "resolved_branch_or_merge_carries": "exact endpoint sets, not only the outcome",
   "targets_frozen_now": 63,
   "truth_artifact_hashed_and_frozen_before": "the first STS B3 run"
  },
