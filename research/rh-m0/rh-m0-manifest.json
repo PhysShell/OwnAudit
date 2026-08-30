@@ -766,22 +766,13 @@
   "b3_executed": false,
   "findings_applied": [
    {
-    "assessment": "valid. rename row 1 emitted FAIL/PIVOT while the rename axis declares PASS-RENAME / RENAME-INCONCLUSIVE / FAIL, so no run could satisfy both.",
-    "fix": "rename_capability.outcome_table row 1 verdict FAIL/PIVOT -> FAIL",
+    "assessment": "valid. Only rename and branch are table-backed. Applying the reachability half to natural, hard and merge would report 7 falsely unreachable tokens, so declared_but_unreachable=0 was reproducible only for the two axes actually checked. Verified: 7, being natural 3, hard 3, merge 1.",
+    "fix": "consistency_rule now carries an explicit scope, and each non-table-backed axis names the section that governs its tokens",
     "id": "P2",
-    "taxonomy_widened": false,
-    "title": "Align the rename failure with its verdict taxonomy"
-   },
-   {
-    "assessment": "FAIL was declared for the rename axis but reachable from no row. The mechanical cross-check surfaced both directions at once.",
-    "fix": "resolved by the same one-token change",
-    "id": "self-found",
-    "title": "the mirror image of the same defect"
-   },
-   {
-    "fix": "verdict_taxonomy.consistency_rule states the invariant and records that it was verified mechanically in both directions",
-    "id": "self-found",
-    "title": "the check itself was not written down"
+    "outcome_semantics_changed": false,
+    "taxonomy_changed": false,
+    "thresholds_changed": false,
+    "title": "Mechanical consistency rule overclaims its scope"
    }
   ],
   "frozen_targets_unchanged": true,
@@ -808,14 +799,28 @@
     "reason": "no verdict axis passable without resolving anything",
     "revision": 4,
     "sha256": "2b8ce7018b6a67a6a522ac8d77638b4ccbd3f76634aa15b2f790443d0e6ad614"
+   },
+   {
+    "commit": "5c89ba515da4e5e84b3fb7749ccdf9d99bd28ffa",
+    "reason": "rename failure token aligned with its own axis",
+    "revision": 5,
+    "sha256": "f4c5181eaf0948dc38f6d86c884404331a5111f275228d78cd7ca22c0f97f47e"
    }
   ],
-  "reason": "one external review finding on revision 4: a verdict token outside its own axis",
-  "revision": 5,
-  "supersedes_commit": "03d56ace0623db64abe9db9d88c385717968ccca",
-  "supersedes_sha256": "2b8ce7018b6a67a6a522ac8d77638b4ccbd3f76634aa15b2f790443d0e6ad614",
+  "reason": "one external review finding on revision 5: the mechanical consistency rule claimed a wider scope than it checks",
+  "revision": 6,
+  "supersedes_commit": "5c89ba515da4e5e84b3fb7749ccdf9d99bd28ffa",
+  "supersedes_sha256": "f4c5181eaf0948dc38f6d86c884404331a5111f275228d78cd7ca22c0f97f47e",
   "targets_sampling_truth_or_b3_surface_touched": false,
-  "truth_labels_created": false
+  "truth_labels_created": false,
+  "what_this_revision_did_not_touch": [
+   "verdict_taxonomy.axes",
+   "rename_capability.outcome_table",
+   "branch_capability.outcome_table",
+   "primary_holdout",
+   "hard_challenge",
+   "frozen_targets"
+  ]
  },
  "merge_capability": {
   "ceiling": "MERGE-INCONCLUSIVE",
@@ -1286,13 +1291,26 @@
   "composite": true,
   "consistency_rule": {
    "how_the_defect_was_missed": "the rename table was written by analogy with the branch table, which legitimately uses FAIL/PIVOT. Prose review compares a row against its neighbours; only a mechanical check compares it against its own axis.",
-   "method": "cross-product check of all outcome_table rows against verdict_taxonomy.axes, in both directions",
-   "result_at_this_revision": {
+   "mechanical_result": {
     "declared_but_unreachable": 0,
-    "mismatches": 0
+    "emitted_not_declared": 0
    },
-   "rule": "every verdict appearing in any outcome_table MUST be a member of the token set declared for that axis in verdict_taxonomy.axes, and every declared token SHOULD be reachable from at least one row",
-   "verified_mechanically": true
+   "method": "cross-product of the outcome_table rows of the in-scope axes against verdict_taxonomy.axes, in both directions",
+   "no_tables_added_for_uniformity": "the other three axes are NOT given outcome tables to make the rule uniform. Extending a frozen specification for the sake of a checker's symmetry is the wrong direction: the checker is narrowed to what it checks.",
+   "non_table_backed_axes": {
+    "hard": "governed by hard_challenge criteria, not outcome_table",
+    "merge": "fixed singleton ceiling MERGE-INCONCLUSIVE",
+    "natural": "governed by primary_holdout acceptance criteria, not outcome_table"
+   },
+   "rule": "for every table-backed axis, every outcome_table verdict MUST belong to that axis's declared token set, and every declared token for that axis MUST be reachable from at least one outcome-table row",
+   "scope": [
+    "rename",
+    "branch"
+   ],
+   "scope_reason": "these are the only table-backed axes. The other three declare their tokens through acceptance criteria, not through rows, so a row-based reachability check does not apply to them.",
+   "supersedes": "the revision-5 wording 'every verdict appearing in any outcome_table ... and every declared token SHOULD be reachable', which was unscoped and therefore unreproducible for three of the five axes",
+   "verified_mechanically": true,
+   "why_the_scope_matters": "applying the reachability half to all five axes would report 7 falsely unreachable tokens - natural 3, hard 3, merge 1 - purely because those axes have no rows. The previous wording promised that broader scope while the reported result covered only the two axes actually checked."
   },
   "every_run_reports_one_verdict_per_axis": true,
   "examples": [
