@@ -766,13 +766,29 @@
   "b3_executed": false,
   "findings_applied": [
    {
-    "assessment": "valid. Only rename and branch are table-backed. Applying the reachability half to natural, hard and merge would report 7 falsely unreachable tokens, so declared_but_unreachable=0 was reproducible only for the two axes actually checked. Verified: 7, being natural 3, hard 3, merge 1.",
-    "fix": "consistency_rule now carries an explicit scope, and each non-table-backed axis names the section that governs its tokens",
-    "id": "P2",
-    "outcome_semantics_changed": false,
-    "taxonomy_changed": false,
+    "assessment": "valid. A precision or correctness violation had no declared verdict, so the choice between FAIL and INCONCLUSIVE remained available after unblinding.",
+    "fix": "primary_holdout.outcome_table: six rows, precedence-ordered, total",
+    "id": "P2-a",
     "thresholds_changed": false,
-    "title": "Mechanical consistency rule overclaims its scope"
+    "title": "natural axis had no total number-to-verdict rule"
+   },
+   {
+    "assessment": "valid. PASS is not a token of any axis.",
+    "fix": "concrete token-by-token mapping over all 11 declared tokens",
+    "id": "P2-b",
+    "title": "disposition mapping used tokens the taxonomy does not declare"
+   },
+   {
+    "assessment": "MERGE-INCONCLUSIVE is preregistered on every run, so a global INCONCLUSIVE -> HOLD would make PROCEED unreachable forever.",
+    "fix": "renamed to axis_disposition with an explicit no_global_aggregator clause",
+    "id": "self-found",
+    "title": "the mapping read as a global aggregator"
+   },
+   {
+    "assessment": "natural became table-backed, so leaving the scope at [rename, branch] would have created the next finding inside the same commit.",
+    "fix": "consistency_rule.scope now [natural, rename, branch]; hard and merge remain out",
+    "id": "self-found",
+    "title": "adding a natural table changed what the consistency scope must cover"
    }
   ],
   "frozen_targets_unchanged": true,
@@ -805,21 +821,28 @@
     "reason": "rename failure token aligned with its own axis",
     "revision": 5,
     "sha256": "f4c5181eaf0948dc38f6d86c884404331a5111f275228d78cd7ca22c0f97f47e"
+   },
+   {
+    "commit": "ac54fcb3420550f0423366842fdd488f69bf1b3a",
+    "reason": "consistency rule narrowed to the axes it checks",
+    "revision": 6,
+    "sha256": "7d087e8a8dc0ab06cc39b5328824c6ad902d2b87c6f996f7239d068b10bf72fd"
    }
   ],
-  "reason": "one external review finding on revision 5: the mechanical consistency rule claimed a wider scope than it checks",
-  "revision": 6,
-  "supersedes_commit": "5c89ba515da4e5e84b3fb7749ccdf9d99bd28ffa",
-  "supersedes_sha256": "f4c5181eaf0948dc38f6d86c884404331a5111f275228d78cd7ca22c0f97f47e",
+  "reason": "two external review findings on revision 6, plus one consequence of fixing them",
+  "revision": 7,
+  "supersedes_commit": "ac54fcb3420550f0423366842fdd488f69bf1b3a",
+  "supersedes_sha256": "7d087e8a8dc0ab06cc39b5328824c6ad902d2b87c6f996f7239d068b10bf72fd",
   "targets_sampling_truth_or_b3_surface_touched": false,
   "truth_labels_created": false,
   "what_this_revision_did_not_touch": [
    "verdict_taxonomy.axes",
    "rename_capability.outcome_table",
    "branch_capability.outcome_table",
-   "primary_holdout",
    "hard_challenge",
-   "frozen_targets"
+   "frozen_targets",
+   "truth_protocol",
+   "seeds"
   ]
  },
  "merge_capability": {
@@ -847,9 +870,44 @@
    "utility_justification": "may be recorded for the record, but it CANNOT raise a capped verdict. An after-the-fact argument is not an acceptance criterion.",
    "why_capped_rather_than_FAIL": "losing coverage against a deliberately conservative baseline is evidence that the policy is unhelpful, not evidence that it is wrong. FAIL is reserved for incorrect relations."
   },
+  "b3_coverage_over_b0": "the earlier requirement 'B3 coverage > B0' is subsumed by row 3 and is therefore not a separate row. B0 always answers unresolved, so coverage(B0) = 0, and >= 20 B3-resolved groups implies coverage(B3) > 0. Recorded rather than dropped.",
   "definition": "the primary external-validity sample is the 50 STS natural truth targets ONLY",
   "explicit_clarification": "the 63 selected targets do NOT themselves satisfy the >= 40 criterion. The criterion counts ADJUDICABLE TRUTH GROUPS, which is not known until truth labelling is complete.",
+  "fail_vs_inconclusive_doctrine": "FAIL marks observed incorrectness: a fabricated relation or a precision breach. INCONCLUSIVE marks insufficient evidence or insufficient utility. This is the same doctrine already frozen for the B2 coverage loss, where losing coverage against a deliberately conservative baseline is evidence of unhelpfulness rather than of error.",
   "hard_targets_in_primary_denominator": false,
+  "outcome_table": [
+   {
+    "condition": "any fabricated new/ended where truth has a counterpart",
+    "row": 1,
+    "verdict": "FAIL"
+   },
+   {
+    "condition": "fewer than 40 adjudicable truth groups among the 50 natural targets",
+    "row": 2,
+    "verdict": "INCONCLUSIVE"
+   },
+   {
+    "condition": "fewer than 20 B3-resolved natural groups",
+    "row": 3,
+    "verdict": "INCONCLUSIVE"
+   },
+   {
+    "condition": "resolved precision < 95%",
+    "row": 4,
+    "verdict": "FAIL"
+   },
+   {
+    "condition": "coverage(B2) - coverage(B3) > 10 percentage points",
+    "row": 5,
+    "verdict": "INCONCLUSIVE"
+   },
+   {
+    "condition": "otherwise",
+    "row": 6,
+    "verdict": "PASS-NATURAL"
+   }
+  ],
+  "precedence": "rows are evaluated in order; the first matching row decides. Row 1 therefore dominates every other outcome.",
   "requirements": [
    ">= 40 adjudicable truth groups among the 50 natural targets, otherwise INCONCLUSIVE",
    ">= 20 B3-resolved natural groups, otherwise INCONCLUSIVE",
@@ -858,6 +916,8 @@
    "B3 coverage > B0",
    "B3-vs-B2 coverage loss is subject to the frozen disposition below"
   ],
+  "supersedes": "the earlier requirements list, which attached 'otherwise INCONCLUSIVE' to only two of six criteria and left a precision or correctness violation without a declared verdict",
+  "total": "the table is total: row 6 is unconditional, so every combination of measurements maps to exactly one verdict",
   "why": "a deliberately oversampled hard slice must not be able to rescue a failing natural-history sample by arithmetic"
  },
  "producer_and_toolchain": {
@@ -1287,6 +1347,27 @@
    "branch",
    "merge"
   ],
+  "axis_disposition": {
+   "branch_axis_exception": "the branch axis retains the compound token FAIL/PIVOT because it was preregistered that way and is internally consistent with its own token set. It is recorded here as a known wart, not silently rewritten: changing a frozen token to satisfy a style preference is exactly the kind of post-hoc edit this manifest exists to prevent.",
+   "mapping": {
+    "BRANCH-INCONCLUSIVE": "HOLD",
+    "FAIL": "PIVOT",
+    "FAIL/PIVOT": "PIVOT",
+    "HARD-INCONCLUSIVE": "HOLD",
+    "HARD-PASS": "PROCEED",
+    "INCONCLUSIVE": "HOLD",
+    "MERGE-INCONCLUSIVE": "HOLD",
+    "PASS-BRANCH": "PROCEED",
+    "PASS-NATURAL": "PROCEED",
+    "PASS-RENAME": "PROCEED",
+    "RENAME-INCONCLUSIVE": "HOLD"
+   },
+   "mapping_is_concrete": "every entry names a token that the taxonomy actually declares. No prefix, suffix or regular-expression normalisation is used, because a rule that has to parse its own vocabulary is a rule that will one day parse it wrongly.",
+   "merge_entry_is_axis_local": "MERGE-INCONCLUSIVE -> HOLD is admissible only as an axis-local disposition. It cannot by itself imply a global HOLD.",
+   "no_global_aggregator": "No global composite disposition is frozen by RH-M0. MERGE-INCONCLUSIVE is a preregistered capability ceiling present on every run, so read as a global rule this mapping would make PROCEED unreachable forever. The global decision stays compositional and is not smuggled back into a monolithic gate.",
+   "what_this_is": "the local disposition associated with ONE axis verdict. It does NOT aggregate the five-axis composite into a single experiment or project disposition.",
+   "why": "a verdict records what was measured; a disposition records what the project does next. Fusing them into one token, as FAIL/PIVOT does, makes the measured result depend on a management decision and is awkward for any consumer that groups by verdict."
+  },
   "axis_independence_note": "HARD-PASS pools rename and copy, so its +3 requirement can in principle be satisfied entirely by copy targets while no rename is resolved at all. That is why rename carries its own axis with its own resolution floor, and why a composite verdict must report both. HARD-PASS together with RENAME-INCONCLUSIVE is a coherent and honest result, not a contradiction.",
   "composite": true,
   "consistency_rule": {
@@ -1299,18 +1380,29 @@
    "no_tables_added_for_uniformity": "the other three axes are NOT given outcome tables to make the rule uniform. Extending a frozen specification for the sake of a checker's symmetry is the wrong direction: the checker is narrowed to what it checks.",
    "non_table_backed_axes": {
     "hard": "governed by hard_challenge criteria, not outcome_table",
-    "merge": "fixed singleton ceiling MERGE-INCONCLUSIVE",
-    "natural": "governed by primary_holdout acceptance criteria, not outcome_table"
+    "merge": "fixed singleton ceiling MERGE-INCONCLUSIVE"
    },
    "rule": "for every table-backed axis, every outcome_table verdict MUST belong to that axis's declared token set, and every declared token for that axis MUST be reachable from at least one outcome-table row",
    "scope": [
+    "natural",
     "rename",
     "branch"
    ],
-   "scope_reason": "these are the only table-backed axes. The other three declare their tokens through acceptance criteria, not through rows, so a row-based reachability check does not apply to them.",
+   "scope_change_note": "natural entered the scope in revision 7, when it gained an outcome table. The scope tracks the structure; it is not a fixed list.",
+   "scope_reason": "these are the table-backed axes. hard and merge declare their tokens through acceptance criteria and a fixed ceiling, not through rows.",
    "supersedes": "the revision-5 wording 'every verdict appearing in any outcome_table ... and every declared token SHOULD be reachable', which was unscoped and therefore unreproducible for three of the five axes",
    "verified_mechanically": true,
    "why_the_scope_matters": "applying the reachability half to all five axes would report 7 falsely unreachable tokens - natural 3, hard 3, merge 1 - purely because those axes have no rows. The previous wording promised that broader scope while the reported result covered only the two axes actually checked."
+  },
+  "disposition_coverage_rule": {
+   "result_at_this_revision": {
+    "mapped_but_undeclared": 0,
+    "tokens_declared": 11,
+    "tokens_unmapped": 0
+   },
+   "rule": "every token declared in verdict_taxonomy.axes MUST have exactly one entry in axis_disposition.mapping",
+   "verified_mechanically": true,
+   "why": "finding two of this round was precisely a mapping written against tokens that did not exist. A rule that is checked cannot drift back into that state silently."
   },
   "every_run_reports_one_verdict_per_axis": true,
   "examples": [
@@ -1337,27 +1429,6 @@
    }
   ],
   "examples_schema_note": "every example carries all five axes. A composite with fewer than five entries is malformed.",
-  "experiment_disposition": {
-   "branch_axis_exception": "the branch axis retains the compound token FAIL/PIVOT because it was preregistered that way and is internally consistent with its own token set. It is recorded here as a known wart, not silently rewritten: changing a frozen token to satisfy a style preference is exactly the kind of post-hoc edit this manifest exists to prevent.",
-   "mapping": [
-    {
-     "axis_verdict": "FAIL",
-     "disposition": "PIVOT",
-     "meaning": "an unsafe relation error was produced; the policy is wrong, not merely unhelpful"
-    },
-    {
-     "axis_verdict": "INCONCLUSIVE",
-     "disposition": "HOLD",
-     "meaning": "the sample or the resolution count could not decide the axis"
-    },
-    {
-     "axis_verdict": "PASS",
-     "disposition": "PROCEED",
-     "meaning": "the axis is demonstrated within its preregistered limits"
-    }
-   ],
-   "why": "a verdict records what was measured; a disposition records what the project does next. Fusing them into one token, as FAIL/PIVOT does, makes the measured result depend on a management decision and is awkward for any consumer that groups by verdict."
-  },
   "merge_axis_is_fixed": "MERGE-INCONCLUSIVE regardless of any other outcome",
   "monolithic_pass_prohibited": "a single PASS hides which capability was actually exercised; every run reports one verdict per axis",
   "no_vacuous_pass": {
