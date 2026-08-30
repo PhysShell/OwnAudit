@@ -52,34 +52,38 @@
  },
  "branch_capability": {
   "census_status": "the targetability census established STRUCTURAL POSSIBILITY only: 24 of 25 copy pairs carry a branch-capable source, but a finding actually sits on such a source in only 5 pairs, 16 candidate occurrences, 9 selected targets. This asserts nothing about branch truth.",
-  "exhaustive": "the four rows above cover every reachable combination",
+  "exhaustive": "the five rows cover every reachable combination",
   "outcome_table": [
    {
-    "condition": "0-2 adjudicated groups are genuinely branched",
+    "condition": "any unsafe relation error on an adjudicable branch target, including a lost or invented successor endpoint",
+    "row": 1,
+    "verdict": "FAIL/PIVOT"
+   },
+   {
+    "condition": "fewer than 3 adjudicated groups whose truth label is `branched`",
     "note": "regardless of B3 output",
+    "row": 2,
     "verdict": "BRANCH-INCONCLUSIVE"
    },
    {
-    "condition": ">= 3 genuine branches but all within a SINGLE revision pair",
+    "condition": "at least 3 genuine branched groups, but all of them inside a SINGLE revision pair",
     "note": "preregistered explicitly. Several frozen copy targets share a revision pair, so this case is reachable; one pair cannot demonstrate a capability that must generalise across history.",
+    "row": 3,
     "verdict": "BRANCH-INCONCLUSIVE"
    },
    {
-    "condition": ">= 3 genuine branches spanning >= 2 revision pairs, all endpoint sets exact",
+    "condition": "at least 3 genuine branched groups spanning >= 2 distinct revision pairs, and B3 correctly resolves at least 3 of them with the exact successor endpoint set, zero silent cardinality loss and zero invented endpoints",
+    "row": 4,
     "verdict": "PASS-BRANCH"
    },
    {
-    "condition": ">= 3 genuine branches spanning >= 2 revision pairs, any endpoint lost or invented",
-    "verdict": "FAIL/PIVOT"
+    "condition": "at least 3 genuine branched groups spanning >= 2 distinct revision pairs, zero unsafe relation errors, but B3 correctly resolves only 0-2 of them",
+    "row": 5,
+    "verdict": "BRANCH-INCONCLUSIVE"
    }
   ],
-  "validated_requires": [
-   ">= 3 adjudicated truth groups whose truth label is 'branched'",
-   "those groups span >= 2 distinct revision pairs",
-   "exact successor endpoint-set accuracy = 100%",
-   "zero silent cardinality loss",
-   "zero invented branch endpoints"
-  ]
+  "precedence": "rows are evaluated in order; the first matching row decides. Row 1 therefore dominates every other outcome.",
+  "supersedes": "the earlier row 'all endpoint sets exact' was vacuously true when B3 produced no endpoint sets at all, so PASS-BRANCH was reachable with zero resolutions. Row 4 now requires at least 3 correct resolutions."
  },
  "contains_correctness_result": false,
  "descriptive_strata": {
@@ -759,22 +763,31 @@
   ]
  },
  "manifest_revision": {
+  "axes_checked_for_the_same_defect": {
+   "branch": "FIXED",
+   "hard": "already had a floor: +3 correct resolutions over the better baseline",
+   "merge": "not applicable; fixed at MERGE-INCONCLUSIVE",
+   "natural": "already had a floor: >= 20 B3-resolved",
+   "rename": "FIXED"
+  },
   "b3_executed": false,
   "findings_applied": [
    {
-    "assessment": "valid; a dedicated permission flag set to false is ambiguous for a machine reader",
-    "fix": "no_target_replacement_allowed=false -> no_target_replacement_prohibited=true",
+    "assessment": "valid and material. >= 3 adjudicable groups plus zero unsafe errors is satisfied by four `unresolved` answers.",
+    "fix": "rename_capability.outcome_table: exhaustive, precedence-ordered, denominator restricted to truth = continued 1:1 through the rename, and PASS requires >= 3 correct exact-counterpart resolutions",
     "id": "P1",
-    "title": "Disallow replacement of NO_TARGET pairs"
+    "title": "PASS-RENAME reachable with zero rename resolutions"
    },
    {
-    "assessment": "fixing only the flagged field would have left two identical ambiguities, one of them in the same object. Corrected for consistency, not scope creep.",
-    "fix": [
-     "pair_selection_may_be_modified=false -> pair_selection_modification_prohibited=true",
-     "merge_detector_may_be_added=false -> merge_detector_addition_prohibited=true"
-    ],
+    "assessment": "'all endpoint sets exact' is vacuously true when B3 produced no endpoint sets. Not flagged by the reviewer, but the same defect class, and leaving it would have handed the next round an identical finding.",
+    "fix": "branch_capability.outcome_table row 4 now requires >= 3 correct resolutions",
     "id": "self-found",
-    "title": "the same permission-shaped pattern occurred twice more"
+    "title": "the branch axis carried the identical vacuity"
+   },
+   {
+    "fix": "verdict_taxonomy.no_vacuous_pass records the rule and the resolution floor of every axis",
+    "id": "self-found",
+    "title": "the invariant was nowhere stated"
    }
   ],
   "frozen_targets_unchanged": true,
@@ -789,12 +802,18 @@
     "reason": "five external review findings on revision 1",
     "revision": 2,
     "sha256": "df0e9f8d7cac50b969ac5d53003885d2ad3d8c05584d011b9e0bcef09ef2c043"
+   },
+   {
+    "commit": "6555e68944296c0f47dd5dbf52c59c76548f8422",
+    "reason": "permission-shaped booleans replaced by prohibitions",
+    "revision": 3,
+    "sha256": "b113a31813636c31c2a78685631a8c4304f80bb13dd341151a604d0bc05d8d31"
    }
   ],
-  "reason": "one external review finding on revision 2: permission-shaped booleans are ambiguous",
-  "revision": 3,
-  "supersedes_commit": "9c0a8618f131e1bf0362d80538bb2af41f2d2c9a",
-  "supersedes_sha256": "df0e9f8d7cac50b969ac5d53003885d2ad3d8c05584d011b9e0bcef09ef2c043",
+  "reason": "one external review finding on revision 3: a verdict axis was passable without resolving anything",
+  "revision": 4,
+  "supersedes_commit": "6555e68944296c0f47dd5dbf52c59c76548f8422",
+  "supersedes_sha256": "b113a31813636c31c2a78685631a8c4304f80bb13dd341151a604d0bc05d8d31",
   "targets_sampling_truth_or_b3_surface_touched": false,
   "truth_labels_created": false
  },
@@ -849,12 +868,39 @@
  },
  "rename_capability": {
   "all_four_targets_enter_labelling": true,
-  "if_fewer_than_3_adjudicable": "RENAME-INCONCLUSIVE",
+  "exhaustive": "the four rows cover every reachable combination. correct_resolved can never exceed the number of genuine groups, so no case falls between rows 3 and 4.",
   "no_percentage_metric": "3/4 and 4/4 are not statistics; raw counts only",
+  "outcome_table": [
+   {
+    "condition": "any unsafe relation error on an adjudicable rename target",
+    "row": 1,
+    "verdict": "FAIL/PIVOT"
+   },
+   {
+    "condition": "fewer than 3 adjudicated rename targets have truth = continued 1:1 through the rename",
+    "row": 2,
+    "verdict": "RENAME-INCONCLUSIVE"
+   },
+   {
+    "condition": "at least 3 genuine continued-1:1 rename groups exist, B3 correctly resolves at least 3 of them to the exact counterpart, and there are zero unsafe relation errors",
+    "row": 3,
+    "verdict": "PASS-RENAME"
+   },
+   {
+    "condition": "at least 3 genuine continued-1:1 rename groups exist, zero unsafe relation errors, but B3 correctly resolves only 0-2 of them",
+    "row": 4,
+    "verdict": "RENAME-INCONCLUSIVE"
+   }
+  ],
   "pair_replacement": "PROHIBITED",
-  "validated_requires": [
-   ">= 3 adjudicable rename truth groups",
-   "zero unsafe relation errors on the adjudicable rename groups"
+  "precedence": "rows are evaluated in order; the first matching row decides. Row 1 therefore dominates every other outcome.",
+  "supersedes": "the earlier rule required only >= 3 adjudicable rename groups and zero unsafe errors. Four `unresolved` answers satisfy both, so PASS-RENAME was reachable without resolving a single rename.",
+  "truth_must_be_continued_1_to_1": "the denominator counts only groups whose TRUTH is continued 1:1 across the rename. Correctly calling `ended` or any other outcome on a renamed file does not demonstrate R-CONT-RENAME, and must not be able to earn the axis.",
+  "why_threshold_is_three": [
+   "1 of 4 validates nothing",
+   "2 correct resolutions are a useful signal but still RENAME-INCONCLUSIVE",
+   "3 exact resolutions with zero unsafe errors permit a cautious PASS-RENAME",
+   "4 of 4 is a stronger descriptive result; no separate percentage threshold is introduced"
   ],
   "wording_note": "this field means the four rename targets are all IN the labelling set. It does NOT mean labels exist: truth_labels_created is false and every target still requires two blinded labels plus human adjudication."
  },
@@ -1235,6 +1281,7 @@
    "branch",
    "merge"
   ],
+  "axis_independence_note": "HARD-PASS pools rename and copy, so its +3 requirement can in principle be satisfied entirely by copy targets while no rename is resolved at all. That is why rename carries its own axis with its own resolution floor, and why a composite verdict must report both. HARD-PASS together with RENAME-INCONCLUSIVE is a coherent and honest result, not a contradiction.",
   "composite": true,
   "every_run_reports_one_verdict_per_axis": true,
   "examples": [
@@ -1262,6 +1309,17 @@
   ],
   "examples_schema_note": "every example carries all five axes. A composite with fewer than five entries is malformed.",
   "merge_axis_is_fixed": "MERGE-INCONCLUSIVE regardless of any other outcome",
-  "monolithic_pass_prohibited": "a single PASS hides which capability was actually exercised; every run reports one verdict per axis"
+  "monolithic_pass_prohibited": "a single PASS hides which capability was actually exercised; every run reports one verdict per axis",
+  "no_vacuous_pass": {
+   "resolution_floor_per_axis": {
+    "branch": ">= 3 correct resolutions with exact successor endpoint sets",
+    "hard": "correct_resolved(B3) >= max(correct_resolved(B1), correct_resolved(B2)) + 3",
+    "merge": "not applicable; the axis is fixed at MERGE-INCONCLUSIVE",
+    "natural": ">= 20 B3-resolved natural groups",
+    "rename": ">= 3 correct exact-counterpart resolutions on genuine continued-1:1 rename groups"
+   },
+   "rule": "no axis may reach a PASS verdict without a positive count of correct resolutions",
+   "why": "zero unsafe errors is trivially achieved by answering `unresolved` everywhere. Safety without resolution is not a capability, and an axis that can be passed by silence measures nothing."
+  }
  }
 }
