@@ -52,8 +52,27 @@
  },
  "branch_capability": {
   "census_status": "the targetability census established STRUCTURAL POSSIBILITY only: 24 of 25 copy pairs carry a branch-capable source, but a finding actually sits on such a source in only 5 pairs, 16 candidate occurrences, 9 selected targets. This asserts nothing about branch truth.",
-  "if_three_or_more_and_any_endpoint_lost_or_invented": "FAIL/PIVOT",
-  "if_zero_to_two_genuine_branches": "BRANCH-INCONCLUSIVE regardless of B3 output",
+  "exhaustive": "the four rows above cover every reachable combination",
+  "outcome_table": [
+   {
+    "condition": "0-2 adjudicated groups are genuinely branched",
+    "note": "regardless of B3 output",
+    "verdict": "BRANCH-INCONCLUSIVE"
+   },
+   {
+    "condition": ">= 3 genuine branches but all within a SINGLE revision pair",
+    "note": "preregistered explicitly. Several frozen copy targets share a revision pair, so this case is reachable; one pair cannot demonstrate a capability that must generalise across history.",
+    "verdict": "BRANCH-INCONCLUSIVE"
+   },
+   {
+    "condition": ">= 3 genuine branches spanning >= 2 revision pairs, all endpoint sets exact",
+    "verdict": "PASS-BRANCH"
+   },
+   {
+    "condition": ">= 3 genuine branches spanning >= 2 revision pairs, any endpoint lost or invented",
+    "verdict": "FAIL/PIVOT"
+   }
+  ],
   "validated_requires": [
    ">= 3 adjudicated truth groups whose truth label is 'branched'",
    "those groups span >= 2 distinct revision pairs",
@@ -739,6 +758,44 @@
    "silent cardinality loss"
   ]
  },
+ "manifest_revision": {
+  "b3_executed": false,
+  "findings_applied": [
+   {
+    "assessment": "valid; documentation defect, not a selection defect",
+    "fix": "seeds.side_determination now states the rule per class plus a reproduction warning",
+    "id": "P1",
+    "targets_changed": false,
+    "title": "Document the forced-side exception before freezing"
+   },
+   {
+    "fix": "rename_capability.all_four_targets_labelled -> all_four_targets_enter_labelling",
+    "id": "P2-a",
+    "title": "Disambiguate classification from completed truth labelling"
+   },
+   {
+    "fix": "branch_capability.outcome_table preregisters >=3 branches inside one pair as BRANCH-INCONCLUSIVE",
+    "id": "P2-b",
+    "title": "Cover the single-pair branch outcome"
+   },
+   {
+    "fix": "primary_holdout.b2_coverage_loss_disposition caps the natural axis at INCONCLUSIVE above 10pp",
+    "id": "P2-c",
+    "title": "Freeze the disposition for excessive B2 coverage loss"
+   },
+   {
+    "fix": "all composite examples now carry all five axes",
+    "id": "P2-d",
+    "title": "Include every verdict axis in composite examples"
+   }
+  ],
+  "frozen_targets_unchanged": true,
+  "reason": "five findings from the external Codex review on that exact head",
+  "revision": 2,
+  "supersedes_commit": "cde73560f029235959b7775a8466fca059c3f34e",
+  "supersedes_sha256": "b22cb93d7ea1dc2392a318796abc3cfbf67615c300de40dc124f1039b0471d82",
+  "truth_labels_created": false
+ },
  "merge_capability": {
   "ceiling": "MERGE-INCONCLUSIVE",
   "merge_detector_may_be_added": false,
@@ -747,6 +804,23 @@
  },
  "phase": "RH-M0",
  "primary_holdout": {
+  "b2_coverage_loss_disposition": {
+   "frozen_before_results": true,
+   "metric": "absolute percentage-point difference, coverage(B2) - coverage(B3), on the 50 natural targets",
+   "rule": [
+    {
+     "condition": "loss <= 10 percentage points",
+     "effect": "no constraint from this rule"
+    },
+    {
+     "condition": "loss > 10 percentage points",
+     "effect": "the natural axis is CAPPED at INCONCLUSIVE. It cannot be PASS-NATURAL however high the precision is."
+    }
+   ],
+   "supersedes": "the earlier wording 'requires explicit utility justification and cannot be an unconditional PASS', which left the verdict undetermined and therefore decidable after unblinding",
+   "utility_justification": "may be recorded for the record, but it CANNOT raise a capped verdict. An after-the-fact argument is not an acceptance criterion.",
+   "why_capped_rather_than_FAIL": "losing coverage against a deliberately conservative baseline is evidence that the policy is unhelpful, not evidence that it is wrong. FAIL is reserved for incorrect relations."
+  },
   "definition": "the primary external-validity sample is the 50 STS natural truth targets ONLY",
   "explicit_clarification": "the 63 selected targets do NOT themselves satisfy the >= 40 criterion. The criterion counts ADJUDICABLE TRUTH GROUPS, which is not known until truth labelling is complete.",
   "hard_targets_in_primary_denominator": false,
@@ -756,7 +830,7 @@
    "resolved precision >= 95%",
    "zero fabricated new/ended where truth has a counterpart",
    "B3 coverage > B0",
-   "report B3-vs-B2 coverage; an absolute loss greater than 10 percentage points requires explicit utility justification and cannot be an unconditional PASS"
+   "B3-vs-B2 coverage loss is subject to the frozen disposition below"
   ],
   "why": "a deliberately oversampled hard slice must not be able to rescue a failing natural-history sample by arithmetic"
  },
@@ -772,14 +846,15 @@
   "roslyn": "Microsoft.CodeAnalysis.CSharp 4.9.2"
  },
  "rename_capability": {
-  "all_four_targets_labelled": true,
+  "all_four_targets_enter_labelling": true,
   "if_fewer_than_3_adjudicable": "RENAME-INCONCLUSIVE",
   "no_percentage_metric": "3/4 and 4/4 are not statistics; raw counts only",
   "pair_replacement": "PROHIBITED",
   "validated_requires": [
    ">= 3 adjudicable rename truth groups",
    "zero unsafe relation errors on the adjudicable rename groups"
-  ]
+  ],
+  "wording_note": "this field means the four rename targets are all IN the labelling set. It does NOT mean labels exist: truth_labels_created is false and every target still requires two blinded labels plus human adjudication."
  },
  "repositories": {
   "ownnet": {
@@ -983,6 +1058,47 @@
   "occurrence_id_used": false,
   "selection_rank_rule": "rank_key = sha256(seed_hex || 0x00 || repo_id || 0x00 || a_sha || 0x00 || b_sha); ascending; ties by (a_sha, b_sha)",
   "selection_seed": "ce730e47092805a8705ebc0f9b78f663a9c150139a650128f278afa9c393067e",
+  "side_determination": {
+   "copy": {
+    "rule": "forced to A by construction",
+    "side_hash_consulted": false,
+    "why": "a copy candidate must be an A-side finding lying on a copy SOURCE path, for the same reason as rename."
+   },
+   "natural": {
+    "applies_to": "all 50 natural targets",
+    "decision": "sha256(canonical).digest()[0] & 1 ; 0 -> A, 1 -> B",
+    "preimage": [
+     "rh-m0-side/v1",
+     "<truth_seed>",
+     "sts",
+     "<A>",
+     "<B>"
+    ],
+    "rule": "hash-derived"
+   },
+   "rename": {
+    "rule": "forced to A by construction",
+    "side_hash_consulted": false,
+    "why": "a rename candidate must be an A-side finding lying on a rename SOURCE path. The successor side cannot hold the predecessor occurrence, so there is nothing for a coin to decide."
+   },
+   "reproduction_warning": {
+    "correct_reproduction": "for class natural derive the side from the hash; for classes rename and copy use side = \"A\" unconditionally, then compute the target preimage with that side",
+    "issue": "applying the natural side rule to the hard classes does NOT reproduce the frozen targets. Recomputed with the frozen truth_seed it yields side B for 6 of the 13 hard targets, and because <side> also enters the target-hash preimage those 6 target hashes would not match.",
+    "measured_divergence": {
+     "copy": "4 of 9",
+     "natural": "0 of 50",
+     "rename": "2 of 4",
+     "total": "6 of 63"
+    },
+    "worked_example": {
+     "a_sha": "43e13bce",
+     "b_sha": "45eca2c5",
+     "frozen_target_records": "A",
+     "hash_rule_would_select": "B",
+     "side_hash_first_byte": "0xa3"
+    }
+   }
+  },
   "side_preimage": [
    "rh-m0-side/v1",
    "<truth_seed>",
@@ -990,7 +1106,6 @@
    "<A>",
    "<B>"
   ],
-  "side_rule": "sha256(canonical).digest()[0] & 1 ; 0 -> A, 1 -> B",
   "target_preimage": [
    "rh-m0-target/v1",
    "<truth_seed>",
@@ -1004,7 +1119,7 @@
    "<start_line>",
    "<start_column>"
   ],
-  "target_rule": "minimum lexical sha256 hex over the candidate set",
+  "target_rule": "minimum lexical sha256 hex over the candidate set, where the candidate set is class-dependent: all findings on the hash-selected side for natural, and the A-side findings on rename/copy source paths for the hard classes",
   "truth_seed": "7e4f4650a0109d52a4e0492e6d1a087b99a4af328b72ee3144ec746d9f85d7ed"
  },
  "status": "FROZEN",
@@ -1110,21 +1225,39 @@
     "FAIL"
    ]
   },
-  "composite": true,
-  "examples": [
-   [
-    "PASS-NATURAL",
-    "PASS-RENAME",
-    "PASS-BRANCH",
-    "MERGE-INCONCLUSIVE"
-   ],
-   [
-    "PASS-NATURAL",
-    "HARD-INCONCLUSIVE",
-    "BRANCH-INCONCLUSIVE",
-    "MERGE-INCONCLUSIVE"
-   ]
+  "axes_are_five": [
+   "natural",
+   "hard",
+   "rename",
+   "branch",
+   "merge"
   ],
+  "composite": true,
+  "every_run_reports_one_verdict_per_axis": true,
+  "examples": [
+   {
+    "branch": "PASS-BRANCH",
+    "hard": "HARD-PASS",
+    "merge": "MERGE-INCONCLUSIVE",
+    "natural": "PASS-NATURAL",
+    "rename": "PASS-RENAME"
+   },
+   {
+    "branch": "BRANCH-INCONCLUSIVE",
+    "hard": "HARD-INCONCLUSIVE",
+    "merge": "MERGE-INCONCLUSIVE",
+    "natural": "PASS-NATURAL",
+    "rename": "RENAME-INCONCLUSIVE"
+   },
+   {
+    "branch": "BRANCH-INCONCLUSIVE",
+    "hard": "HARD-INCONCLUSIVE",
+    "merge": "MERGE-INCONCLUSIVE",
+    "natural": "INCONCLUSIVE",
+    "rename": "RENAME-INCONCLUSIVE"
+   }
+  ],
+  "examples_schema_note": "every example carries all five axes. A composite with fewer than five entries is malformed.",
   "merge_axis_is_fixed": "MERGE-INCONCLUSIVE regardless of any other outcome",
   "monolithic_pass_prohibited": "a single PASS hides which capability was actually exercised; every run reports one verdict per axis"
  }
