@@ -763,31 +763,25 @@
   ]
  },
  "manifest_revision": {
-  "axes_checked_for_the_same_defect": {
-   "branch": "FIXED",
-   "hard": "already had a floor: +3 correct resolutions over the better baseline",
-   "merge": "not applicable; fixed at MERGE-INCONCLUSIVE",
-   "natural": "already had a floor: >= 20 B3-resolved",
-   "rename": "FIXED"
-  },
   "b3_executed": false,
   "findings_applied": [
    {
-    "assessment": "valid and material. >= 3 adjudicable groups plus zero unsafe errors is satisfied by four `unresolved` answers.",
-    "fix": "rename_capability.outcome_table: exhaustive, precedence-ordered, denominator restricted to truth = continued 1:1 through the rename, and PASS requires >= 3 correct exact-counterpart resolutions",
-    "id": "P1",
-    "title": "PASS-RENAME reachable with zero rename resolutions"
+    "assessment": "valid. rename row 1 emitted FAIL/PIVOT while the rename axis declares PASS-RENAME / RENAME-INCONCLUSIVE / FAIL, so no run could satisfy both.",
+    "fix": "rename_capability.outcome_table row 1 verdict FAIL/PIVOT -> FAIL",
+    "id": "P2",
+    "taxonomy_widened": false,
+    "title": "Align the rename failure with its verdict taxonomy"
    },
    {
-    "assessment": "'all endpoint sets exact' is vacuously true when B3 produced no endpoint sets. Not flagged by the reviewer, but the same defect class, and leaving it would have handed the next round an identical finding.",
-    "fix": "branch_capability.outcome_table row 4 now requires >= 3 correct resolutions",
+    "assessment": "FAIL was declared for the rename axis but reachable from no row. The mechanical cross-check surfaced both directions at once.",
+    "fix": "resolved by the same one-token change",
     "id": "self-found",
-    "title": "the branch axis carried the identical vacuity"
+    "title": "the mirror image of the same defect"
    },
    {
-    "fix": "verdict_taxonomy.no_vacuous_pass records the rule and the resolution floor of every axis",
+    "fix": "verdict_taxonomy.consistency_rule states the invariant and records that it was verified mechanically in both directions",
     "id": "self-found",
-    "title": "the invariant was nowhere stated"
+    "title": "the check itself was not written down"
    }
   ],
   "frozen_targets_unchanged": true,
@@ -808,12 +802,18 @@
     "reason": "permission-shaped booleans replaced by prohibitions",
     "revision": 3,
     "sha256": "b113a31813636c31c2a78685631a8c4304f80bb13dd341151a604d0bc05d8d31"
+   },
+   {
+    "commit": "03d56ace0623db64abe9db9d88c385717968ccca",
+    "reason": "no verdict axis passable without resolving anything",
+    "revision": 4,
+    "sha256": "2b8ce7018b6a67a6a522ac8d77638b4ccbd3f76634aa15b2f790443d0e6ad614"
    }
   ],
-  "reason": "one external review finding on revision 3: a verdict axis was passable without resolving anything",
-  "revision": 4,
-  "supersedes_commit": "6555e68944296c0f47dd5dbf52c59c76548f8422",
-  "supersedes_sha256": "b113a31813636c31c2a78685631a8c4304f80bb13dd341151a604d0bc05d8d31",
+  "reason": "one external review finding on revision 4: a verdict token outside its own axis",
+  "revision": 5,
+  "supersedes_commit": "03d56ace0623db64abe9db9d88c385717968ccca",
+  "supersedes_sha256": "2b8ce7018b6a67a6a522ac8d77638b4ccbd3f76634aa15b2f790443d0e6ad614",
   "targets_sampling_truth_or_b3_surface_touched": false,
   "truth_labels_created": false
  },
@@ -869,12 +869,13 @@
  "rename_capability": {
   "all_four_targets_enter_labelling": true,
   "exhaustive": "the four rows cover every reachable combination. correct_resolved can never exceed the number of genuine groups, so no case falls between rows 3 and 4.",
+  "failure_token_note": "row 1 emits FAIL, the token declared for this axis. The rename token set is deliberately NOT widened to FAIL/PIVOT: that compound belongs to the branch axis by preregistration, and a result vocabulary that grows to fit one row stops discriminating.",
   "no_percentage_metric": "3/4 and 4/4 are not statistics; raw counts only",
   "outcome_table": [
    {
     "condition": "any unsafe relation error on an adjudicable rename target",
     "row": 1,
-    "verdict": "FAIL/PIVOT"
+    "verdict": "FAIL"
    },
    {
     "condition": "fewer than 3 adjudicated rename targets have truth = continued 1:1 through the rename",
@@ -1283,6 +1284,16 @@
   ],
   "axis_independence_note": "HARD-PASS pools rename and copy, so its +3 requirement can in principle be satisfied entirely by copy targets while no rename is resolved at all. That is why rename carries its own axis with its own resolution floor, and why a composite verdict must report both. HARD-PASS together with RENAME-INCONCLUSIVE is a coherent and honest result, not a contradiction.",
   "composite": true,
+  "consistency_rule": {
+   "how_the_defect_was_missed": "the rename table was written by analogy with the branch table, which legitimately uses FAIL/PIVOT. Prose review compares a row against its neighbours; only a mechanical check compares it against its own axis.",
+   "method": "cross-product check of all outcome_table rows against verdict_taxonomy.axes, in both directions",
+   "result_at_this_revision": {
+    "declared_but_unreachable": 0,
+    "mismatches": 0
+   },
+   "rule": "every verdict appearing in any outcome_table MUST be a member of the token set declared for that axis in verdict_taxonomy.axes, and every declared token SHOULD be reachable from at least one row",
+   "verified_mechanically": true
+  },
   "every_run_reports_one_verdict_per_axis": true,
   "examples": [
    {
@@ -1308,6 +1319,27 @@
    }
   ],
   "examples_schema_note": "every example carries all five axes. A composite with fewer than five entries is malformed.",
+  "experiment_disposition": {
+   "branch_axis_exception": "the branch axis retains the compound token FAIL/PIVOT because it was preregistered that way and is internally consistent with its own token set. It is recorded here as a known wart, not silently rewritten: changing a frozen token to satisfy a style preference is exactly the kind of post-hoc edit this manifest exists to prevent.",
+   "mapping": [
+    {
+     "axis_verdict": "FAIL",
+     "disposition": "PIVOT",
+     "meaning": "an unsafe relation error was produced; the policy is wrong, not merely unhelpful"
+    },
+    {
+     "axis_verdict": "INCONCLUSIVE",
+     "disposition": "HOLD",
+     "meaning": "the sample or the resolution count could not decide the axis"
+    },
+    {
+     "axis_verdict": "PASS",
+     "disposition": "PROCEED",
+     "meaning": "the axis is demonstrated within its preregistered limits"
+    }
+   ],
+   "why": "a verdict records what was measured; a disposition records what the project does next. Fusing them into one token, as FAIL/PIVOT does, makes the measured result depend on a management decision and is awkward for any consumer that groups by verdict."
+  },
   "merge_axis_is_fixed": "MERGE-INCONCLUSIVE regardless of any other outcome",
   "monolithic_pass_prohibited": "a single PASS hides which capability was actually exercised; every run reports one verdict per axis",
   "no_vacuous_pass": {
