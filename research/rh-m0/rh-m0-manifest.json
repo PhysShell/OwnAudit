@@ -795,33 +795,23 @@
  },
  "manifest_revision": {
   "b3_executed": false,
+  "endpoint_identity_untouched": "the revision-12 rules stand verbatim: mint iff the canonical preimage is unique, otherwise unavailable, ordinal tiebreakers prohibited, and the narrow unavailable semantics",
   "findings_applied": [
    {
-    "assessment": "valid. Two rows sharing every preimage field collapse to one endpoint_id, so a branch over two physically present findings could present a one-element set and break the >= 2 cardinality the contract promises.",
+    "assessment": "valid. Revision 12 closed guessing at endpoint identity and left it one level above: candidate 3 can exist on side A and on side B and on two different cards, so the builder would still choose which was meant after labelling.",
+    "deliberately_not_done": "no canonical candidate ordering is frozen. The finding was a missing foreign key, not a missing ordering, and freezing one would grow a second identity scheme out of one integer.",
     "fix": [
-     "endpoint_id is minted only when the canonical preimage occurs exactly once",
-     "otherwise unavailable, with limitation endpoint-id-unavailable:ambiguous-canonical-identity",
-     "ordinal and result-index tiebreakers are PROHIBITED",
-     "a resolved relation needing an unavailable endpoint is unadjudicable, but ended/new with a structurally empty set remain adjudicable"
+     "candidate_ref = (target_hash, revision_role, revision_sha, candidate_index), unique",
+     "revision_role and revision_sha cross-check against the target's a_sha / b_sha",
+     "candidate_index is presentation-local and barred from endpoint_id, the preimage, ambiguity resolution and any tiebreaker",
+     "candidate_endpoint_mapping is built before any label is interpreted and is persisted and hashed with the truth artifact",
+     "a candidate_ref resolving to unavailable cannot be an endpoint of a resolved relation"
     ],
-    "id": "P1",
-    "measured": "zero ambiguous preimages across 271 snapshots and 76253 findings of the frozen sample; the rule is preventive",
-    "title": "endpoint identity was not injective where cardinality is promised"
-   },
-   {
-    "assessment": "valid. start_line and start_column live inside physical_anchor, while `line` exists at the top level, so the builder could still decide after the freeze what the names meant. Confirmed against a real normalized snapshot.",
-    "fix": [
-     "explicit leaf-level source-to-output mappings",
-     "outputs are path, line, column, message; line and column come from physical_anchor",
-     "no output named start_line or start_column, and physical_anchor is never taken whole"
-    ],
-    "id": "P2",
+    "id": "blocker",
     "raised_by": [
-     "Codex",
      "CodeRabbit"
     ],
-    "raised_independently": true,
-    "title": "projection named fields that do not exist at that level"
+    "title": "candidate index was an ambiguous foreign key"
    }
   ],
   "frozen_targets_unchanged": true,
@@ -890,22 +880,31 @@
     "reason": "truth endpoints and evidence-card allowlist",
     "revision": 11,
     "sha256": "858d80beeeb82619a0adc2fb29c505d1c03831cea2344541b576a7bb0139ee3e"
+   },
+   {
+    "commit": "ff66d0fde283e692935538b181e30602ed2073da",
+    "reason": "fail-closed endpoint identity, explicit projection mapping",
+    "revision": 12,
+    "sha256": "5a6d6746691ccac2b8e653ed29c4194d206f28bc98624252b644d3726019b3f3"
    }
   ],
-  "reason": "two external review findings on revision 11; the projection defect was raised independently by both reviewers",
-  "revision": 12,
-  "supersedes_commit": "e418ec72076605e8c735c8971c7eff6228b34ae6",
-  "supersedes_sha256": "858d80beeeb82619a0adc2fb29c505d1c03831cea2344541b576a7bb0139ee3e",
+  "reason": "one external review finding on revision 12: the labeler's reference to an endpoint had no namespace",
+  "revision": 13,
+  "supersedes_commit": "ff66d0fde283e692935538b181e30602ed2073da",
+  "supersedes_sha256": "5a6d6746691ccac2b8e653ed29c4194d206f28bc98624252b644d3726019b3f3",
   "truth_labels_created": false,
   "what_this_revision_did_not_touch": [
+   "endpoint preimage",
+   "minting rule",
+   "ordinal prohibition",
+   "endpoint_contract.by_outcome",
+   "unavailable_endpoint_semantics",
+   "label_vocabulary",
+   "labeler_finding_projection.fields",
    "frozen_targets",
    "seeds",
    "verdict_taxonomy.axes",
-   "axis_disposition",
-   "all four outcome tables",
-   "truth_protocol.label_vocabulary",
-   "endpoint_contract.by_outcome",
-   "labelers_must_not_see"
+   "all four outcome tables"
   ]
  },
  "merge_capability": {
@@ -1349,6 +1348,55 @@
  "truth_labels_created": false,
  "truth_protocol": {
   "ai_agreement_is_not_truth": "two agreeing agents produce PROPOSED truth only; the final truth artifact requires human/owner adjudication and sign-off",
+  "candidate_endpoint_mapping": {
+   "audit_trail": {
+    "builder_mapping": "candidate_ref -> endpoint_id",
+    "labeler_saw": "B:3",
+    "recorded_response": "candidate_ref = {target_hash, revision_role: B, revision_sha, candidate_index: 3}",
+    "truth_artifact": "candidate_ref and endpoint_id together",
+    "why_both": "the scorer needs a machine-comparable identity; a later reader needs to see what the human was actually looking at. Storing only one of the two loses a different half of the audit trail."
+   },
+   "built_when": "during evidence-card construction, BEFORE any labeler response is interpreted and before any label exists",
+   "labeler_never_sees_endpoint_id": "the labeler sees the card and answers with a position on it. endpoint_id is never shown, so the hash cannot become a side channel back to rule, which the projection allowlist exists to withhold.",
+   "persisted_with": "the truth artifact, and hashed with it",
+   "shape": "candidate_ref -> endpoint_id | unavailable",
+   "truth_record_per_chosen_endpoint": [
+    "candidate_ref",
+    "resolved_endpoint_id"
+   ],
+   "unavailable_rule": "a candidate_ref resolving to endpoint_id = unavailable MUST NOT be stored as an endpoint of a resolved truth relation. This reuses the revision-12 fail-closed semantics rather than introducing a second set."
+  },
+  "candidate_ordering": {
+   "frozen": false,
+   "if_reproducible_cards_are_wanted_later": "a deterministic ordering may be added, but it would be an ergonomic choice and must not become an identity",
+   "why_not": "the meaning of an index comes from the frozen candidate_endpoint_mapping, not from a sort algorithm. Freezing a canonical ordering as well would grow a second identity scheme out of one integer, and the finding was a missing foreign key, not a missing canonical ordering."
+  },
+  "candidate_reference": {
+   "full_key": [
+    "target_hash",
+    "revision_role",
+    "revision_sha",
+    "candidate_index"
+   ],
+   "not_an_identity": "candidate_ref names a place in the evidence presentation. endpoint_id names a finding. The mapping between them is data, frozen below, not an algorithm either side may re-derive.",
+   "presentation_local_only": {
+    "rule": "candidate_index is presentation-local. It MUST NOT participate in endpoint_id, in the canonical endpoint preimage, in ambiguity resolution, or in any identity tiebreaker.",
+    "why": "otherwise the SARIF ordinal, solemnly prohibited one revision ago, walks back in through the front door under a new name. The index addresses a row on a card; it never identifies a finding."
+   },
+   "role_sha_consistency": {
+    "A": "revision_role = A requires revision_sha == the target's a_sha",
+    "B": "revision_role = B requires revision_sha == the target's b_sha",
+    "effect": "A:1 and B:1 become trivially distinguishable, and a mistyped sha is caught, not guessed"
+   },
+   "shape": {
+    "candidate_index": "non-negative integer, assigned by the card",
+    "revision_role": "A or B",
+    "revision_sha": "the exact commit of that side",
+    "target_hash": "the hash of the frozen target whose card this is"
+   },
+   "uniqueness": "the full key MUST be unique across the whole evidence corpus",
+   "why": "a labeler points at an endpoint through the evidence card. A bare integer has no namespace: candidate 3 can exist on side A and on side B, and on two different cards, so the builder would still be choosing which one was meant after the labels were written."
+  },
   "construction_time_guarantees": {
    "checks": [
     "every projection source path exists in normalized-findings/v2",
@@ -1356,10 +1404,24 @@
     "no projection source path is a forbidden field or lies beneath a forbidden object",
     "endpoint canonical-preimage multiplicity: unique mints an id, >1 yields unavailable, never ordinal-disambiguated",
     "every exact endpoint stored in truth has an available endpoint_id",
-    "every label_vocabulary entry has an endpoint_contract entry with a cardinality"
+    "every label_vocabulary entry has an endpoint_contract entry with a cardinality",
+    "every frozen target carries both a_sha and b_sha, so role-to-sha consistency is checkable",
+    "target_hash values are unique, so candidate_ref keys cannot collide across targets",
+    "candidate_index does not appear anywhere in the endpoint preimage",
+    "revision_role vocabulary matches the sides present in the frozen targets"
    ],
    "not_repository_enforced": "RH-M0 commits the manifest and its checksum only; see verdict_taxonomy.verification_status",
    "result_at_revision_construction": {
+    "candidate_reference": {
+     "candidate_index_in_endpoint_preimage": false,
+     "revision_roles_present_in_targets": [
+      "A",
+      "B"
+     ],
+     "targets_total": 63,
+     "targets_with_both_sides": 63,
+     "unique_target_hashes": 63
+    },
     "checks_4_and_5_are_builder_obligations": "they constrain the truth-artifact builder, which does not exist yet; only their preconditions could be measured here",
     "duplicate_projection_outputs": 0,
     "endpoint_preimage_multiplicity": {
@@ -1424,7 +1486,7 @@
     "digest": "sha256, lowercase hex",
     "form": "endpoint_id, a hash over the canonical identity of one normalized finding",
     "free_text_prohibited": "an endpoint is never recorded as prose such as 'the finding one line below'. A natural-language foreign key cannot be scored.",
-    "how_labelers_designate_endpoints": "by the candidate index printed on the evidence card. The builder resolves an index to its endpoint_id. This keeps rule and message-identity machinery out of the labeler's view while still producing a machine-comparable record.",
+    "how_labelers_designate_endpoints": "by candidate_ref, see truth_protocol.candidate_reference. The builder resolves candidate_ref to an endpoint_id through the frozen candidate_endpoint_mapping. This keeps rule and identity machinery out of the labeler's view while producing a machine-comparable record.",
     "minting_rule": "an endpoint_id MAY be minted for a finding if and only if its canonical preimage occurs exactly once in that snapshot",
     "ordinal_tiebreaker": {
      "status": "PROHIBITED",
