@@ -795,27 +795,20 @@
  },
  "manifest_revision": {
   "b3_executed": false,
+  "documentation_only": true,
   "findings_applied": [
    {
-    "assessment": "valid and blocking. The vocabulary declares `branched 1:N`; the table said `branched`. Under exact comparison PASS-BRANCH was unreachable.",
-    "fix": "all truth-sensitive branch conditions name the canonical token verbatim, and truth_labels_referenced lists it structurally",
-    "id": "P2-a",
-    "same_class_fixed_alongside": "the rename table embedded `continued 1:1` inside prose; it now names the token the same way",
-    "title": "branch referenced a truth token that does not exist"
-   },
-   {
-    "assessment": "valid. unsafe_relation_errors > 0 had no verdict although FAIL is declared.",
-    "consequence": "hard became table-backed, so consistency_rule.scope now includes it",
-    "fix": "three-row precedence-ordered table; thresholds unchanged",
-    "id": "P2-b",
-    "title": "hard axis was not total"
-   },
-   {
-    "assessment": "valid. sha256sum --check treats the trailing \\r as part of the filename and looks for rh-m0-manifest.json\\r, so the sidecar was not machine-verifiable even though the digest was correct.",
-    "fix": "sidecar written with LF; verified with sha256sum --check",
-    "id": "artifact-integrity",
-    "self_found_alongside": "the manifest itself was CRLF, which makes its digest depend on the writing platform: regenerating it on Linux would produce a different hash for identical content. Now written with LF.",
-    "title": "checksum sidecar written with CRLF"
+    "assessment": "valid. Two sentences still described three axes without tables and seven falsely unreachable tokens. Both were correct at revision 6; natural gained a table in revision 7 and hard in revision 8, so the current figure is one, MERGE-INCONCLUSIVE.",
+    "fix": [
+     "no_tables_added_for_uniformity now refers to merge alone",
+     "why_the_scope_matters states the current figure and marks seven as historical",
+     "the count moved into a derived field so it cannot go stale again"
+    ],
+    "id": "P2",
+    "semantics_changed": false,
+    "tables_changed": false,
+    "thresholds_changed": false,
+    "title": "consistency_rule prose did not follow the structure"
    }
   ],
   "frozen_targets_unchanged": true,
@@ -860,21 +853,28 @@
     "reason": "total natural outcome rule, concrete axis dispositions",
     "revision": 7,
     "sha256": "71f4c923d7091a1d88869d0ec7c97154e1aab15a6a1da82fb6ea8d1d074944a8"
+   },
+   {
+    "commit": "ad58b29383d36b9fad0f0dc65a5faa3ace6636e8",
+    "reason": "exact truth tokens, total hard axis, LF checksum artifact",
+    "revision": 8,
+    "sha256": "ff6a5ed408dd56571036137c570cb4a0c6c0a4e98e6e447f67b4842337e9464a"
    }
   ],
-  "reason": "two external review findings and one artifact-integrity finding on revision 7",
-  "revision": 8,
-  "supersedes_commit": "6e3304a498951089f8945f6cb3ec99978e65e887",
-  "supersedes_sha256": "71f4c923d7091a1d88869d0ec7c97154e1aab15a6a1da82fb6ea8d1d074944a8",
+  "reason": "one external review finding on revision 8: stale current-state prose inside the checker metadata",
+  "revision": 9,
+  "supersedes_commit": "ad58b29383d36b9fad0f0dc65a5faa3ace6636e8",
+  "supersedes_sha256": "ff6a5ed408dd56571036137c570cb4a0c6c0a4e98e6e447f67b4842337e9464a",
   "targets_sampling_truth_or_b3_surface_touched": false,
   "truth_labels_created": false,
   "what_this_revision_did_not_touch": [
    "verdict_taxonomy.axes",
+   "axis_disposition",
+   "consistency_rule.scope",
+   "all four outcome tables",
    "truth_protocol",
    "seeds",
-   "frozen_targets",
-   "primary_holdout.outcome_table",
-   "hard thresholds"
+   "frozen_targets"
   ]
  },
  "merge_capability": {
@@ -1407,13 +1407,34 @@
   "axis_independence_note": "HARD-PASS pools rename and copy, so its +3 requirement can in principle be satisfied entirely by copy targets while no rename is resolved at all. That is why rename carries its own axis with its own resolution floor, and why a composite verdict must report both. HARD-PASS together with RENAME-INCONCLUSIVE is a coherent and honest result, not a contradiction.",
   "composite": true,
   "consistency_rule": {
+   "falsely_unreachable_if_applied_to_all_axes": {
+    "count": 1,
+    "derivation": "for every axis without an outcome_table, every token declared for it in verdict_taxonomy.axes",
+    "derived": true,
+    "historical_values": [
+     {
+      "correct_at_the_time": true,
+      "count": 7,
+      "revision": 6,
+      "tokens": [
+       "natural: 3",
+       "hard: 3",
+       "merge: 1"
+      ]
+     }
+    ],
+    "tokens": [
+     "merge: MERGE-INCONCLUSIVE"
+    ],
+    "why_derived": "the count was prose at revision 6 and went stale the moment natural and hard gained tables. It is computed from the structure so it cannot drift again."
+   },
    "how_the_defect_was_missed": "the rename table was written by analogy with the branch table, which legitimately uses FAIL/PIVOT. Prose review compares a row against its neighbours; only a mechanical check compares it against its own axis.",
    "mechanical_result": {
     "declared_but_unreachable": 0,
     "emitted_not_declared": 0
    },
    "method": "cross-product of the outcome_table rows of the in-scope axes against verdict_taxonomy.axes, in both directions",
-   "no_tables_added_for_uniformity": "the other three axes are NOT given outcome tables to make the rule uniform. Extending a frozen specification for the sake of a checker's symmetry is the wrong direction: the checker is narrowed to what it checks.",
+   "no_tables_added_for_uniformity": "merge is deliberately NOT given an outcome table merely to make the checker uniform. It remains a fixed singleton ceiling and therefore stays outside the table-backed scope.",
    "non_table_backed_axes": {
     "merge": "fixed singleton ceiling MERGE-INCONCLUSIVE"
    },
@@ -1425,10 +1446,16 @@
     "branch"
    ],
    "scope_change_note": "natural entered in revision 7 and hard in revision 8, each when it gained an outcome table. The scope tracks the structure; it is not a fixed list.",
-   "scope_reason": "these are the table-backed axes. merge is the only axis left outside, because it is a fixed singleton ceiling rather than a decision.",
+   "scope_reason": "these are the table-backed axes, derived from which sections actually carry an outcome_table. merge is the only axis left outside, because it is a fixed singleton ceiling rather than a decision.",
+   "structural_invariants": {
+    "non_table_backed_is_the_complement": "set(non_table_backed_axes) == set(verdict_taxonomy.axes) - set(consistency_rule.scope)",
+    "scope_equals_table_backed_axes": "set(consistency_rule.scope) == set(axes whose section contains an outcome_table)",
+    "verified_mechanically": true,
+    "why_structural_not_textual": "the invariants are asserted against the structure, never against the wording. A checker that verifies its own description needs a second checker for that description, and so on."
+   },
    "supersedes": "the revision-5 wording 'every verdict appearing in any outcome_table ... and every declared token SHOULD be reachable', which was unscoped and therefore unreproducible for three of the five axes",
    "verified_mechanically": true,
-   "why_the_scope_matters": "applying the reachability half to all five axes would report 7 falsely unreachable tokens - natural 3, hard 3, merge 1 - purely because those axes have no rows. The previous wording promised that broader scope while the reported result covered only the two axes actually checked."
+   "why_the_scope_matters": "At revision 9, natural, hard, rename and branch are table-backed. Applying table reachability to all five axes would falsely report exactly one unreachable token, MERGE-INCONCLUSIVE, solely because merge intentionally has no outcome_table. The earlier count of seven applied before natural and hard became table-backed and is historical, not the current mechanical result. The authoritative value is the derived field below, not this sentence."
   },
   "disposition_coverage_rule": {
    "result_at_this_revision": {
