@@ -762,43 +762,45 @@
   "b3_executed": false,
   "findings_applied": [
    {
-    "assessment": "valid; documentation defect, not a selection defect",
-    "fix": "seeds.side_determination now states the rule per class plus a reproduction warning",
+    "assessment": "valid; a dedicated permission flag set to false is ambiguous for a machine reader",
+    "fix": "no_target_replacement_allowed=false -> no_target_replacement_prohibited=true",
     "id": "P1",
-    "targets_changed": false,
-    "title": "Document the forced-side exception before freezing"
+    "title": "Disallow replacement of NO_TARGET pairs"
    },
    {
-    "fix": "rename_capability.all_four_targets_labelled -> all_four_targets_enter_labelling",
-    "id": "P2-a",
-    "title": "Disambiguate classification from completed truth labelling"
-   },
-   {
-    "fix": "branch_capability.outcome_table preregisters >=3 branches inside one pair as BRANCH-INCONCLUSIVE",
-    "id": "P2-b",
-    "title": "Cover the single-pair branch outcome"
-   },
-   {
-    "fix": "primary_holdout.b2_coverage_loss_disposition caps the natural axis at INCONCLUSIVE above 10pp",
-    "id": "P2-c",
-    "title": "Freeze the disposition for excessive B2 coverage loss"
-   },
-   {
-    "fix": "all composite examples now carry all five axes",
-    "id": "P2-d",
-    "title": "Include every verdict axis in composite examples"
+    "assessment": "fixing only the flagged field would have left two identical ambiguities, one of them in the same object. Corrected for consistency, not scope creep.",
+    "fix": [
+     "pair_selection_may_be_modified=false -> pair_selection_modification_prohibited=true",
+     "merge_detector_may_be_added=false -> merge_detector_addition_prohibited=true"
+    ],
+    "id": "self-found",
+    "title": "the same permission-shaped pattern occurred twice more"
    }
   ],
   "frozen_targets_unchanged": true,
-  "reason": "five findings from the external Codex review on that exact head",
-  "revision": 2,
-  "supersedes_commit": "cde73560f029235959b7775a8466fca059c3f34e",
-  "supersedes_sha256": "b22cb93d7ea1dc2392a318796abc3cfbf67615c300de40dc124f1039b0471d82",
+  "history": [
+   {
+    "commit": "cde73560f029235959b7775a8466fca059c3f34e",
+    "revision": 1,
+    "sha256": "b22cb93d7ea1dc2392a318796abc3cfbf67615c300de40dc124f1039b0471d82"
+   },
+   {
+    "commit": "9c0a8618f131e1bf0362d80538bb2af41f2d2c9a",
+    "reason": "five external review findings on revision 1",
+    "revision": 2,
+    "sha256": "df0e9f8d7cac50b969ac5d53003885d2ad3d8c05584d011b9e0bcef09ef2c043"
+   }
+  ],
+  "reason": "one external review finding on revision 2: permission-shaped booleans are ambiguous",
+  "revision": 3,
+  "supersedes_commit": "9c0a8618f131e1bf0362d80538bb2af41f2d2c9a",
+  "supersedes_sha256": "df0e9f8d7cac50b969ac5d53003885d2ad3d8c05584d011b9e0bcef09ef2c043",
+  "targets_sampling_truth_or_b3_surface_touched": false,
   "truth_labels_created": false
  },
  "merge_capability": {
   "ceiling": "MERGE-INCONCLUSIVE",
-  "merge_detector_may_be_added": false,
+  "merge_detector_addition_prohibited": true,
   "merged_symbols": "UNAVAILABLE by preregistration",
   "note": "fixed for this experiment; not a defect to be repaired before the benchmark"
  },
@@ -877,6 +879,7 @@
   }
  },
  "sample": {
+  "boolean_naming_rule": "every constraint in this manifest is stated as a prohibition that is true, never as a permission that is false. A reader never has to decide what a false permission means.",
   "no_target": {
    "copy": [
     {
@@ -1031,11 +1034,11 @@
      "b_sha": "f4951cff971483469ae388eab0266e647cb87f6f"
     }
    ],
-   "status": "NO_TARGET entries remain in the frame as evidence of sample sparsity. They are NOT truth groups, they are never replaced, and no pair is substituted for them."
+   "status": "NO_TARGET entries remain in the frame as evidence of sample sparsity. They are NOT truth groups. Replacing them is prohibited, and no pair may be substituted for them: see sample.no_target_replacement_prohibited."
   },
-  "no_target_replacement_allowed": false,
+  "no_target_replacement_prohibited": true,
   "pair_selection_frozen": true,
-  "pair_selection_may_be_modified": false,
+  "pair_selection_modification_prohibited": true,
   "selected_pairs": {
    "copy": 25,
    "natural": 50,
