@@ -797,24 +797,31 @@
   "b3_executed": false,
   "findings_applied": [
    {
-    "assessment": "valid. Endpoint sets were required only for branched 1:N and merged N:1, yet the rename axis scores resolution to the exact counterpart and natural precision must separate a correct continuation from one to a neighbouring similar finding. With two candidates on the far side the question was undecidable after the freeze.",
+    "assessment": "valid. Two rows sharing every preimage field collapse to one endpoint_id, so a branch over two physically present findings could present a one-element set and break the >= 2 cardinality the contract promises.",
     "fix": [
-     "endpoint_contract covers every vocabulary entry with an explicit cardinality",
-     "endpoint identity is a frozen hash, computed by the builder, never free text",
-     "ended and new carry a structurally empty opposite-side set so the scorer has one contract instead of per-verdict guesses"
+     "endpoint_id is minted only when the canonical preimage occurs exactly once",
+     "otherwise unavailable, with limitation endpoint-id-unavailable:ambiguous-canonical-identity",
+     "ordinal and result-index tiebreakers are PROHIBITED",
+     "a resolved relation needing an unavailable endpoint is unadjudicable, but ended/new with a structurally empty set remain adjudicable"
     ],
-    "id": "P1-a",
-    "title": "continued 1:1 carried no counterpart endpoint"
+    "id": "P1",
+    "measured": "zero ambiguous preimages across 271 snapshots and 76253 findings of the frozen sample; the rule is preventive",
+    "title": "endpoint identity was not injective where cardinality is promised"
    },
    {
-    "assessment": "valid and not hypothetical. evidence_cards_contain listed 'raw finding' while labelers_must_not_see forbids rule ids, and the canonical normalized finding carries rule, category, category_name, pattern_id and occurrence_id. Confirmed against a real normalized snapshot.",
+    "assessment": "valid. start_line and start_column live inside physical_anchor, while `line` exists at the top level, so the builder could still decide after the freeze what the names meant. Confirmed against a real normalized snapshot.",
     "fix": [
-     "an explicit allowlist replaces the raw finding",
-     "forbidden fields are enumerated, and the rule ids / `rule` naming gap is stated",
-     "tool is excluded because a single producer makes it constant"
+     "explicit leaf-level source-to-output mappings",
+     "outputs are path, line, column, message; line and column come from physical_anchor",
+     "no output named start_line or start_column, and physical_anchor is never taken whole"
     ],
-    "id": "P1-b",
-    "title": "the evidence card leaked forbidden fields"
+    "id": "P2",
+    "raised_by": [
+     "Codex",
+     "CodeRabbit"
+    ],
+    "raised_independently": true,
+    "title": "projection named fields that do not exist at that level"
    }
   ],
   "frozen_targets_unchanged": true,
@@ -877,25 +884,28 @@
     "reason": "cached derived value removed, not managed",
     "revision": 10,
     "sha256": "08f266e927d733ac177a6b5592da6cab4db51df8b82467e0bacc3b7f6b342758"
+   },
+   {
+    "commit": "e418ec72076605e8c735c8971c7eff6228b34ae6",
+    "reason": "truth endpoints and evidence-card allowlist",
+    "revision": 11,
+    "sha256": "858d80beeeb82619a0adc2fb29c505d1c03831cea2344541b576a7bb0139ee3e"
    }
   ],
-  "reason": "two external review findings on revision 10, both substantive truth-protocol defects",
-  "revision": 11,
-  "supersedes_commit": "b10d48b231de80fa4a5deeb636174a555188a74b",
-  "supersedes_sha256": "08f266e927d733ac177a6b5592da6cab4db51df8b82467e0bacc3b7f6b342758",
+  "reason": "two external review findings on revision 11; the projection defect was raised independently by both reviewers",
+  "revision": 12,
+  "supersedes_commit": "e418ec72076605e8c735c8971c7eff6228b34ae6",
+  "supersedes_sha256": "858d80beeeb82619a0adc2fb29c505d1c03831cea2344541b576a7bb0139ee3e",
   "truth_labels_created": false,
-  "truth_protocol_changed_on_purpose": "this revision edits truth_protocol, which earlier revisions asserted unchanged. Both findings are defects in the truth representation itself, so it is the correct thing to change. label_vocabulary is unchanged.",
   "what_this_revision_did_not_touch": [
    "frozen_targets",
    "seeds",
    "verdict_taxonomy.axes",
    "axis_disposition",
-   "consistency_rule.scope",
    "all four outcome tables",
    "truth_protocol.label_vocabulary",
-   "labels_per_target",
-   "labelers_must_not_see",
-   "ai_agreement_is_not_truth"
+   "endpoint_contract.by_outcome",
+   "labelers_must_not_see"
   ]
  },
  "merge_capability": {
@@ -1341,16 +1351,27 @@
   "ai_agreement_is_not_truth": "two agreeing agents produce PROPOSED truth only; the final truth artifact requires human/owner adjudication and sign-off",
   "construction_time_guarantees": {
    "checks": [
-    "labeler_finding_projection.allowlist and forbidden_finding_fields are disjoint",
-    "every label_vocabulary entry has an endpoint_contract.by_outcome entry",
-    "every resolved outcome declares an endpoint cardinality"
+    "every projection source path exists in normalized-findings/v2",
+    "projection output names are unique",
+    "no projection source path is a forbidden field or lies beneath a forbidden object",
+    "endpoint canonical-preimage multiplicity: unique mints an id, >1 yields unavailable, never ordinal-disambiguated",
+    "every exact endpoint stored in truth has an available endpoint_id",
+    "every label_vocabulary entry has an endpoint_contract entry with a cardinality"
    ],
    "not_repository_enforced": "RH-M0 commits the manifest and its checksum only; see verdict_taxonomy.verification_status",
    "result_at_revision_construction": {
-    "allowlist_forbidden_overlap": 0,
-    "endpoint_contract_entries_outside_vocabulary": 0,
-    "resolved_outcomes_without_cardinality": 0,
-    "vocabulary_entries_without_endpoint_contract": 0
+    "checks_4_and_5_are_builder_obligations": "they constrain the truth-artifact builder, which does not exist yet; only their preconditions could be measured here",
+    "duplicate_projection_outputs": 0,
+    "endpoint_preimage_multiplicity": {
+     "findings_examined": 76253,
+     "interpretation": "no ambiguous preimage occurs anywhere in the frozen sample. The rule is therefore preventive rather than corrective: the normalizer does not guarantee deduplication, so the refusal must be specified before truth exists, not discovered afterwards.",
+     "preimages_occurring_more_than_once": 0,
+     "rows_in_such_groups": 0,
+     "snapshots_examined": 271
+    },
+    "projection_sources_forbidden": 0,
+    "projection_sources_missing_from_schema": 0,
+    "schema_probe": "checked against a real normalized snapshot from the coverage probe, not against the schema text"
    },
    "verified_during_revision_construction": true
   },
@@ -1393,11 +1414,22 @@
     }
    },
    "endpoint_identity": {
+    "ambiguous_preimage": {
+     "endpoint_id": "unavailable",
+     "limitation": "endpoint-id-unavailable:ambiguous-canonical-identity",
+     "why": "two rows sharing every preimage field are indistinguishable under this identity. The normalizer is not obliged to deduplicate SARIF rows, so this is reachable."
+    },
     "computed_by": "the truth-artifact builder, from the normalized snapshot of the named revision. Labelers never compute it and never see its preimage.",
+    "consistency_with_occurrence_contract": "this is the same fail-closed doctrine already frozen for occurrence identity: an ambiguous anchor yields a refusal, not a guess",
     "digest": "sha256, lowercase hex",
     "form": "endpoint_id, a hash over the canonical identity of one normalized finding",
     "free_text_prohibited": "an endpoint is never recorded as prose such as 'the finding one line below'. A natural-language foreign key cannot be scored.",
     "how_labelers_designate_endpoints": "by the candidate index printed on the evidence card. The builder resolves an index to its endpoint_id. This keeps rule and message-identity machinery out of the labeler's view while still producing a machine-comparable record.",
+    "minting_rule": "an endpoint_id MAY be minted for a finding if and only if its canonical preimage occurs exactly once in that snapshot",
+    "ordinal_tiebreaker": {
+     "status": "PROHIBITED",
+     "why": "disambiguating by SARIF result index or by position in the snapshot would reintroduce exactly the artificial identity the occurrence contract already refused. When physical identity is ambiguous we decline to mint one; we do not invent one."
+    },
     "preimage": [
      "rh-m0-endpoint/v1",
      "<truth_seed>",
@@ -1409,9 +1441,17 @@
      "<start_line>",
      "<start_column>"
     ],
-    "serialisation": "json.dumps(array, ensure_ascii=False, separators=(\",\",\":\")).encode(\"utf-8\")"
+    "serialisation": "json.dumps(array, ensure_ascii=False, separators=(\",\",\":\")).encode(\"utf-8\")",
+    "uniqueness_key": "the exact canonical endpoint preimage listed above",
+    "uniqueness_scope": "the entire normalized snapshot of the named revision"
    },
    "scorer_consequence": "a B3 relation is correct only if its endpoint set equals the truth endpoint set exactly, by endpoint_id. Cardinality mismatch is a silent cardinality loss or an invented endpoint, both already defined as unsafe relation errors.",
+   "unavailable_endpoint_semantics": {
+    "not_a_blanket_rule": "the presence of an ambiguous preimage anywhere does NOT by itself make a target unadjudicable. If the truth is genuinely `ended` or `new`, the structurally empty opposite-side set remains representable and the target is adjudicated normally.",
+    "outcome": "the final truth for that relation is `unadjudicable`, unless a different outcome that does not require the ambiguous endpoint is adjudicated",
+    "rule": "a resolved truth relation that would require an endpoint whose endpoint_id is unavailable MUST NOT be materialized as continued 1:1, branched 1:N or merged N:1",
+    "why": "refusing only where an exact resolved relation needs an indistinguishable endpoint keeps the refusal proportional to the actual ambiguity"
+   },
    "why": "a truth label states what happened. Without endpoints it does not state with whom, and with two plausible candidates on the far side nobody can decide after the freeze whether a resolution was a true positive or a false continuation to a neighbouring finding.",
    "why_ended_and_new_carry_an_empty_set": "natural outcome row 1 fails on a fabricated new/ended where truth has a counterpart. If the truth artifact states an EMPTY opposite-side set structurally, the scorer applies one endpoint contract instead of guessing per verdict what absence was supposed to mean."
   },
@@ -1434,12 +1474,23 @@
   "labeler_a": "blind to B3",
   "labeler_b": "blind to B3 and to labeler A",
   "labeler_finding_projection": {
-   "allowlist": [
-    "path",
-    "line",
-    "start_line",
-    "start_column",
-    "message"
+   "fields": [
+    {
+     "output": "path",
+     "source": "path"
+    },
+    {
+     "output": "line",
+     "source": "physical_anchor.start_line"
+    },
+    {
+     "output": "column",
+     "source": "physical_anchor.start_column"
+    },
+    {
+     "output": "message",
+     "source": "message"
+    }
    ],
    "forbidden_finding_fields": [
     "rule",
@@ -1452,7 +1503,10 @@
     "suppressed",
     "suppress_reason"
    ],
+   "leaf_level_only": "sources are leaf paths. physical_anchor is never admitted as a whole object: an allowlist that hands over a container is an allowlist that has stopped deciding anything.",
+   "one_coordinate_per_name": "the card exposes line and column, each sourced from physical_anchor, which is where the coordinates that also feed endpoint identity live. The top-level `line` field is deliberately not used, and no output is named start_line or start_column, so no name maps to two possible sources.",
    "principle": "an allowlist, never a subtraction. 'raw finding minus rule' would silently start carrying whatever field the normalizer gains next.",
+   "source_schema": "normalized-findings/v2",
    "structures_not_part_of_the_projection": [
     "B3 output",
     "baseline output",
@@ -1462,6 +1516,16 @@
     "outcomes"
    ],
    "supersedes": "evidence_cards_contain previously listed 'raw finding', which contradicts labelers_must_not_see: the canonical normalized finding carries rule, category, category_name, pattern_id and occurrence_id.",
+   "supersedes_allowlist": {
+    "defect": "start_line and start_column do not exist at the top level of a normalized finding; they live inside physical_anchor, while `line` does exist at the top level. The builder was therefore free to decide after the freeze what those two names referred to.",
+    "previous": [
+     "path",
+     "line",
+     "start_line",
+     "start_column",
+     "message"
+    ]
+   },
    "tool_excluded": "one producer is used for the whole experiment, so tool is constant and carries no information for adjudication. It is excluded rather than admitted by habit.",
    "vocabulary_mapping": "'rule ids' in labelers_must_not_see corresponds to the `rule` field of the normalized finding schema. The names differ, so the correspondence is stated rather than assumed."
   },
